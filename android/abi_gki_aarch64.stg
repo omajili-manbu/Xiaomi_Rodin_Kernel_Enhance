@@ -385079,7 +385079,7 @@ elf_symbol {
   name: "kthread_stop_put"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x4eb0b74f
+  crc: 0x79a61e3a
   type_id: 0x9ac6895a
   full_name: "kthread_stop_put"
 }
