@@ -42696,6 +42696,10 @@ member {
   type_id: 0x14b5803d
 }
 member {
+  id: 0x27000c61
+  type_id: 0x132e4197
+}
+member {
   id: 0x27031642
   type_id: 0x13222919
 }
@@ -43861,6 +43865,10 @@ member {
   offset: 840
 }
 member {
+  id: 0x36752b74
+  type_id: 0x56faddc1
+}
+member {
   id: 0x3697c72f
   type_id: 0x55715975
   offset: 1088
@@ -44242,6 +44250,11 @@ member {
   id: 0x3bb33d1d
   type_id: 0x61e297e1
   offset: 64
+}
+member {
+  id: 0x3bc271e6
+  type_id: 0x60278e83
+  offset: 2112
 }
 member {
   id: 0x3bc43305
@@ -50839,12 +50852,6 @@ member {
   name: "android_kabi_reserved1"
   type_id: 0x92233392
   offset: 10560
-}
-member {
-  id: 0x2d081b70
-  name: "android_kabi_reserved1"
-  type_id: 0x92233392
-  offset: 2112
 }
 member {
   id: 0x2d081ba3
@@ -121022,6 +121029,11 @@ member {
   name: "ldisc"
   type_id: 0x19341e7e
   offset: 320
+}
+member {
+  id: 0xdb527b72
+  name: "ldisc_ok"
+  type_id: 0x2f78c9b9
 }
 member {
   id: 0xbb8e90e5
@@ -217999,6 +218011,14 @@ struct_union {
   }
 }
 struct_union {
+  id: 0x132e4197
+  kind: STRUCT
+  definition {
+    bytesize: 8
+    member_id: 0x2d081532
+  }
+}
+struct_union {
   id: 0x132f610b
   kind: STRUCT
   definition {
@@ -223300,6 +223320,16 @@ struct_union {
     bytesize: 8
     member_id: 0x24c02d11
     member_id: 0xc087b526
+  }
+}
+struct_union {
+  id: 0x60278e83
+  kind: UNION
+  definition {
+    bytesize: 8
+    member_id: 0xdb527b72
+    member_id: 0x27000c61
+    member_id: 0x36752b74
   }
 }
 struct_union {
@@ -273788,7 +273818,7 @@ struct_union {
     member_id: 0xd99430da
     member_id: 0x3d8e0610
     member_id: 0x3ba75864
-    member_id: 0x2d081b70
+    member_id: 0x3bc271e6
     member_id: 0x63760c3d
   }
 }
