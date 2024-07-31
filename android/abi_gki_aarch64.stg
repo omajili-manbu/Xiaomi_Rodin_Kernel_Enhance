@@ -169,6 +169,11 @@ pointer_reference {
   pointee_type_id: 0x28500c3f
 }
 pointer_reference {
+  id: 0x00870b55
+  kind: POINTER
+  pointee_type_id: 0x285ccbca
+}
+pointer_reference {
   id: 0x00878020
   kind: POINTER
   pointee_type_id: 0x285ee61e
@@ -176337,6 +176342,12 @@ member {
   offset: 832
 }
 member {
+  id: 0xa361a9ef
+  name: "set_freq_scale"
+  type_id: 0x0eb62dc3
+  offset: 64
+}
+member {
   id: 0xd3fd73af
   name: "set_gain"
   type_id: 0x0f234ce1
@@ -181991,6 +182002,11 @@ member {
   id: 0xd7325976
   name: "source"
   type_id: 0x1cc6bdca
+}
+member {
+  id: 0xd7cf17f8
+  name: "source"
+  type_id: 0xe1883390
 }
 member {
   id: 0xd7ed87d5
@@ -256456,6 +256472,16 @@ struct_union {
   }
 }
 struct_union {
+  id: 0x285ccbca
+  kind: STRUCT
+  name: "scale_freq_data"
+  definition {
+    bytesize: 16
+    member_id: 0xd7cf17f8
+    member_id: 0xa361a9ef
+  }
+}
+struct_union {
   id: 0xc440583a
   kind: STRUCT
   name: "scatter_walk"
@@ -293919,6 +293945,12 @@ function {
   id: 0x107b2810
   return_type_id: 0x48b5725f
   parameter_id: 0x038de60c
+}
+function {
+  id: 0x107da846
+  return_type_id: 0x48b5725f
+  parameter_id: 0x00870b55
+  parameter_id: 0x310ec01d
 }
 function {
   id: 0x107e76aa
@@ -358495,6 +358527,16 @@ elf_symbol {
   full_name: "cpufreq_get_driver_data"
 }
 elf_symbol {
+  id: 0xd0ad4139
+  name: "cpufreq_get_hw_max_freq"
+  is_defined: true
+  symbol_type: FUNCTION
+  binding: WEAK
+  crc: 0x4462d35e
+  type_id: 0xdfba2774
+  full_name: "cpufreq_get_hw_max_freq"
+}
+elf_symbol {
   id: 0xee97aa9a
   name: "cpufreq_get_policy"
   is_defined: true
@@ -401177,6 +401219,15 @@ elf_symbol {
   full_name: "topology_clear_scale_freq_source"
 }
 elf_symbol {
+  id: 0x45879884
+  name: "topology_set_scale_freq_source"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xf79c6c4d
+  type_id: 0x107da846
+  full_name: "topology_set_scale_freq_source"
+}
+elf_symbol {
   id: 0xd3e5c9bd
   name: "topology_update_done"
   is_defined: true
@@ -412147,6 +412198,7 @@ interface {
   symbol_id: 0xff000a81
   symbol_id: 0xc4e41b54
   symbol_id: 0x993bc120
+  symbol_id: 0xd0ad4139
   symbol_id: 0xee97aa9a
   symbol_id: 0xe3c0c0b8
   symbol_id: 0xf45e469e
@@ -416880,6 +416932,7 @@ interface {
   symbol_id: 0x3934d205
   symbol_id: 0xaed64d9d
   symbol_id: 0x18c0f285
+  symbol_id: 0x45879884
   symbol_id: 0xd3e5c9bd
   symbol_id: 0x96be8568
   symbol_id: 0xec13d355
