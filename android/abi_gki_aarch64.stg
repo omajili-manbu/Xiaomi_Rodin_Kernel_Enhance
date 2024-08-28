@@ -340516,6 +340516,11 @@ function {
   parameter_id: 0x92233392
 }
 function {
+  id: 0xa3813acf
+  return_type_id: 0x3e10b518
+  parameter_id: 0xc714b5b1
+}
+function {
   id: 0xa395744b
   return_type_id: 0x35d510c3
   parameter_id: 0x347303b4
@@ -405102,6 +405107,15 @@ elf_symbol {
   full_name: "snd_pcm_format_linear"
 }
 elf_symbol {
+  id: 0xf76bb227
+  name: "snd_pcm_format_name"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xa286a234
+  type_id: 0xa3813acf
+  full_name: "snd_pcm_format_name"
+}
+elf_symbol {
   id: 0xcd9887e8
   name: "snd_pcm_format_physical_width"
   is_defined: true
@@ -425420,6 +425434,7 @@ interface {
   symbol_id: 0xbfd5ebac
   symbol_id: 0x68c67cd0
   symbol_id: 0xc10b3ddb
+  symbol_id: 0xf76bb227
   symbol_id: 0xcd9887e8
   symbol_id: 0xb132031d
   symbol_id: 0x9ebdc6d8
