@@ -42572,6 +42572,11 @@ member {
   offset: 64
 }
 member {
+  id: 0x3bc271e6
+  type_id: 0x60278e83
+  offset: 2112
+}
+member {
   id: 0x3bc43305
   type_id: 0x603e99d0
   offset: 2368
@@ -49155,12 +49160,6 @@ member {
   name: "android_kabi_reserved1"
   type_id: 0x92233392
   offset: 10560
-}
-member {
-  id: 0x2d081b70
-  name: "android_kabi_reserved1"
-  type_id: 0x92233392
-  offset: 2112
 }
 member {
   id: 0x2d081ba3
@@ -118975,6 +118974,11 @@ member {
   name: "ldisc"
   type_id: 0x19341e7e
   offset: 320
+}
+member {
+  id: 0xdb527b72
+  name: "ldisc_ok"
+  type_id: 0x2f78c9b9
 }
 member {
   id: 0xbb8e90e5
@@ -221276,6 +221280,16 @@ struct_union {
   }
 }
 struct_union {
+  id: 0x60278e83
+  kind: UNION
+  definition {
+    bytesize: 8
+    member_id: 0xdb527b72
+    member_id: 0x27000c61
+    member_id: 0x36752b74
+  }
+}
+struct_union {
   id: 0x603e99d0
   kind: UNION
   definition {
@@ -269581,7 +269595,7 @@ struct_union {
     member_id: 0xd99430da
     member_id: 0x3d8e0610
     member_id: 0x3ba75864
-    member_id: 0x2d081b70
+    member_id: 0x3bc271e6
     member_id: 0x63760c3d
   }
 }
@@ -387520,6 +387534,15 @@ elf_symbol {
   full_name: "kthread_stop"
 }
 elf_symbol {
+  id: 0x0d245bfe
+  name: "kthread_stop_put"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x79a61e3a
+  type_id: 0x9ac6895a
+  full_name: "kthread_stop_put"
+}
+elf_symbol {
   id: 0x52e60edd
   name: "kthread_unpark"
   is_defined: true
@@ -423404,6 +423427,7 @@ interface {
   symbol_id: 0xeb6e491f
   symbol_id: 0xf902c37c
   symbol_id: 0x9a04e3d3
+  symbol_id: 0x0d245bfe
   symbol_id: 0x52e60edd
   symbol_id: 0xc6d4a959
   symbol_id: 0x95d94296
