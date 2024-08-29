@@ -398783,6 +398783,15 @@ elf_symbol {
   full_name: "pwm_adjust_config"
 }
 elf_symbol {
+  id: 0xcd51319b
+  name: "pwm_apply_might_sleep"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x7182b4a9
+  type_id: 0x977feed8
+  full_name: "pwm_apply_might_sleep"
+}
+elf_symbol {
   id: 0x53ee2234
   name: "pwm_apply_state"
   is_defined: true
@@ -425181,6 +425190,7 @@ interface {
   symbol_id: 0x8dafa617
   symbol_id: 0x6d6f722d
   symbol_id: 0x5ae13553
+  symbol_id: 0xcd51319b
   symbol_id: 0x53ee2234
   symbol_id: 0x9a5fd229
   symbol_id: 0x97ae9712
