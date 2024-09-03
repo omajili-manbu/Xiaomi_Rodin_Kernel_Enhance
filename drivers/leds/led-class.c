@@ -25,8 +25,6 @@
 static DEFINE_MUTEX(leds_lookup_lock);
 static LIST_HEAD(leds_lookup_list);
 
-static struct workqueue_struct *leds_wq;
-
 static ssize_t brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -551,8 +549,6 @@ int led_classdev_register_ext(struct device *parent,
 		led_cdev->max_brightness = LED_FULL;
 
 	led_update_brightness(led_cdev);
-
-	led_cdev->wq = leds_wq;
 
 	led_init_core(led_cdev);
 
