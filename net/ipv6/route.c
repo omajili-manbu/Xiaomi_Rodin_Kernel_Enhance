@@ -968,7 +968,6 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	struct net *net = dev_net(dev);
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
-	struct fib6_table *table;
 	unsigned int pref;
 	unsigned long lifetime;
 	struct fib6_info *rt;
@@ -1027,18 +1026,10 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 				 (rt->fib6_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
 
 	if (rt) {
-		table = rt->fib6_table;
-		spin_lock_bh(&table->tb6_lock);
-
-		if (!addrconf_finite_timeout(lifetime)) {
+		if (!addrconf_finite_timeout(lifetime))
 			fib6_clean_expires(rt);
-			fib6_remove_gc_list(rt);
-		} else {
+		else
 			fib6_set_expires(rt, jiffies + HZ * lifetime);
-			fib6_add_gc_list(rt);
-		}
-
-		spin_unlock_bh(&table->tb6_lock);
 
 		fib6_info_release(rt);
 	}

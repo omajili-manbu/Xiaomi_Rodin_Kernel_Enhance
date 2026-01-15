@@ -1272,7 +1272,6 @@ static void
 cleanup_prefix_route(struct inet6_ifaddr *ifp, unsigned long expires,
 		     bool del_rt, bool del_peer)
 {
-	struct fib6_table *table;
 	struct fib6_info *f6i;
 
 	f6i = addrconf_get_prefix_route(del_peer ? &ifp->peer_addr : &ifp->addr,
@@ -1282,15 +1281,8 @@ cleanup_prefix_route(struct inet6_ifaddr *ifp, unsigned long expires,
 		if (del_rt)
 			ip6_del_rt(dev_net(ifp->idev->dev), f6i, false);
 		else {
-			if (!(f6i->fib6_flags & RTF_EXPIRES)) {
-				table = f6i->fib6_table;
-				spin_lock_bh(&table->tb6_lock);
-
+			if (!(f6i->fib6_flags & RTF_EXPIRES))
 				fib6_set_expires(f6i, expires);
-				fib6_add_gc_list(f6i);
-
-				spin_unlock_bh(&table->tb6_lock);
-			}
 			fib6_info_release(f6i);
 		}
 	}
@@ -2768,7 +2760,6 @@ EXPORT_SYMBOL_GPL(addrconf_prefix_rcv_add_addr);
 void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 {
 	struct prefix_info *pinfo;
-	struct fib6_table *table;
 	__u32 valid_lft;
 	__u32 prefered_lft;
 	int addr_type, err;
@@ -2846,20 +2837,11 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 			if (valid_lft == 0) {
 				ip6_del_rt(net, rt, false);
 				rt = NULL;
+			} else if (addrconf_finite_timeout(rt_expires)) {
+				/* not infinity */
+				fib6_set_expires(rt, jiffies + rt_expires);
 			} else {
-				table = rt->fib6_table;
-				spin_lock_bh(&table->tb6_lock);
-
-				if (addrconf_finite_timeout(rt_expires)) {
-					/* not infinity */
-					fib6_set_expires(rt, jiffies + rt_expires);
-					fib6_add_gc_list(rt);
-				} else {
-					fib6_clean_expires(rt);
-					fib6_remove_gc_list(rt);
-				}
-
-				spin_unlock_bh(&table->tb6_lock);
+				fib6_clean_expires(rt);
 			}
 		} else if (valid_lft) {
 			clock_t expires = 0;
@@ -4814,7 +4796,6 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 			       unsigned long expires, u32 flags,
 			       bool modify_peer)
 {
-	struct fib6_table *table;
 	struct fib6_info *f6i;
 	u32 prio;
 
@@ -4835,18 +4816,10 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 				      ifp->rt_priority, ifp->idev->dev,
 				      expires, flags, GFP_KERNEL);
 	} else {
-		table = f6i->fib6_table;
-		spin_lock_bh(&table->tb6_lock);
-
-		if (!expires) {
+		if (!expires)
 			fib6_clean_expires(f6i);
-			fib6_remove_gc_list(f6i);
-		} else {
+		else
 			fib6_set_expires(f6i, expires);
-			fib6_add_gc_list(f6i);
-		}
-
-		spin_unlock_bh(&table->tb6_lock);
 
 		fib6_info_release(f6i);
 	}
