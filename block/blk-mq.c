@@ -32,7 +32,9 @@
 #include <linux/prefetch.h>
 #include <linux/blk-crypto.h>
 #include <linux/part_stat.h>
+#ifndef __GENKSYMS__
 #include <linux/sched/isolation.h>
+#endif
 
 #include <trace/events/block.h>
 #include <trace/hooks/blk.h>
