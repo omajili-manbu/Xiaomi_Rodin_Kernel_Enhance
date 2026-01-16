@@ -449,6 +449,9 @@ DECLARE_HOOK(android_vh_page_cache_ra_unbounded,
 DECLARE_HOOK(android_vh_force_page_cache_ra,
 	TP_PROTO(struct address_space *mapping, u64 *data),
 	TP_ARGS(mapping, data));
+DECLARE_HOOK(android_vh_filemap_fault_post_folio_locked,
+	TP_PROTO(struct inode *inode, struct folio *folio, pgoff_t index),
+	TP_ARGS(inode, folio, index));
 DECLARE_HOOK(android_vh_filemap_fault_folio_locked,
 	TP_PROTO(struct inode *inode, struct folio *folio, pgoff_t index),
 	TP_ARGS(inode, folio, index));
@@ -554,6 +557,9 @@ DECLARE_HOOK(android_vh_do_group_exit,
 DECLARE_HOOK(android_vh_migration_target_bypass,
 	TP_PROTO(struct page *page, bool *bypass),
 	TP_ARGS(page, bypass));
+DECLARE_HOOK(android_vh_oom_evaluate_task_bypass,
+	TP_PROTO(struct task_struct *task, struct oom_control *oc, bool *bypass),
+	TP_ARGS(task, oc, bypass));
 DECLARE_HOOK(android_vh_swap_writepage,
 	TP_PROTO(unsigned long *sis_flags, struct page *page),
 	TP_ARGS(sis_flags, page));
