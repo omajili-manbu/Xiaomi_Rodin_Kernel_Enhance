@@ -338698,6 +338698,16 @@ function {
   parameter_id: 0x13580d6c
 }
 function {
+  id: 0x9a3d5c8e
+  return_type_id: 0x6720d32f
+  parameter_id: 0x18bd6530
+  parameter_id: 0x6720d32f
+  parameter_id: 0x38264f07
+  parameter_id: 0x1d19a9d5
+  parameter_id: 0x6720d32f
+  parameter_id: 0x6720d32f
+}
+function {
   id: 0x9a3e0766
   return_type_id: 0x6720d32f
   parameter_id: 0x18bd6530
@@ -368890,6 +368900,15 @@ elf_symbol {
   full_name: "__traceiter_scsi_dispatch_cmd_start"
 }
 elf_symbol {
+  id: 0x4bc6a64f
+  name: "__traceiter_signal_generate"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xe87d1157
+  type_id: 0x9a3d5c8e
+  full_name: "__traceiter_signal_generate"
+}
+elf_symbol {
   id: 0x8ce8e50d
   name: "__traceiter_sk_data_ready"
   is_defined: true
@@ -376349,6 +376368,15 @@ elf_symbol {
   crc: 0xb7224ab3
   type_id: 0x18ccbd2c
   full_name: "__tracepoint_scsi_dispatch_cmd_start"
+}
+elf_symbol {
+  id: 0x61888c85
+  name: "__tracepoint_signal_generate"
+  is_defined: true
+  symbol_type: OBJECT
+  crc: 0x6a54fe5a
+  type_id: 0x18ccbd2c
+  full_name: "__tracepoint_signal_generate"
 }
 elf_symbol {
   id: 0xf68d6127
@@ -441625,6 +441653,7 @@ interface {
   symbol_id: 0x8fa66546
   symbol_id: 0x20097074
   symbol_id: 0x36d71264
+  symbol_id: 0x4bc6a64f
   symbol_id: 0x8ce8e50d
   symbol_id: 0x62a42e92
   symbol_id: 0xa7ccbbf5
@@ -442454,6 +442483,7 @@ interface {
   symbol_id: 0x97e630b0
   symbol_id: 0xa70e8cd2
   symbol_id: 0x6069ba16
+  symbol_id: 0x61888c85
   symbol_id: 0xf68d6127
   symbol_id: 0x9a65f074
   symbol_id: 0x158cc323
