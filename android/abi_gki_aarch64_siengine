@@ -205,6 +205,7 @@
   _dev_err
   dev_err_probe
   dev_fetch_sw_netstats
+  dev_forward_skb
   devfreq_add_device
   devfreq_cooling_unregister
   devfreq_recommended_opp
@@ -631,6 +632,9 @@
   find_vma
   find_vma_intersection
   finish_wait
+  fl6_merge_options
+  __fl6_sock_lookup
+  fl6_update_dst
   flow_block_cb_setup_simple
   flow_rule_match_basic
   flow_rule_match_ipv4_addrs
@@ -660,9 +664,11 @@
   generic_device_group
   generic_file_llseek
   generic_handle_irq
+  genl_lock
   genlmsg_multicast_allns
   genlmsg_put
   genl_register_family
+  genl_unlock
   genl_unregister_family
   gen_pool_add_owner
   gen_pool_create
@@ -752,7 +758,26 @@
   idr_remove
   import_iovec
   in4_pton
+  inet6_add_protocol
+  inet6_bind
+  inet6_compat_ioctl
+  inet6_del_protocol
+  inet6_ioctl
+  inet6_register_protosw
+  inet6_release
+  inet6_unregister_protosw
+  inet_add_protocol
+  inet_addr_type
+  inet_bind
   inet_csk_get_port
+  inet_del_protocol
+  inet_dgram_connect
+  inet_ioctl
+  inet_register_protosw
+  inet_release
+  inet_sendmsg
+  inet_shutdown
+  inet_unregister_protosw
   init_dummy_netdev
   init_net
   __init_rwsem
@@ -789,6 +814,28 @@
   iov_iter_kvec
   iov_iter_revert
   __iowrite32_copy
+  __ip4_datagram_connect
+  ip6_append_data
+  __ip6_datagram_connect
+  ip6_datagram_recv_ctl
+  ip6_datagram_send_ctl
+  ip6_dst_lookup_flow
+  ip6_flush_pending_frames
+  ip6_push_pending_frames
+  ip6t_alloc_initial_table
+  ip6t_do_table
+  ip6t_register_table
+  ip6t_unregister_table_exit
+  ip_cmsg_recv_offset
+  ip_generic_getfrag
+  ip_getsockopt
+  ip_setsockopt
+  ipv6_chk_addr
+  __ipv6_fixup_options
+  ipv6_flowlabel_exclusive
+  ipv6_getsockopt
+  ipv6_recv_error
+  ipv6_setsockopt
   irq_create_mapping_affinity
   irq_create_of_mapping
   irq_dispose_mapping
@@ -821,6 +868,7 @@
   kernel_kobj
   kernel_param_lock
   kernel_param_unlock
+  kernel_sock_ip_overhead
   kern_path
   key_put
   keyring_alloc
@@ -889,6 +937,30 @@
   kvfree
   kvfree_call_rcu
   kvmalloc_node
+  l2tp_recv_common
+  l2tp_recv_common
+  l2tp_session_create
+  l2tp_session_dec_refcount
+  l2tp_session_delete
+  l2tp_session_get
+  l2tp_session_get
+  l2tp_session_get_by_ifname
+  l2tp_session_get_by_ifname
+  l2tp_session_get_nth
+  l2tp_session_inc_refcount
+  l2tp_session_register
+  l2tp_session_set_header_len
+  l2tp_sk_to_tunnel
+  l2tp_sk_to_tunnel
+  l2tp_tunnel_create
+  l2tp_tunnel_dec_refcount
+  l2tp_tunnel_delete
+  l2tp_tunnel_get
+  l2tp_tunnel_get_nth
+  l2tp_tunnel_get_session
+  l2tp_tunnel_inc_refcount
+  l2tp_tunnel_register
+  l2tp_xmit_skb
   __list_add_valid_or_report
   __list_del_entry_valid_or_report
   __local_bh_enable_ip
@@ -991,6 +1063,18 @@
   netlink_unregister_notifier
   net_ns_type_operations
   net_ratelimit
+  nf_log_buf_add
+  nf_log_buf_close
+  nf_log_buf_open
+  nf_logger_find_get
+  nf_logger_put
+  nf_log_packet
+  nf_log_register
+  nf_log_set
+  nf_log_unregister
+  nf_log_unset
+  nf_nat_ipv6_register_fn
+  nf_nat_ipv6_unregister_fn
   nla_find
   nla_memcpy
   __nla_parse
@@ -1418,6 +1502,7 @@
   skb_csum_hwoffload_help
   skb_dequeue
   skb_ensure_writable
+  __skb_ext_del
   __skb_get_hash
   __skb_gso_segment
   skb_pull
@@ -1429,6 +1514,7 @@
   skb_realloc_headroom
   skb_trim
   skb_tstamp_tx
+  __sk_dst_check
   snd_compr_malloc_pages
   snd_ctl_boolean_mono_info
   snd_ctl_notify_one
@@ -1511,6 +1597,7 @@
   syscon_node_to_regmap
   syscon_regmap_lookup_by_compatible
   syscon_regmap_lookup_by_phandle
+  sysctl_nf_log_all_netns
   sysfs_create_file_ns
   sysfs_create_group
   sysfs_create_groups
@@ -1553,20 +1640,20 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  __traceiter_android_vh_ftrace_oops_exit
-  __traceiter_android_vh_cpufreq_resolve_freq
-  __traceiter_rwmmio_write
-  __traceiter_rwmmio_read
-  __traceiter_android_vh_ftrace_dump_buffer
-  __traceiter_android_vh_ftrace_oops_enter
-  __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_cpufreq_fast_switch
+  __traceiter_android_vh_cpufreq_resolve_freq
   __traceiter_android_vh_cpufreq_target
+  __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
+  __traceiter_android_vh_ftrace_oops_enter
+  __traceiter_android_vh_ftrace_oops_exit
+  __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_ipi_stop
   __traceiter_dwc3_readl
   __traceiter_dwc3_writel
   __traceiter_gpu_mem_total
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
   trace_output_call
   __tracepoint_android_vh_cpufreq_fast_switch
   __tracepoint_android_vh_cpufreq_resolve_freq
@@ -1605,6 +1692,7 @@
   uart_update_timeout
   uart_write_wakeup
   __udelay
+  __udp_disconnect
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
   ufshcd_pltfrm_init
@@ -1777,4 +1865,9 @@
   x509_load_certificate_list
   __xa_alloc
   xa_erase
-  
+  __xfrm_policy_check
+  xt_find_table
+  xt_register_targets
+  xt_register_template
+  xt_unregister_targets
+  xt_unregister_template
