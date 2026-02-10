@@ -383855,6 +383855,15 @@ elf_symbol {
   full_name: "cma_get_name"
 }
 elf_symbol {
+  id: 0x8e3563cc
+  name: "cma_mutex"
+  is_defined: true
+  symbol_type: OBJECT
+  crc: 0x9ba26e0a
+  type_id: 0xa7c362b0
+  full_name: "cma_mutex"
+}
+elf_symbol {
   id: 0xab62b21c
   name: "cma_release"
   is_defined: true
@@ -445704,6 +445713,7 @@ interface {
   symbol_id: 0x83dc639c
   symbol_id: 0x5f9864aa
   symbol_id: 0x966a7c42
+  symbol_id: 0x8e3563cc
   symbol_id: 0xab62b21c
   symbol_id: 0x036561b6
   symbol_id: 0x4f627b39
