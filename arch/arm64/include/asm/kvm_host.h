@@ -496,6 +496,7 @@ struct kvm_host_data {
 	 * These limit registers are intrinsically tied to the physical CPU
 	 * and are synchronously saved/restored at EL2 during world switch.
 	 */
+	u64 pmblimitr_el1;
 	u64 trblimitr_el1;
 };
 
