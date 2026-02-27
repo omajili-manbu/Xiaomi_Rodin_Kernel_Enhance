@@ -491,6 +491,12 @@ struct kvm_cpu_context {
 
 struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
+	/*
+	 * ANDROID: Added outside the KMI boundary.
+	 * These limit registers are intrinsically tied to the physical CPU
+	 * and are synchronously saved/restored at EL2 during world switch.
+	 */
+	u64 trblimitr_el1;
 };
 
 struct kvm_host_psci_config {

@@ -51,13 +51,8 @@ static void __debug_restore_spe(u64 pmscr_el1)
 	write_sysreg_s(pmscr_el1, SYS_PMSCR_EL1);
 }
 
-static void __debug_save_trace(u64 *trfcr_el1)
+static void __debug_save_trace(u64 *trfcr_el1, u64 *trblimitr_el1)
 {
-	*trfcr_el1 = 0;
-
-	/* Check if the TRBE is enabled */
-	if (!(read_sysreg_s(SYS_TRBLIMITR_EL1) & TRBLIMITR_EL1_E))
-		return;
 	/*
 	 * Prohibit trace generation while we are in guest.
 	 * Since access to TRFCR_EL1 is trapped, the guest can't
@@ -65,15 +60,60 @@ static void __debug_save_trace(u64 *trfcr_el1)
 	 */
 	*trfcr_el1 = read_sysreg_s(SYS_TRFCR_EL1);
 	write_sysreg_s(0, SYS_TRFCR_EL1);
-	isb();
-	/* Drain the trace buffer to memory */
-	tsb_csync();
+
+	/* Check if the TRBE is enabled */
+	*trblimitr_el1 = read_sysreg_s(SYS_TRBLIMITR_EL1);
+	if (*trblimitr_el1 & TRBLIMITR_EL1_E) {
+		/*
+		 * The host has enabled the Trace Buffer Unit so we have
+		 * to beat the CPU with a stick until it stops accessing
+		 * memory.
+		 */
+
+		/* First, ensure that our prior write to TRFCR has stuck. */
+		isb();
+
+		/* Now synchronise with the trace and drain the buffer. */
+		tsb_csync();
+		dsb(nsh);
+
+		/*
+		 * With no more trace being generated, we can disable the
+		 * Trace Buffer Unit.
+		 */
+		write_sysreg_s(0, SYS_TRBLIMITR_EL1);
+		if (cpus_have_final_cap(ARM64_WORKAROUND_2064142)) {
+			/*
+			 * Some CPUs are so good, we have to drain 'em
+			 * twice.
+			 */
+			tsb_csync();
+			dsb(nsh);
+		}
+
+		/*
+		 * Ensure that the Trace Buffer Unit is disabled before
+		 * we start mucking with the stage-2 and trap
+		 * configuration.
+		 */
+		isb();
+	}
 }
 
-static void __debug_restore_trace(u64 trfcr_el1)
+static void __debug_restore_trace(u64 trfcr_el1, u64 trblimitr_el1)
 {
-	if (!trfcr_el1)
-		return;
+	if (trblimitr_el1 & TRBLIMITR_EL1_E) {
+		/* Re-enable the Trace Buffer Unit for the host. */
+		write_sysreg_s(trblimitr_el1, SYS_TRBLIMITR_EL1);
+		isb();
+		if (cpus_have_final_cap(ARM64_WORKAROUND_2038923)) {
+			/*
+			 * Make sure the unit is re-enabled before we
+			 * poke TRFCR.
+			 */
+			isb();
+		}
+	}
 
 	/* Restore trace filter controls */
 	write_sysreg_s(trfcr_el1, SYS_TRFCR_EL1);
@@ -81,12 +121,15 @@ static void __debug_restore_trace(u64 trfcr_el1)
 
 void __debug_save_host_buffers_nvhe(struct kvm_vcpu *vcpu)
 {
+	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
+
 	/* Disable and flush SPE data generation */
 	if (vcpu_get_flag(vcpu, DEBUG_STATE_SAVE_SPE))
 		__debug_save_spe(&vcpu->arch.host_debug_state.pmscr_el1);
 	/* Disable and flush Self-Hosted Trace generation */
 	if (vcpu_get_flag(vcpu, DEBUG_STATE_SAVE_TRBE))
-		__debug_save_trace(&vcpu->arch.host_debug_state.trfcr_el1);
+		__debug_save_trace(&vcpu->arch.host_debug_state.trfcr_el1,
+		                   &host_data->trblimitr_el1);
 }
 
 void __debug_switch_to_guest(struct kvm_vcpu *vcpu)
@@ -96,10 +139,13 @@ void __debug_switch_to_guest(struct kvm_vcpu *vcpu)
 
 void __debug_restore_host_buffers_nvhe(struct kvm_vcpu *vcpu)
 {
+	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
+
 	if (vcpu_get_flag(vcpu, DEBUG_STATE_SAVE_SPE))
 		__debug_restore_spe(vcpu->arch.host_debug_state.pmscr_el1);
 	if (vcpu_get_flag(vcpu, DEBUG_STATE_SAVE_TRBE))
-		__debug_restore_trace(vcpu->arch.host_debug_state.trfcr_el1);
+		__debug_restore_trace(vcpu->arch.host_debug_state.trfcr_el1,
+		                      host_data->trblimitr_el1);
 }
 
 void __debug_switch_to_host(struct kvm_vcpu *vcpu)
