@@ -226,15 +226,19 @@ static inline void icmp_xmit_unlock(struct sock *sk)
 int sysctl_icmp_msgs_per_sec __read_mostly = 1000;
 int sysctl_icmp_msgs_burst __read_mostly = 50;
 
+static struct {
+	atomic_t	credit;
+	u32		stamp;
+} icmp_global;
+
 /**
  * icmp_global_allow - Are we allowed to send one more ICMP message ?
- * @net: network namespace
  *
  * Uses a token bucket to limit our ICMP messages to ~sysctl_icmp_msgs_per_sec.
  * Returns false if we reached the limit and can not send another packet.
  * Works in tandem with icmp_global_consume().
  */
-bool icmp_global_allow(struct net *net)
+bool icmp_global_allow(void)
 {
 	u32 delta, now, oldstamp;
 	int incr, new, old;
@@ -243,11 +247,11 @@ bool icmp_global_allow(struct net *net)
 	 * Then later icmp_global_consume() could consume more credits,
 	 * this is an acceptable race.
 	 */
-	if (atomic_read(&net->ipv4.icmp_global_credit) > 0)
+	if (atomic_read(&icmp_global.credit) > 0)
 		return true;
 
 	now = jiffies;
-	oldstamp = READ_ONCE(net->ipv4.icmp_global_stamp);
+	oldstamp = READ_ONCE(icmp_global.stamp);
 	delta = min_t(u32, now - oldstamp, HZ);
 	if (delta < HZ / 50)
 		return false;
@@ -256,23 +260,23 @@ bool icmp_global_allow(struct net *net)
 	if (!incr)
 		return false;
 
-	if (cmpxchg(&net->ipv4.icmp_global_stamp, oldstamp, now) == oldstamp) {
-		old = atomic_read(&net->ipv4.icmp_global_credit);
+	if (cmpxchg(&icmp_global.stamp, oldstamp, now) == oldstamp) {
+		old = atomic_read(&icmp_global.credit);
 		do {
 			new = min(old + incr, READ_ONCE(sysctl_icmp_msgs_burst));
-		} while (!atomic_try_cmpxchg(&net->ipv4.icmp_global_credit, &old, new));
+		} while (!atomic_try_cmpxchg(&icmp_global.credit, &old, new));
 	}
 	return true;
 }
 EXPORT_SYMBOL(icmp_global_allow);
 
-void icmp_global_consume(struct net *net)
+void icmp_global_consume(void)
 {
 	int credits = get_random_u32_below(3);
 
 	/* Note: this might make icmp_global.credit negative. */
 	if (credits)
-		atomic_sub(credits, &net->ipv4.icmp_global_credit);
+		atomic_sub(credits, &icmp_global.credit);
 }
 EXPORT_SYMBOL(icmp_global_consume);
 
@@ -298,7 +302,7 @@ static bool icmpv4_global_allow(struct net *net, int type, int code,
 	if (icmpv4_mask_allow(net, type, code))
 		return true;
 
-	if (icmp_global_allow(net)) {
+	if (icmp_global_allow()) {
 		*apply_ratelimit = true;
 		return true;
 	}
@@ -335,7 +339,7 @@ out:
 	if (!rc)
 		__ICMP_INC_STATS(net, ICMP_MIB_RATELIMITHOST);
 	else
-		icmp_global_consume(net);
+		icmp_global_consume();
 	return rc;
 }
 
