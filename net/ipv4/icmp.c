@@ -249,8 +249,7 @@ bool icmp_global_allow(struct net *net)
 	if (delta < HZ / 50)
 		return false;
 
-	incr = READ_ONCE(net->ipv4.sysctl_icmp_msgs_per_sec);
-	incr = div_u64((u64)incr * delta, HZ);
+	incr = READ_ONCE(net->ipv4.sysctl_icmp_msgs_per_sec) * delta / HZ;
 	if (!incr)
 		return false;
 
