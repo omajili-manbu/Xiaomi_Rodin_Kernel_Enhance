@@ -3561,16 +3561,12 @@ struct rq_iter_data {
 static bool blk_mq_has_request(struct request *rq, void *data)
 {
 	struct rq_iter_data *iter_data = data;
-	bool ret = false;
 
 	if (rq->mq_hctx != iter_data->hctx)
 		return true;
 	iter_data->has_rq = true;
-	trace_android_rvh_blk_mq_has_request(iter_data->hctx, rq, &ret);
-	return ret;
+	return false;
 }
-
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_blk_mq_has_request);
 
 static bool blk_mq_hctx_has_requests(struct blk_mq_hw_ctx *hctx)
 {
