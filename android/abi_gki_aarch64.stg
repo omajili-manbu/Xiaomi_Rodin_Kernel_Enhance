@@ -348820,6 +348820,14 @@ function {
   parameter_id: 0x06835e9c
 }
 function {
+  id: 0x9d039fbb
+  return_type_id: 0x6720d32f
+  parameter_id: 0x0258f96e
+  parameter_id: 0x0a134144
+  parameter_id: 0xf435685e
+  parameter_id: 0x00a43052
+}
+function {
   id: 0x9d048e2e
   return_type_id: 0x6720d32f
   parameter_id: 0x01c5a749
@@ -392191,6 +392199,15 @@ elf_symbol {
   crc: 0xc0eeb2db
   type_id: 0x9d3b0250
   full_name: "dma_mmap_attrs"
+}
+elf_symbol {
+  id: 0x18d21f36
+  name: "dma_mmap_noncontiguous"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xc678499b
+  type_id: 0x9d039fbb
+  full_name: "dma_mmap_noncontiguous"
 }
 elf_symbol {
   id: 0x009463a5
@@ -447294,6 +447311,7 @@ interface {
   symbol_id: 0xb989e3a2
   symbol_id: 0xfd190cc3
   symbol_id: 0xd140139f
+  symbol_id: 0x18d21f36
   symbol_id: 0x009463a5
   symbol_id: 0xeb70c9c5
   symbol_id: 0xafa3c498
