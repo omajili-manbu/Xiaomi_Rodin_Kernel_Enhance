@@ -10629,6 +10629,11 @@ pointer_reference {
   pointee_type_id: 0x4d998a91
 }
 pointer_reference {
+  id: 0x19f68db9
+  kind: POINTER
+  pointee_type_id: 0x4d9ad078
+}
+pointer_reference {
   id: 0x19fa9e98
   kind: POINTER
   pointee_type_id: 0x4daa9cfd
@@ -328191,6 +328196,11 @@ function {
   parameter_id: 0x21530c77
 }
 function {
+  id: 0x83085622
+  return_type_id: 0x19f68db9
+  parameter_id: 0x18ea6ae3
+}
+function {
   id: 0x832143d7
   return_type_id: 0x11e6864c
   parameter_id: 0x11e6864c
@@ -402379,6 +402389,15 @@ elf_symbol {
   full_name: "generic_handle_irq"
 }
 elf_symbol {
+  id: 0xd5bc36ee
+  name: "generic_handle_irq_safe"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x81e2bdf4
+  type_id: 0x8ce1baa0
+  full_name: "generic_handle_irq_safe"
+}
+elf_symbol {
   id: 0x238e8343
   name: "generic_hwtstamp_get_lower"
   is_defined: true
@@ -437128,6 +437147,33 @@ elf_symbol {
   full_name: "tty_write_room"
 }
 elf_symbol {
+  id: 0xa46589d6
+  name: "tun_get_socket"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x2b1f753b
+  type_id: 0x229f1818
+  full_name: "tun_get_socket"
+}
+elf_symbol {
+  id: 0x3d3dcefb
+  name: "tun_get_tx_ring"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xc4bdf0f9
+  type_id: 0x83085622
+  full_name: "tun_get_tx_ring"
+}
+elf_symbol {
+  id: 0x7219254d
+  name: "tun_ptr_free"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x4099f919
+  type_id: 0x16b708df
+  full_name: "tun_ptr_free"
+}
+elf_symbol {
   id: 0xfb5efe2e
   name: "typec_altmode_attention"
   is_defined: true
@@ -450642,6 +450688,7 @@ interface {
   symbol_id: 0x2f7205ee
   symbol_id: 0xb6802638
   symbol_id: 0x7d577f86
+  symbol_id: 0xd5bc36ee
   symbol_id: 0x238e8343
   symbol_id: 0x600f1fb4
   symbol_id: 0xf85d118d
@@ -454498,6 +454545,9 @@ interface {
   symbol_id: 0x6590f3a5
   symbol_id: 0x8e95f895
   symbol_id: 0x30438a62
+  symbol_id: 0xa46589d6
+  symbol_id: 0x3d3dcefb
+  symbol_id: 0x7219254d
   symbol_id: 0xfb5efe2e
   symbol_id: 0x58687602
   symbol_id: 0xe7fb597f
