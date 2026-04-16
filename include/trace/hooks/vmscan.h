@@ -24,6 +24,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_shrink_spec_lru,
 		 bool *skip),
 	TP_ARGS(lruvec, sc, nr_reclaimed, nr_to_reclaim,
 		proportional_reclaim, nr, skip), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_kswapd_shrink_node_bypass,
+			TP_PROTO(unsigned long *nr_to_reclaim, unsigned long *nr_scanned,
+			unsigned long *nr_reclaimed, bool *bypass),
+			TP_ARGS(nr_to_reclaim, nr_scanned, nr_reclaimed, bypass), 1);
 DECLARE_HOOK(android_vh_tune_swappiness,
 	TP_PROTO(int *swappiness),
 	TP_ARGS(swappiness));
