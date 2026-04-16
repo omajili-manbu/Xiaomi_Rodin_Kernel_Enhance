@@ -346850,6 +346850,15 @@ function {
   parameter_id: 0x1dd474ea
 }
 function {
+  id: 0x9bb701ff
+  return_type_id: 0x6720d32f
+  parameter_id: 0x18bd6530
+  parameter_id: 0x064d6086
+  parameter_id: 0x064d6086
+  parameter_id: 0x064d6086
+  parameter_id: 0x11cfee5a
+}
+function {
   id: 0x9bb71cb9
   return_type_id: 0x6720d32f
   parameter_id: 0x18bd6530
@@ -366039,6 +366048,15 @@ elf_symbol {
   full_name: "__traceiter_android_rvh_kswapd_shrink_node"
 }
 elf_symbol {
+  id: 0x0ccee092
+  name: "__traceiter_android_rvh_kswapd_shrink_node_bypass"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x8c476979
+  type_id: 0x9bb701ff
+  full_name: "__traceiter_android_rvh_kswapd_shrink_node_bypass"
+}
+elf_symbol {
   id: 0x7fcabbe6
   name: "__traceiter_android_rvh_ksys_umount"
   is_defined: true
@@ -374047,6 +374065,15 @@ elf_symbol {
   crc: 0x574b1a1e
   type_id: 0x18ccbd2c
   full_name: "__tracepoint_android_rvh_kswapd_shrink_node"
+}
+elf_symbol {
+  id: 0x30425cb0
+  name: "__tracepoint_android_rvh_kswapd_shrink_node_bypass"
+  is_defined: true
+  symbol_type: OBJECT
+  crc: 0x27ce69f7
+  type_id: 0x18ccbd2c
+  full_name: "__tracepoint_android_rvh_kswapd_shrink_node_bypass"
 }
 elf_symbol {
   id: 0x26d3bcc4
@@ -446842,6 +446869,7 @@ interface {
   symbol_id: 0x7e99bc71
   symbol_id: 0x7c212080
   symbol_id: 0xa5a0ecca
+  symbol_id: 0x0ccee092
   symbol_id: 0x7fcabbe6
   symbol_id: 0x3444c3ba
   symbol_id: 0xc6985675
@@ -447732,6 +447760,7 @@ interface {
   symbol_id: 0x695c4baf
   symbol_id: 0x99d57c12
   symbol_id: 0x77ee65c8
+  symbol_id: 0x30425cb0
   symbol_id: 0x26d3bcc4
   symbol_id: 0x8efb0ca4
   symbol_id: 0xf35a6597
