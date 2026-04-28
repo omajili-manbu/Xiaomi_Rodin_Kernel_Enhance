@@ -119,6 +119,9 @@ DECLARE_HOOK(android_vh_percpu_rwsem_up_write,
 DECLARE_RESTRICTED_HOOK(android_rvh_percpu_rwsem_wait_complete,
 	TP_PROTO(struct percpu_rw_semaphore *sem, long state, bool *complete),
 	TP_ARGS(sem, state, complete), 1);
+DECLARE_HOOK(android_vh_percpu_rwsem_init,
+	TP_PROTO(struct percpu_rw_semaphore *sem),
+	TP_ARGS(sem));
 
 struct mutex_waiter;
 DECLARE_HOOK(android_vh_alter_mutex_list_add,
@@ -188,6 +191,18 @@ DECLARE_HOOK(android_vh_restore_curr_resched,
 DECLARE_HOOK(android_vh_clear_curr_lazy,
 	TP_PROTO(struct task_struct *tsk),
 	TP_ARGS(tsk));
+
+DECLARE_HOOK(android_vh_lock_delay_schedule,
+	TP_PROTO(struct task_struct *prev, unsigned int sched_mode, bool *ext_slice),
+	TP_ARGS(prev, sched_mode, ext_slice));
+
+DECLARE_HOOK(android_vh_lock_task_fork,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
+
+DECLARE_HOOK(android_vh_lock_task_exit,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
 #endif /* _TRACE_HOOK_DTASK_H */
 
 /* This part must be outside protection */

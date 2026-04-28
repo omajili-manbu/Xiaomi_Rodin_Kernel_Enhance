@@ -8,6 +8,8 @@
 #define _TRACE_HOOK_VMSCAN_H
 
 #include <trace/hooks/vendor_hooks.h>
+struct lruvec;
+struct scan_control;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_set_balance_anon_file_reclaim,
 			TP_PROTO(bool *balance_anon_file_reclaim),
@@ -15,6 +17,17 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_balance_anon_file_reclaim,
 DECLARE_RESTRICTED_HOOK(android_rvh_kswapd_shrink_node,
 			TP_PROTO(unsigned long *nr_reclaimed),
 			TP_ARGS(nr_reclaimed), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_shrink_spec_lru,
+	TP_PROTO(struct lruvec *lruvec, struct scan_control *sc,
+		 unsigned long *nr_reclaimed, unsigned long nr_to_reclaim,
+		 bool proportional_reclaim, const unsigned long *nr,
+		 bool *skip),
+	TP_ARGS(lruvec, sc, nr_reclaimed, nr_to_reclaim,
+		proportional_reclaim, nr, skip), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_kswapd_shrink_node_bypass,
+			TP_PROTO(unsigned long *nr_to_reclaim, unsigned long *nr_scanned,
+			unsigned long *nr_reclaimed, bool *bypass),
+			TP_ARGS(nr_to_reclaim, nr_scanned, nr_reclaimed, bypass), 1);
 DECLARE_HOOK(android_vh_tune_swappiness,
 	TP_PROTO(int *swappiness),
 	TP_ARGS(swappiness));
@@ -114,6 +127,12 @@ DECLARE_HOOK(android_vh_remove_mapping_failed,
 DECLARE_HOOK(android_vh_handle_trylock_failed_folio,
 	TP_PROTO(struct list_head *folio_list),
 	TP_ARGS(folio_list));
+DECLARE_HOOK(android_vh_folio_skip_activate,
+	TP_PROTO(struct folio *folio, bool *skip),
+	TP_ARGS(folio, skip));
+DECLARE_HOOK(android_vh_folio_trylock_clear_bypass,
+	TP_PROTO(struct folio *folio, bool *bypass),
+	TP_ARGS(folio, bypass));
 DECLARE_HOOK(android_vh_folio_trylock_set,
 	TP_PROTO(struct folio *folio),
 	TP_ARGS(folio));
