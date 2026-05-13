@@ -9894,6 +9894,7 @@ vops_suspend:
 	ret = ufshcd_vops_suspend(hba, pm_op, POST_CHANGE);
 	if (ret)
 		goto set_link_active;
+
 	goto out;
 
 set_link_active:
