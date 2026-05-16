@@ -901,9 +901,6 @@ struct task_struct {
 	 */
 	unsigned			sched_remote_wakeup:1;
 
-	/* Save user-dumpable when mm goes away */
-	unsigned			user_dumpable:1;
-
 	/* Bit to tell LSMs we're in execve(): */
 	unsigned			in_execve:1;
 	unsigned			in_iowait:1;
@@ -1522,8 +1519,11 @@ struct task_struct {
 #endif
 
 	ANDROID_KABI_USE(1, struct task_dma_buf_info *dmabuf_info);
+	ANDROID_KABI_USE(2, struct {
+		/* Save user-dumpable when mm goes away */
+		unsigned	user_dumpable:1;
+		});
 
-	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 	ANDROID_KABI_RESERVE(5);
