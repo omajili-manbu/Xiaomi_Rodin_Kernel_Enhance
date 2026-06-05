@@ -44,6 +44,9 @@ DECLARE_HOOK(android_vh_io_statistics,
 DECLARE_RESTRICTED_HOOK(android_rvh_do_swap_page_relax,
 			TP_PROTO(swp_entry_t entry, bool *bypass),
 			TP_ARGS(entry, bypass), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_do_swap_page_start,
+			TP_PROTO(swp_entry_t entry),
+			TP_ARGS(entry), 1);
 DECLARE_RESTRICTED_HOOK(android_rvh_set_gfp_zone_flags,
 			TP_PROTO(unsigned int *flags),	/* gfp_t *flags */
 			TP_ARGS(flags), 1);
