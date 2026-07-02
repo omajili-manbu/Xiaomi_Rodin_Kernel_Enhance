@@ -1350,17 +1350,14 @@ static bool is_spilled_scalar_reg(const struct bpf_stack_state *stack)
 /* Mark stack slot as STACK_MISC, unless it is already STACK_INVALID, in which
  * case they are equivalent, or it's STACK_ZERO, in which case we preserve
  * more precise STACK_ZERO.
- * Regardless of allow_ptr_leaks setting (i.e., privileged or unprivileged
- * mode), we won't promote STACK_INVALID to STACK_MISC. In privileged case it is
- * unnecessary as both are considered equivalent when loading data and pruning,
- * in case of unprivileged mode it will be incorrect to allow reads of invalid
- * slots.
+ * Note, in uprivileged mode leaving STACK_INVALID is wrong, so we take
+ * env->allow_ptr_leaks into account and force STACK_MISC, if necessary.
  */
 static void mark_stack_slot_misc(struct bpf_verifier_env *env, u8 *stype)
 {
 	if (*stype == STACK_ZERO)
 		return;
-	if (*stype == STACK_INVALID)
+	if (env->allow_ptr_leaks && *stype == STACK_INVALID)
 		return;
 	*stype = STACK_MISC;
 }
