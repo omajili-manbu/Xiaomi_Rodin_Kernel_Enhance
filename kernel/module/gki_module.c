@@ -54,6 +54,15 @@ bool gki_is_module_protected_export(const char *name)
  */
 bool gki_is_module_unprotected_symbol(const char *name)
 {
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	/*
+	 * Force load mode: allow access to all kernel symbols.
+	 * This bypasses GKI KMI enforcement for vendor modules when the
+	 * abi_gki symbol list is incomplete (common with open-source builds).
+	 * Equivalent to how force_load bypasses CRC checks in version.c.
+	 */
+	return true;
+#endif
 	if (NR_UNPROTECTED_SYMBOLS) {
 		return bsearch(name, gki_unprotected_symbols, NR_UNPROTECTED_SYMBOLS,
 				MAX_UNPROTECTED_NAME_LEN, cmp_name) != NULL;
