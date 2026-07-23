@@ -56,6 +56,7 @@
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/zsmalloc.h>
+#include <trace/hooks/mm.h>
 #include <linux/zpool.h>
 #include <linux/migrate.h>
 #include <linux/wait.h>
@@ -2107,6 +2108,11 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
 	unsigned long pages_to_free = 0;
 	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
 			shrinker);
+	bool bypass = false;
+
+	trace_android_vh_zs_shrinker_bypass(&bypass);
+	if (bypass)
+		return 0;
 
 	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
 		class = pool->size_class[i];
@@ -2115,6 +2121,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
 
 		pages_to_free += zs_can_compact(class);
 	}
+	trace_android_vh_zs_shrinker_adjust(&pages_to_free);
 
 	return pages_to_free;
 }
