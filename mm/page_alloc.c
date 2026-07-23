@@ -7013,3 +7013,9 @@ static bool __free_unaccepted(struct page *page)
 }
 
 #endif /* CONFIG_UNACCEPTED_MEMORY */
+
+void set_page_private(struct page *page, unsigned long private)
+{
+	page->private = private;
+}
+EXPORT_SYMBOL(set_page_private);
