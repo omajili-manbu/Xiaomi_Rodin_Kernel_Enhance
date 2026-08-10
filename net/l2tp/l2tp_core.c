@@ -88,6 +88,11 @@
 /* Default trace flags */
 #define L2TP_DEFAULT_DEBUG_FLAGS	0
 
+#define L2TP_DEPTH_NESTING		2
+#if L2TP_DEPTH_NESTING == SINGLE_DEPTH_NESTING
+#error "L2TP requires its own lockdep subclass"
+#endif
+
 /* Private data stored for received packets in the skb.
  */
 struct l2tp_skb_cb {
@@ -159,7 +164,7 @@ static void l2tp_session_free(struct l2tp_session *session)
 {
 	trace_free_session(session);
 	if (session->tunnel)
-		l2tp_tunnel_dec_refcount(session->tunnel);
+		l2tp_tunnel_put(session->tunnel);
 	kfree(session);
 }
 
@@ -175,6 +180,20 @@ struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
+void l2tp_tunnel_put(struct l2tp_tunnel *tunnel)
+{
+	if (refcount_dec_and_test(&tunnel->ref_count))
+		l2tp_tunnel_free(tunnel);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_put);
+
+void l2tp_session_put(struct l2tp_session *session)
+{
+	if (refcount_dec_and_test(&session->ref_count))
+		l2tp_session_free(session);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_put);
+
 void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
 {
 	refcount_inc(&tunnel->ref_count);
@@ -183,8 +202,7 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_inc_refcount);
 
 void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
 {
-	if (refcount_dec_and_test(&tunnel->ref_count))
-		l2tp_tunnel_free(tunnel);
+	l2tp_tunnel_put(tunnel);
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_dec_refcount);
 
@@ -196,8 +214,7 @@ EXPORT_SYMBOL_GPL(l2tp_session_inc_refcount);
 
 void l2tp_session_dec_refcount(struct l2tp_session *session)
 {
-	if (refcount_dec_and_test(&session->ref_count))
-		l2tp_session_free(session);
+	l2tp_session_put(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_dec_refcount);
 
@@ -320,7 +337,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++) {
 		hlist_for_each_entry_rcu(session, &pn->l2tp_session_hlist[hash], global_hlist) {
 			if (!strcmp(session->ifname, ifname)) {
-				l2tp_session_inc_refcount(session);
+				refcount_inc(&session->ref_count);
 				rcu_read_unlock_bh();
 
 				return session;
@@ -374,12 +391,12 @@ int l2tp_session_register(struct l2tp_session *session,
 				goto err_tlock_pnlock;
 			}
 
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 		hlist_add_head_rcu(&session->global_hlist, g_head);
 
 		spin_unlock_bh(&pn->l2tp_session_hlist_lock);
 	} else {
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 	}
 
 	hlist_add_head_rcu(&session->hlist, head);
@@ -858,7 +875,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	session = l2tp_tunnel_get_session(tunnel, session_id);
 	if (!session || !session->recv_skb) {
 		if (session)
-			l2tp_session_dec_refcount(session);
+			l2tp_session_put(session);
 
 		/* Not found? Pass to userspace to deal with */
 		pr_debug_ratelimited("%s: no session found (%u/%u). Passing up.\n",
@@ -868,12 +885,12 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 
 	if (tunnel->version == L2TP_HDR_VER_3 &&
 	    l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr)) {
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 		goto invalid;
 	}
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 
@@ -1041,7 +1058,13 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED | IPSKB_REROUTED);
 	nf_reset_ct(skb);
 
-	bh_lock_sock_nested(sk);
+	/* L2TP uses its own lockdep subclass to avoid lockdep splats caused by
+	 * nested socket calls on the same lockdep socket class. This can
+	 * happen when data from a user socket is routed over l2tp, which uses
+	 * another userspace socket.
+	 */
+	spin_lock_nested(&sk->sk_lock.slock, L2TP_DEPTH_NESTING);
+
 	if (sock_owned_by_user(sk)) {
 		kfree_skb(skb);
 		ret = NET_XMIT_DROP;
@@ -1072,6 +1095,11 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 		uh->source = inet->inet_sport;
 		uh->dest = inet->inet_dport;
 		udp_len = uhlen + session->hdr_len + data_len;
+		if (udp_len > U16_MAX) {
+			kfree_skb(skb);
+			ret = NET_XMIT_DROP;
+			goto out_unlock;
+		}
 		uh->len = htons(udp_len);
 
 		/* Calculate UDP checksum if configured to do so */
@@ -1093,7 +1121,7 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 	ret = l2tp_xmit_queue(tunnel, skb, &inet->cork.fl);
 
 out_unlock:
-	bh_unlock_sock(sk);
+	spin_unlock(&sk->sk_lock.slock);
 
 	return ret;
 }
@@ -1239,8 +1267,6 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 {
 	struct l2tp_tunnel *tunnel = container_of(work, struct l2tp_tunnel,
 						  del_work);
-	struct sock *sk = tunnel->sock;
-	struct socket *sock = sk->sk_socket;
 
 	l2tp_tunnel_closeall(tunnel);
 
@@ -1248,6 +1274,8 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 	 * the sk API to release it here.
 	 */
 	if (tunnel->fd < 0) {
+		struct socket *sock = tunnel->sock->sk_socket;
+
 		if (sock) {
 			kernel_sock_shutdown(sock, SHUT_RDWR);
 			sock_release(sock);
@@ -1256,10 +1284,10 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 
 	l2tp_tunnel_remove(tunnel->l2tp_net, tunnel);
 	/* drop initial ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 
 	/* drop workqueue ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by
@@ -1539,7 +1567,7 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
 	if (!test_and_set_bit(0, &tunnel->dead)) {
 		trace_delete_tunnel(tunnel);
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 		queue_work(l2tp_wq, &tunnel->del_work);
 	}
 }
@@ -1556,7 +1584,7 @@ void l2tp_session_delete(struct l2tp_session *session)
 	if (session->session_close)
 		(*session->session_close)(session);
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);
 

@@ -229,7 +229,9 @@ enum {
 	SWP_AREA_DISCARD = (1 << 9),	/* single-time swap area discards */
 	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
 	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
-	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
+	__SWP_READ_SYNCHRONOUS_IO = (1 << 12),	/* synchronous read IO is efficient */
+	__SWP_WRITE_SYNCHRONOUS_IO = (1 << 13),	/* synchronous write IO is efficient */
+	SWP_SYNCHRONOUS_IO = (__SWP_READ_SYNCHRONOUS_IO | __SWP_WRITE_SYNCHRONOUS_IO),
 					/* add others here before... */
 	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
 };
@@ -254,27 +256,27 @@ enum {
  * space with SWAPFILE_CLUSTER pages long and naturally aligns in disk. All
  * free clusters are organized into a list. We fetch an entry from the list to
  * get a free cluster.
+ *
+ * The flags field determines if a cluster is free. This is
+ * protected by cluster lock.
  */
 struct swap_cluster_info {
 	spinlock_t lock;	/*
-				 * Protect swap_cluster_info count and state
-				 * field and swap_info_struct->swap_map
-				 * elements correspond to the swap
-				 * cluster
+				 * Protect swap_cluster_info fields
+				 * other than list, and swap_info_struct->swap_map
+				 * elements corresponding to the swap cluster.
 				 */
 	unsigned int count:12;
 	unsigned int state:3;
 	unsigned int order:4;
 	unsigned int reserved:1;
 	unsigned int flags:4;
-	struct list_head list;	/* Protected by swap_info_struct->lock */
+	struct list_head list;
 };
-
-#define CLUSTER_STATE_FREE	1 /* This cluster is free */
-#define CLUSTER_STATE_PER_CPU	2 /* This cluster on per_cpu_cluster  */
-#define CLUSTER_STATE_SCANNED	3 /* This cluster off per_cpu_cluster */
-#define CLUSTER_STATE_NONFULL	4 /* This cluster is on nonfull list */
-
+#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
+#define CLUSTER_FLAG_NONFULL 2 /* This cluster is on nonfull list */
+#define CLUSTER_FLAG_FRAG 4 /* This cluster is on nonfull list */
+#define CLUSTER_FLAG_FULL 8 /* This cluster is on full list */
 
 /*
  * The first page in the swap file is the swap header, which is always marked
@@ -368,7 +370,8 @@ static inline swp_entry_t page_swap_entry(struct page *page)
 }
 
 /* linux/mm/workingset.c */
-bool workingset_test_recent(void *shadow, bool file, bool *workingset);
+bool workingset_test_recent(void *shadow, bool file, bool *workingset,
+				bool flush);
 void workingset_age_nonresident(struct lruvec *lruvec, unsigned long nr_pages);
 void *workingset_eviction(struct folio *folio, struct mem_cgroup *target_memcg);
 void workingset_refault(struct folio *folio, void *shadow);
@@ -400,6 +403,16 @@ void folio_add_lru_vma(struct folio *, struct vm_area_struct *);
 void mark_page_accessed(struct page *);
 void folio_mark_accessed(struct folio *);
 
+static inline bool folio_may_be_lru_cached(struct folio *folio)
+{
+	/*
+	 * Holding PMD-sized folios in per-CPU LRU cache unbalances accounting.
+	 * Holding small numbers of low-order mTHP folios in per-CPU LRU cache
+	 * will be sensible, but nobody has implemented and tested that yet.
+	 */
+	return !folio_test_large(folio);
+}
+
 extern atomic_t lru_disable_count;
 
 static inline bool lru_cache_disabled(void)
@@ -421,9 +434,6 @@ void folio_deactivate(struct folio *folio);
 void folio_mark_lazyfree(struct folio *folio);
 extern void swap_setup(void);
 
-extern void lru_cache_add_inactive_or_unevictable(struct page *page,
-						struct vm_area_struct *vma);
-
 /* linux/mm/vmscan.c */
 extern unsigned long zone_reclaimable_pages(struct zone *zone);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
@@ -431,10 +441,17 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 
 #define MEMCG_RECLAIM_MAY_SWAP (1 << 1)
 #define MEMCG_RECLAIM_PROACTIVE (1 << 2)
+#define MIN_SWAPPINESS 0
+#define MAX_SWAPPINESS 200
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
 						  unsigned int reclaim_options);
+extern unsigned long try_to_free_mem_cgroup_pages_with_swappiness(struct mem_cgroup *memcg,
+								  unsigned long nr_pages,
+								  gfp_t gfp_mask,
+								  unsigned int reclaim_options,
+								  int *swappiness);
 extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
 						gfp_t gfp_mask, bool noswap,
 						pg_data_t *pgdat,
@@ -443,6 +460,9 @@ extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
 long remove_mapping(struct address_space *mapping, struct folio *folio);
 
+extern unsigned long reclaim_pages(struct list_head *folio_list, bool ignore_references);
+extern unsigned long __reclaim_pages(struct list_head *folio_list, bool ignore_references,
+				     void *private);
 #ifdef CONFIG_NUMA
 extern int node_reclaim_mode;
 extern int sysctl_min_unmapped_ratio;
@@ -503,7 +523,7 @@ extern int get_swap_pages(int n, swp_entry_t swp_entries[], int order);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
 extern void swap_shmem_alloc(swp_entry_t);
 extern int swap_duplicate(swp_entry_t);
-extern int swapcache_prepare(swp_entry_t);
+extern int swapcache_prepare(swp_entry_t entry, int nr);
 extern void swap_free_nr(swp_entry_t entry, int nr_pages);
 extern void swapcache_free_entries(swp_entry_t *entries, int n);
 extern void free_swap_and_cache_nr(swp_entry_t entry, int nr);
@@ -578,7 +598,7 @@ static inline int swap_duplicate(swp_entry_t swp)
 	return 0;
 }
 
-static inline int swapcache_prepare(swp_entry_t swp)
+static inline int swapcache_prepare(swp_entry_t swp, int nr)
 {
 	return 0;
 }

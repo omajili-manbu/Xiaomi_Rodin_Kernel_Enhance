@@ -147,6 +147,14 @@ static int ffa_version_check(u32 *version)
 		return -EOPNOTSUPP;
 	}
 
+	if (FFA_MAJOR_VERSION(ver.a0) > FFA_MAJOR_VERSION(FFA_DRIVER_VERSION)) {
+		pr_err("Incompatible v%d.%d! Latest supported v%d.%d\n",
+		       FFA_MAJOR_VERSION(ver.a0), FFA_MINOR_VERSION(ver.a0),
+		       FFA_MAJOR_VERSION(FFA_DRIVER_VERSION),
+		       FFA_MINOR_VERSION(FFA_DRIVER_VERSION));
+		return -EINVAL;
+	}
+
 	if (ver.a0 < FFA_MIN_VERSION) {
 		pr_err("Incompatible v%d.%d! Earliest supported v%d.%d\n",
 		       FFA_MAJOR_VERSION(ver.a0), FFA_MINOR_VERSION(ver.a0),
@@ -251,7 +259,8 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			memcpy(buffer + idx, drv_info->rx_buffer + idx * sz,
 			       buf_sz);
 
-	ffa_rx_release();
+	if (!(flags & PARTITION_INFO_GET_RETURN_COUNT_ONLY))
+		ffa_rx_release();
 
 	mutex_unlock(&drv_info->rx_lock);
 
@@ -448,24 +457,13 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 	struct ffa_composite_mem_region *composite;
 	struct ffa_mem_region_addr_range *constituents;
 	struct ffa_mem_region_attributes *ep_mem_access;
-	u32 idx, frag_len, length, buf_sz = 0, num_entries = sg_nents(args->sg);
+	u32 idx, frag_len, length, buf_sz = 0, num_entries = sg_nents(args->sg), ep_offset;
+	u32 emad_end;
 
 	mem_region->tag = args->tag;
 	mem_region->flags = args->flags;
 	mem_region->sender_id = drv_info->vm_id;
 	mem_region->attributes = ffa_memory_attributes_get(func_id);
-	ep_mem_access = buffer +
-			ffa_mem_desc_offset(buffer, 0, drv_info->version);
-	composite_offset = ffa_mem_desc_offset(buffer, args->nattrs,
-					       drv_info->version);
-
-	for (idx = 0; idx < args->nattrs; idx++, ep_mem_access++) {
-		ep_mem_access->receiver = args->attrs[idx].receiver;
-		ep_mem_access->attrs = args->attrs[idx].attrs;
-		ep_mem_access->composite_off = composite_offset;
-		ep_mem_access->flag = 0;
-		ep_mem_access->reserved = 0;
-	}
 	mem_region->handle = 0;
 	mem_region->ep_count = args->nattrs;
 	if (drv_info->version <= FFA_VERSION_1_0) {
@@ -474,6 +472,27 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 		mem_region->ep_mem_size = sizeof(*ep_mem_access);
 		mem_region->ep_mem_offset = sizeof(*mem_region);
 		memset(mem_region->reserved, 0, 12);
+	}
+
+	composite_offset = ffa_mem_desc_offset(buffer, args->nattrs,
+					       drv_info->version);
+	if (composite_offset + sizeof(*composite) > max_fragsize)
+		return -ENXIO;
+
+	for (idx = 0; idx < args->nattrs; idx++) {
+		ep_offset = ffa_mem_desc_offset(buffer, idx, drv_info->version);
+		if (check_add_overflow(ep_offset, sizeof(*ep_mem_access), &emad_end))
+			return -ENXIO;
+
+		if (emad_end > max_fragsize)
+			return -ENXIO;
+
+		ep_mem_access = buffer + ep_offset;
+		ep_mem_access->receiver = args->attrs[idx].receiver;
+		ep_mem_access->attrs = args->attrs[idx].attrs;
+		ep_mem_access->composite_off = composite_offset;
+		ep_mem_access->flag = 0;
+		ep_mem_access->reserved = 0;
 	}
 
 	composite = buffer + composite_offset;
@@ -732,6 +751,11 @@ static void __do_sched_recv_cb(u16 part_id, u16 vcpu, bool is_per_vcpu)
 	void *cb_data;
 
 	partition = xa_load(&drv_info->partition_info, part_id);
+	if (!partition) {
+		pr_err("%s: Invalid partition ID 0x%x\n", __func__, part_id);
+		return;
+	}
+
 	read_lock(&partition->rw_lock);
 	callback = partition->callback;
 	cb_data = partition->cb_data;
@@ -754,7 +778,7 @@ static void ffa_notification_info_get(void)
 			  }, &ret);
 
 		if (ret.a0 != FFA_FN_NATIVE(SUCCESS) && ret.a0 != FFA_SUCCESS) {
-			if (ret.a2 != FFA_RET_NO_DATA)
+			if ((s32)ret.a2 != FFA_RET_NO_DATA)
 				pr_err("Notification Info fetch failed: 0x%lx (0x%lx)",
 				       ret.a0, ret.a2);
 			return;
@@ -782,19 +806,19 @@ static void ffa_notification_info_get(void)
 			if (ids_processed >= max_ids - 1)
 				break;
 
-			part_id = packed_id_list[++ids_processed];
+			part_id = packed_id_list[ids_processed++];
 
-			if (!ids_count[list]) { /* Global Notification */
+			if (ids_count[list] == 1) { /* Global Notification */
 				__do_sched_recv_cb(part_id, 0, false);
 				continue;
 			}
 
 			/* Per vCPU Notification */
-			for (idx = 0; idx < ids_count[list]; idx++) {
+			for (idx = 1; idx < ids_count[list]; idx++) {
 				if (ids_processed >= max_ids - 1)
 					break;
 
-				vcpu_id = packed_id_list[++ids_processed];
+				vcpu_id = packed_id_list[ids_processed++];
 
 				__do_sched_recv_cb(part_id, vcpu_id, true);
 			}
@@ -909,6 +933,11 @@ static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 	bool cb_valid;
 
 	partition = xa_load(&drv_info->partition_info, part_id);
+	if (!partition) {
+		pr_err("%s: Invalid partition ID 0x%x\n", __func__, part_id);
+		return -EINVAL;
+	}
+
 	write_lock(&partition->rw_lock);
 
 	cb_valid = !!partition->callback;
@@ -1211,6 +1240,7 @@ static void ffa_setup_partitions(void)
 			ffa_device_unregister(ffa_dev);
 			continue;
 		}
+		rwlock_init(&info->rw_lock);
 		xa_store(&drv_info->partition_info, tpbuf->id, info, GFP_KERNEL);
 	}
 	drv_info->partition_count = count;
@@ -1221,6 +1251,7 @@ static void ffa_setup_partitions(void)
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return;
+	rwlock_init(&info->rw_lock);
 	xa_store(&drv_info->partition_info, drv_info->vm_id, info, GFP_KERNEL);
 	drv_info->partition_count++;
 }
@@ -1463,7 +1494,7 @@ static int __init ffa_init(void)
 	drv_info->rx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
 	if (!drv_info->rx_buffer) {
 		ret = -ENOMEM;
-		goto free_pages;
+		goto free_drv_info;
 	}
 
 	drv_info->tx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);

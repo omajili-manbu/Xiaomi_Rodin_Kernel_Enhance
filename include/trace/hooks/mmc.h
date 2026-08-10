@@ -7,12 +7,42 @@
 #define _TRACE_HOOK_MMC_H
 #include <trace/hooks/vendor_hooks.h>
 struct mmc_host;
-
+struct mmc_card;
+struct mmc_queue;
+struct sdhci_host;
 /*
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
 DECLARE_HOOK(android_vh_mmc_sdio_pm_flag_set,
+	TP_PROTO(struct mmc_host *host),
+	TP_ARGS(host));
+
+DECLARE_RESTRICTED_HOOK(android_rvh_mmc_suspend,
+	TP_PROTO(struct mmc_host *host),
+	TP_ARGS(host), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_mmc_resume,
+	TP_PROTO(struct mmc_host *host, bool *resume_success),
+	TP_ARGS(host, resume_success), 1);
+
+DECLARE_HOOK(android_vh_mmc_update_mmc_queue,
+	TP_PROTO(struct mmc_card *card, struct mmc_queue *mq),
+	TP_ARGS(card, mq));
+
+DECLARE_HOOK(android_vh_mmc_blk_reset,
+	TP_PROTO(struct mmc_host *host, int err),
+	TP_ARGS(host, err));
+
+DECLARE_HOOK(android_vh_mmc_attach_sd,
+	TP_PROTO(struct mmc_host *host, int err),
+	TP_ARGS(host, err));
+
+DECLARE_HOOK(android_vh_sdhci_get_cd,
+	TP_PROTO(struct sdhci_host *host),
+	TP_ARGS(host));
+
+DECLARE_HOOK(android_vh_mmc_gpio_cd_irqt,
 	TP_PROTO(struct mmc_host *host),
 	TP_ARGS(host));
 

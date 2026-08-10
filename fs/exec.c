@@ -71,6 +71,10 @@
 #include <linux/susfs_def.h>
 #endif
 
+#ifndef __GENKSYMS__
+#include <linux/dma-buf.h>
+#endif
+
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
@@ -148,13 +152,11 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 		goto out;
 
 	/*
-	 * may_open() has already checked for this, so it should be
-	 * impossible to trip now. But we need to be extra cautious
-	 * and check again at the very end too.
+	 * Check do_open_execat() for an explanation.
 	 */
 	error = -EACCES;
-	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode) ||
-			 path_noexec(&file->f_path)))
+	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode)) ||
+	    path_noexec(&file->f_path))
 		goto exit;
 
 	error = -ENOEXEC;
@@ -755,7 +757,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		    unsigned long stack_top,
 		    int executable_stack)
 {
-	unsigned long ret;
+	int ret;
 	unsigned long stack_shift;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = bprm->vma;
@@ -775,7 +777,8 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	stack_base = calc_max_stack_size(stack_base);
 
 	/* Add space for stack randomization. */
-	stack_base += (STACK_RND_MASK << PAGE_SHIFT);
+	if (current->flags & PF_RANDOMIZE)
+		stack_base += (STACK_RND_MASK << PAGE_SHIFT);
 
 	/* Make sure we didn't let the argument array grow too large. */
 	if (vma->vm_end - vma->vm_start > stack_base)
@@ -929,23 +932,22 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 
 	file = do_filp_open(fd, name, &open_exec_flags);
 	if (IS_ERR(file))
-		goto out;
+		return file;
 
 	/*
-	 * may_open() has already checked for this, so it should be
-	 * impossible to trip now. But we need to be extra cautious
-	 * and check again at the very end too.
+	 * In the past the regular type check was here. It moved to may_open() in
+	 * 633fb6ac3980 ("exec: move S_ISREG() check earlier"). Since then it is
+	 * an invariant that all non-regular files error out before we get here.
 	 */
 	err = -EACCES;
-	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode) ||
-			 path_noexec(&file->f_path)))
+	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode)) ||
+	    path_noexec(&file->f_path))
 		goto exit;
 
 	err = deny_write_access(file);
 	if (err)
 		goto exit;
 
-out:
 	return file;
 
 exit:
@@ -1239,6 +1241,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	task_lock(tsk);
 	trace_task_rename(tsk, buf);
 	strscpy_pad(tsk->comm, buf, sizeof(tsk->comm));
+	trace_android_vh_set_task_comm(tsk);
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
 	trace_android_rvh_set_task_comm(tsk, exec);
@@ -1254,6 +1257,7 @@ EXPORT_SYMBOL_GPL(__set_task_comm);
 int begin_new_exec(struct linux_binprm * bprm)
 {
 	struct task_struct *me = current;
+	struct files_struct *old_files;
 	int retval;
 
 	/* Once we are committed compute the creds */
@@ -1266,20 +1270,30 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 */
 	bprm->point_of_no_return = true;
 
-	/*
-	 * Make this the only thread in the thread group.
-	 */
+	/* Make this the only thread in the thread group */
 	retval = de_thread(me);
 	if (retval)
 		goto out;
-
+	/* see the comment in check_unsafe_exec() */
+	current->fs->in_exec = 0;
 	/*
 	 * Cancel any io_uring activity across execve
 	 */
 	io_uring_task_cancel();
 
+	/*
+	 * unshare_files() may not do anything, but we still need to account dmabufs against the
+	 * new_dmabuf_info even if it doesn't. We need to keep track of the original files_struct
+	 * to handle task_dma_buf_info refcounting.
+	 */
+	old_files = me->files;
+
 	/* Ensure the files table is not shared. */
 	retval = unshare_files();
+	if (retval)
+		goto out;
+
+	retval = dma_buf_begin_new_exec(old_files);
 	if (retval)
 		goto out;
 
@@ -1306,6 +1320,15 @@ int begin_new_exec(struct linux_binprm * bprm)
 		goto out;
 
 	bprm->mm = NULL;
+	/*
+	 * New MM has just been installed. Use the task's new dmabuf_info (from
+	 * dma_buf_begin_new_exec) for the new mm_struct.
+	 */
+	if (IS_ENABLED(CONFIG_DMA_SHARED_BUFFER)) {
+		if (current->dmabuf_info)
+			get_dmabuf_info(current->dmabuf_info);
+		me->mm->dmabuf_info = current->dmabuf_info;
+	}
 
 	retval = exec_task_namespaces();
 	if (retval)
@@ -1504,6 +1527,8 @@ static void free_bprm(struct linux_binprm *bprm)
 	}
 	free_arg_pages(bprm);
 	if (bprm->cred) {
+		/* in case exec fails before de_thread() succeeds */
+		current->fs->in_exec = 0;
 		mutex_unlock(&current->signal->cred_guard_mutex);
 		abort_creds(bprm->cred);
 	}
@@ -1590,6 +1615,10 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	 * suid exec because the differently privileged task
 	 * will be able to manipulate the current directory, etc.
 	 * It would be nice to force an unshare instead...
+	 *
+	 * Otherwise we set fs->in_exec = 1 to deny clone(CLONE_FS)
+	 * from another sub-thread until de_thread() succeeds, this
+	 * state is protected by cred_guard_mutex we hold.
 	 */
 	t = p;
 	n_fs = 1;
@@ -1616,6 +1645,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	unsigned int mode;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
+	int err;
 
 	if (!mnt_may_suid(file->f_path.mnt))
 		return;
@@ -1632,11 +1662,16 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	/* Be careful if suid/sgid is set */
 	inode_lock(inode);
 
-	/* reload atomically mode/uid/gid now that lock held */
+	/* Atomically reload and check mode/uid/gid now that lock held. */
 	mode = inode->i_mode;
 	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid = i_gid_into_vfsgid(idmap, inode);
+	err = inode_permission(idmap, inode, MAY_EXEC);
 	inode_unlock(inode);
+
+	/* Did the exec bit vanish out from under us? Give up. */
+	if (err)
+		return;
 
 	/* We ignore suid/sgid if there are no mappings for them in the ns */
 	if (!vfsuid_has_mapping(bprm->cred->user_ns, vfsuid) ||
@@ -1870,7 +1905,6 @@ static int bprm_execve(struct linux_binprm *bprm,
 
 	sched_mm_cid_after_execve(current);
 	/* execve succeeded */
-	current->fs->in_exec = 0;
 	current->in_execve = 0;
 	rseq_execve(current);
 	user_events_execve(current);
@@ -1890,7 +1924,6 @@ out:
 
 out_unmark:
 	sched_mm_cid_after_execve(current);
-	current->fs->in_exec = 0;
 	current->in_execve = 0;
 
 	return retval;

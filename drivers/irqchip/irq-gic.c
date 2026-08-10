@@ -40,7 +40,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
-#include <trace/hooks/gic.h>
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
@@ -65,7 +64,7 @@ static void gic_check_cpu_features(void)
 
 union gic_base {
 	void __iomem *common_base;
-	void __percpu * __iomem *percpu_base;
+	void __iomem * __percpu *percpu_base;
 };
 
 struct gic_chip_data {
@@ -817,8 +816,6 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	else
 		writeb_relaxed(gic_cpu_map[cpu], reg);
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
-
-	trace_android_vh_gic_set_affinity(d, mask_val, force, gic_cpu_map, reg);
 
 	return IRQ_SET_MASK_OK_DONE;
 }

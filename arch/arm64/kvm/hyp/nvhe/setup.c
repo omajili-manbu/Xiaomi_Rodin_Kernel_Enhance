@@ -29,6 +29,8 @@ phys_addr_t pvmfw_size;
 #define hyp_percpu_size ((unsigned long)__per_cpu_end - \
 			 (unsigned long)__per_cpu_start)
 
+u64 hyp_lm_size_mb;
+
 static void *vmemmap_base;
 static void *vm_table_base;
 static void *hyp_pgt_base;
@@ -152,20 +154,14 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 	create_hyp_host_fp_mappings();
 
 	/*
-	 * Map the host sections RO in the hypervisor, but transfer the
-	 * ownership from the host to the hypervisor itself to make sure they
+	 * Map the pvmfw section RO in the hypervisor, but transfer the
+	 * ownership from the host to the hypervisor itself to make sure that it
 	 * can't be donated or shared with another entity.
 	 *
 	 * The ownership transition requires matching changes in the host
 	 * stage-2. This will be done later (see finalize_host_mappings()) once
 	 * the hyp_vmemmap is addressable.
 	 */
-	prot = pkvm_mkstate(PAGE_HYP_RO, PKVM_PAGE_SHARED_OWNED);
-	ret = pkvm_create_mappings(&kvm_vgic_global_state,
-				   &kvm_vgic_global_state + 1, prot);
-	if (ret)
-		return ret;
-
 	start = hyp_phys_to_virt(pvmfw_base);
 	end = start + pvmfw_size;
 	prot = pkvm_mkstate(PAGE_HYP_RO, PKVM_PAGE_OWNED);
@@ -202,6 +198,16 @@ static void hpool_get_page(void *addr)
 static void hpool_put_page(void *addr)
 {
 	hyp_put_page(&hpool, addr);
+}
+
+u64 hpool_get_free_pages(void)
+{
+	return hyp_pool_free_pages(&hpool);
+}
+
+u64 hpool_get_min_free_pages(void)
+{
+	return hyp_pool_min_free_pages(&hpool);
 }
 
 static int fix_host_ownership_walker(const struct kvm_pgtable_visit_ctx *ctx,
@@ -379,6 +385,10 @@ void __noreturn __pkvm_init_finalise(void)
 		goto out;
 
 	ret = pin_host_tables();
+	if (ret)
+		goto out;
+
+	ret = fix_host_ownership();
 	if (ret)
 		goto out;
 

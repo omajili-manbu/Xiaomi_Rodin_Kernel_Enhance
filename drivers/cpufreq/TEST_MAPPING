@@ -1,12 +1,6 @@
 {
   "imports": [
     {
-      "path": "frameworks/base/packages/PackageInstaller"
-    },
-    {
-      "path": "frameworks/base/core/java/android/content/pm"
-    },
-    {
       "path": "frameworks/base/services/core/java/com/android/server"
     },
     {
@@ -225,6 +219,32 @@
       "options": [
         {
           "exclude-annotation": "com.android.testutils.SkipPresubmit"
+        }
+      ]
+    }
+  ],
+  "kernel-presubmit": [
+    {
+      "name": "CtsCameraTestCases",
+      "options": [
+        {
+          "include-filter": "android.hardware.camera2.cts.FastBasicsTest"
+        }
+      ]
+    },
+    {
+      "name": "CtsIncrementalInstallHostTestCases",
+      "options": [
+        {
+          "include-filter": "android.incrementalinstall.cts.IncrementalInstallTest"
+        }
+      ]
+    },
+    {
+      "name": "CtsLibcoreLegacy22TestCases",
+      "options": [
+        {
+          "include-filter": "android.util.cts.FloatMathTest"
         }
       ]
     }

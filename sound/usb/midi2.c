@@ -234,7 +234,7 @@ static void kill_midi_urbs(struct snd_usb_midi2_endpoint *ep, bool suspending)
 	if (!ep)
 		return;
 	if (suspending)
-		ep->suspended = ep->running;
+		atomic_set(&ep->suspended, atomic_read(&ep->running));
 	atomic_set(&ep->running, 0);
 	for (i = 0; i < ep->num_urbs; i++) {
 		if (!ep->urbs[i].urb)
@@ -504,15 +504,17 @@ static void *find_usb_ms_endpoint_descriptor(struct usb_host_endpoint *hostep,
 	while (extralen > 3) {
 		struct usb_ms_endpoint_descriptor *ms_ep =
 			(struct usb_ms_endpoint_descriptor *)extra;
+		int length = ms_ep->bLength;
 
-		if (ms_ep->bLength > 3 &&
+		if (!length || length > extralen)
+			break;
+
+		if (length > 3 &&
 		    ms_ep->bDescriptorType == USB_DT_CS_ENDPOINT &&
 		    ms_ep->bDescriptorSubtype == subtype)
 			return ms_ep;
-		if (!extra[0])
-			break;
-		extralen -= extra[0];
-		extra += extra[0];
+		extralen -= length;
+		extra += length;
 	}
 	return NULL;
 }
@@ -873,6 +875,8 @@ static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 		fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1 |
 			SNDRV_UMP_BLOCK_IS_LOWSPEED;
 
+	snd_ump_update_group_attrs(rmidi->ump);
+
 	usb_audio_dbg(umidi->chip,
 		      "Created a UMP block %d from GTB, name=%s\n",
 		      blk, fb->info.name);
@@ -1191,10 +1195,11 @@ void snd_usb_midi_v2_suspend_all(struct snd_usb_audio *chip)
 
 static void resume_midi2_endpoint(struct snd_usb_midi2_endpoint *ep)
 {
-	ep->running = ep->suspended;
-	if (ep->direction == STR_IN)
+	atomic_set(&ep->running, atomic_read(&ep->suspended));
+	atomic_set(&ep->suspended, 0);
+
+	if (ep->direction == STR_IN || atomic_read(&ep->running))
 		submit_io_urbs(ep);
-	/* FIXME: does it all? */
 }
 
 void snd_usb_midi_v2_resume_all(struct snd_usb_audio *chip)

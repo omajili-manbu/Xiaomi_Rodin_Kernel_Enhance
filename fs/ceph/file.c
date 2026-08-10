@@ -539,8 +539,7 @@ static void wake_async_create_waiters(struct inode *inode,
 
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
-		ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
-		wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
+		clear_and_wake_up_bit(CEPH_ASYNC_CREATE_BIT, &ci->i_ceph_flags);
 
 		if (ci->i_ceph_flags & CEPH_I_ASYNC_CHECK_CAPS) {
 			ci->i_ceph_flags &= ~CEPH_I_ASYNC_CHECK_CAPS;
@@ -716,8 +715,7 @@ static int ceph_finish_async_create(struct inode *dir, struct inode *inode,
 	}
 
 	spin_lock(&dentry->d_lock);
-	di->flags &= ~CEPH_DENTRY_ASYNC_CREATE;
-	wake_up_bit(&di->flags, CEPH_DENTRY_ASYNC_CREATE_BIT);
+	clear_and_wake_up_bit(CEPH_DENTRY_ASYNC_CREATE_BIT, &di->flags);
 	spin_unlock(&dentry->d_lock);
 
 	return ret;
@@ -976,7 +974,7 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 	if (ceph_inode_is_shutdown(inode))
 		return -EIO;
 
-	if (!len)
+	if (!len || !i_size)
 		return 0;
 	/*
 	 * flush any page cache pages in this range.  this
@@ -996,11 +994,12 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 		int num_pages;
 		size_t page_off;
 		bool more;
-		int idx;
+		int idx = 0;
 		size_t left;
 		struct ceph_osd_req_op *op;
 		u64 read_off = off;
 		u64 read_len = len;
+		int extent_cnt;
 
 		/* determine new offset/length if encrypted */
 		ceph_fscrypt_adjust_off_and_len(inode, &read_off, &read_len);
@@ -1025,6 +1024,16 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 			len = read_off + read_len - off;
 		more = len < iov_iter_count(to);
 
+		op = &req->r_ops[0];
+		if (sparse) {
+			extent_cnt = __ceph_sparse_read_ext_count(inode, read_len);
+			ret = ceph_alloc_sparse_ext_map(op, extent_cnt);
+			if (ret) {
+				ceph_osdc_put_request(req);
+				break;
+			}
+		}
+
 		num_pages = calc_pages_for(read_off, read_len);
 		page_off = offset_in_page(off);
 		pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
@@ -1036,16 +1045,7 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 
 		osd_req_op_extent_osd_data_pages(req, 0, pages, read_len,
 						 offset_in_page(read_off),
-						 false, false);
-
-		op = &req->r_ops[0];
-		if (sparse) {
-			ret = ceph_alloc_sparse_ext_map(op);
-			if (ret) {
-				ceph_osdc_put_request(req);
-				break;
-			}
-		}
+						 false, true);
 
 		ceph_osdc_start_request(osdc, req);
 		ret = ceph_osdc_wait_request(osdc, req);
@@ -1068,7 +1068,14 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 		else if (ret == -ENOENT)
 			ret = 0;
 
-		if (ret > 0 && IS_ENCRYPTED(inode)) {
+		if (ret < 0) {
+			ceph_osdc_put_request(req);
+			if (ret == -EBLOCKLISTED)
+				fsc->blocklisted = true;
+			break;
+		}
+
+		if (IS_ENCRYPTED(inode)) {
 			int fret;
 
 			fret = ceph_fscrypt_decrypt_extents(inode, pages,
@@ -1094,10 +1101,8 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 			ret = min_t(ssize_t, fret, len);
 		}
 
-		ceph_osdc_put_request(req);
-
 		/* Short read but not EOF? Zero out the remainder. */
-		if (ret >= 0 && ret < len && (off + ret < i_size)) {
+		if (ret < len && (off + ret < i_size)) {
 			int zlen = min(len - ret, i_size - off - ret);
 			int zoff = page_off + ret;
 
@@ -1107,13 +1112,11 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 			ret += zlen;
 		}
 
-		idx = 0;
-		if (ret <= 0)
-			left = 0;
-		else if (off + ret > i_size)
-			left = i_size - off;
+		if (off + ret > i_size)
+			left = (i_size > off) ? i_size - off : 0;
 		else
 			left = ret;
+
 		while (left > 0) {
 			size_t plen, copied;
 
@@ -1129,13 +1132,8 @@ ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 				break;
 			}
 		}
-		ceph_release_page_vector(pages, num_pages);
 
-		if (ret < 0) {
-			if (ret == -EBLOCKLISTED)
-				fsc->blocklisted = true;
-			break;
-		}
+		ceph_osdc_put_request(req);
 
 		if (off >= i_size || !more)
 			break;
@@ -1433,6 +1431,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		ssize_t len;
 		struct ceph_osd_req_op *op;
 		int readop = sparse ? CEPH_OSD_OP_SPARSE_READ : CEPH_OSD_OP_READ;
+		int extent_cnt;
 
 		if (write)
 			size = min_t(u64, size, fsc->mount_options->wsize);
@@ -1453,6 +1452,16 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		}
 
+		op = &req->r_ops[0];
+		if (!write && sparse) {
+			extent_cnt = __ceph_sparse_read_ext_count(inode, size);
+			ret = ceph_alloc_sparse_ext_map(op, extent_cnt);
+			if (ret) {
+				ceph_osdc_put_request(req);
+				break;
+			}
+		}
+
 		len = iter_get_bvecs_alloc(iter, size, &bvecs, &num_pages);
 		if (len < 0) {
 			ceph_osdc_put_request(req);
@@ -1461,6 +1470,8 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		if (len != size)
 			osd_req_op_extent_update(req, 0, len);
+
+		osd_req_op_extent_osd_data_bvecs(req, 0, bvecs, num_pages, len);
 
 		/*
 		 * To simplify error handling, allow AIO when IO within i_size
@@ -1491,16 +1502,6 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 						   PAGE_ALIGN(pos + len) - 1);
 
 			req->r_mtime = mtime;
-		}
-
-		osd_req_op_extent_osd_data_bvecs(req, 0, bvecs, num_pages, len);
-		op = &req->r_ops[0];
-		if (sparse) {
-			ret = ceph_alloc_sparse_ext_map(op);
-			if (ret) {
-				ceph_osdc_put_request(req);
-				break;
-			}
 		}
 
 		if (aio_req) {
@@ -2467,6 +2468,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
 	struct ceph_osd_request *req;
+	struct ceph_snap_context *snapc;
 	int ret = 0;
 	loff_t zero = 0;
 	int op;
@@ -2481,12 +2483,25 @@ static int ceph_zero_partial_object(struct inode *inode,
 		op = CEPH_OSD_OP_ZERO;
 	}
 
+	spin_lock(&ci->i_ceph_lock);
+	if (__ceph_have_pending_cap_snap(ci)) {
+		struct ceph_cap_snap *capsnap =
+				list_last_entry(&ci->i_cap_snaps,
+						struct ceph_cap_snap,
+						ci_item);
+		snapc = ceph_get_snap_context(capsnap->context);
+	} else {
+		BUG_ON(!ci->i_head_snapc);
+		snapc = ceph_get_snap_context(ci->i_head_snapc);
+	}
+	spin_unlock(&ci->i_ceph_lock);
+
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
 					ceph_vino(inode),
 					offset, length,
 					0, 1, op,
 					CEPH_OSD_FLAG_WRITE,
-					NULL, 0, 0, false);
+					snapc, 0, 0, false);
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
 		goto out;
@@ -2500,6 +2515,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 	ceph_osdc_put_request(req);
 
 out:
+	ceph_put_snap_context(snapc);
 	return ret;
 }
 
@@ -2510,7 +2526,7 @@ static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
 	s32 stripe_unit = ci->i_layout.stripe_unit;
 	s32 stripe_count = ci->i_layout.stripe_count;
 	s32 object_size = ci->i_layout.object_size;
-	u64 object_set_size = object_size * stripe_count;
+	u64 object_set_size = (u64) object_size * stripe_count;
 	u64 nearly, t;
 
 	/* round offset up to next period boundary */

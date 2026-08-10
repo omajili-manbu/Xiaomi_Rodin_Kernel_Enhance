@@ -178,7 +178,7 @@ static void truncate_cleanup_folio(struct folio *folio)
 	if (folio_mapped(folio))
 		unmap_mapping_folio(folio);
 
-	if (folio_has_private(folio))
+	if (folio_needs_release(folio))
 		folio_invalidate(folio, 0, folio_size(folio));
 
 	/*
@@ -198,6 +198,31 @@ int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
 	truncate_cleanup_folio(folio);
 	filemap_remove_folio(folio);
 	return 0;
+}
+
+static int try_folio_split_or_unmap(struct folio *folio)
+{
+	enum ttu_flags ttu_flags =
+		TTU_SYNC |
+		TTU_SPLIT_HUGE_PMD |
+		TTU_IGNORE_MLOCK;
+	int ret;
+
+	ret = split_folio(folio);
+
+	/*
+	 * If the split fails, unmap the folio, so it will be refaulted
+	 * with PTEs to respect SIGBUS semantics.
+	 *
+	 * Make an exception for shmem/tmpfs that for long time
+	 * intentionally mapped with PMDs across i_size.
+	 */
+	if (ret && !shmem_mapping(folio->mapping)) {
+		try_to_unmap(folio, ttu_flags);
+		WARN_ON(folio_mapped(folio));
+	}
+
+	return ret;
 }
 
 /*
@@ -241,11 +266,11 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 	folio_zero_range(folio, offset, length);
 
 	cleancache_invalidate_page(folio->mapping, &folio->page);
-	if (folio_has_private(folio))
+	if (folio_needs_release(folio))
 		folio_invalidate(folio, offset, length);
 	if (!folio_test_large(folio))
 		return true;
-	err = split_folio(folio);
+	err = try_folio_split_or_unmap(folio);
 	if (!err)
 		return true;
 	if (err > 0)

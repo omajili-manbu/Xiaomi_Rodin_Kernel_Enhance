@@ -19,6 +19,9 @@
 #include <uapi/linux/uleds.h>
 #include "leds.h"
 
+struct workqueue_struct *leds_wq;
+EXPORT_SYMBOL_GPL(leds_wq);
+
 DECLARE_RWSEM(leds_list_lock);
 EXPORT_SYMBOL_GPL(leds_list_lock);
 
@@ -147,8 +150,19 @@ static void set_brightness_delayed(struct work_struct *ws)
 	 * before this work item runs once. To make sure this works properly
 	 * handle LED_SET_BRIGHTNESS_OFF first.
 	 */
-	if (test_and_clear_bit(LED_SET_BRIGHTNESS_OFF, &led_cdev->work_flags))
+	if (test_and_clear_bit(LED_SET_BRIGHTNESS_OFF, &led_cdev->work_flags)) {
 		set_brightness_delayed_set_brightness(led_cdev, LED_OFF);
+		/*
+		 * The consecutives led_set_brightness(LED_OFF),
+		 * led_set_brightness(LED_FULL) could have been executed out of
+		 * order (LED_FULL first), if the work_flags has been set
+		 * between LED_SET_BRIGHTNESS_OFF and LED_SET_BRIGHTNESS of this
+		 * work. To avoid ending with the LED turned off, turn the LED
+		 * on again.
+		 */
+		if (led_cdev->delayed_set_value != LED_OFF)
+			set_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags);
+	}
 
 	if (test_and_clear_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags))
 		set_brightness_delayed_set_brightness(led_cdev, led_cdev->delayed_set_value);
@@ -261,7 +275,7 @@ void led_blink_set_nosleep(struct led_classdev *led_cdev, unsigned long delay_on
 		led_cdev->delayed_delay_on = delay_on;
 		led_cdev->delayed_delay_off = delay_off;
 		set_bit(LED_SET_BLINK, &led_cdev->work_flags);
-		schedule_work(&led_cdev->set_brightness_work);
+		queue_work(leds_wq, &led_cdev->set_brightness_work);
 		return;
 	}
 
@@ -292,7 +306,7 @@ void led_set_brightness(struct led_classdev *led_cdev, unsigned int brightness)
 		 */
 		if (!brightness) {
 			set_bit(LED_BLINK_DISABLE, &led_cdev->work_flags);
-			schedule_work(&led_cdev->set_brightness_work);
+			queue_work(leds_wq, &led_cdev->set_brightness_work);
 		} else {
 			set_bit(LED_BLINK_BRIGHTNESS_CHANGE,
 				&led_cdev->work_flags);
@@ -319,16 +333,19 @@ void led_set_brightness_nopm(struct led_classdev *led_cdev, unsigned int value)
 	 * change is done immediately afterwards (before the work runs),
 	 * it uses a separate work_flag.
 	 */
-	if (value) {
-		led_cdev->delayed_set_value = value;
+	led_cdev->delayed_set_value = value;
+	/* Ensure delayed_set_value is seen before work_flags modification */
+	smp_mb__before_atomic();
+
+	if (value)
 		set_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags);
-	} else {
+	else {
 		clear_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags);
 		clear_bit(LED_SET_BLINK, &led_cdev->work_flags);
 		set_bit(LED_SET_BRIGHTNESS_OFF, &led_cdev->work_flags);
 	}
 
-	schedule_work(&led_cdev->set_brightness_work);
+	queue_work(leds_wq, &led_cdev->set_brightness_work);
 }
 EXPORT_SYMBOL_GPL(led_set_brightness_nopm);
 

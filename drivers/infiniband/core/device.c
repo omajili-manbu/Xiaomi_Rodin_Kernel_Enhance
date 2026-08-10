@@ -93,6 +93,7 @@ static struct workqueue_struct *ib_unreg_wq;
 static DEFINE_XARRAY_FLAGS(devices, XA_FLAGS_ALLOC);
 static DECLARE_RWSEM(devices_rwsem);
 #define DEVICE_REGISTERED XA_MARK_1
+#define DEVICE_GID_UPDATES XA_MARK_2
 
 static u32 highest_client_id;
 #define CLIENT_REGISTERED XA_MARK_1
@@ -1441,8 +1442,13 @@ int ib_register_device(struct ib_device *device, const char *name,
 		return ret;
 	}
 	dev_set_uevent_suppress(&device->dev, false);
+
+	down_read(&devices_rwsem);
+
 	/* Mark for userspace that device is ready */
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
+
+	up_read(&devices_rwsem);
 	ib_device_put(device);
 
 	return 0;
@@ -2146,6 +2152,9 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
+	if (!rdma_is_port_valid(ib_dev, port))
+		return -EINVAL;
+
 	/*
 	 * Drivers wish to call this before ib_register_driver, so we have to
 	 * setup the port data early.
@@ -2153,9 +2162,6 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 	ret = alloc_port_data(ib_dev);
 	if (ret)
 		return ret;
-
-	if (!rdma_is_port_valid(ib_dev, port))
-		return -EINVAL;
 
 	pdata = &ib_dev->port_data[port];
 	spin_lock_irqsave(&pdata->netdev_lock, flags);
@@ -2166,17 +2172,12 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 		return 0;
 	}
 
-	if (old_ndev)
-		netdev_tracker_free(ndev, &pdata->netdev_tracker);
-	if (ndev)
-		netdev_hold(ndev, &pdata->netdev_tracker, GFP_ATOMIC);
 	rcu_assign_pointer(pdata->netdev, ndev);
+	netdev_put(old_ndev, &pdata->netdev_tracker);
+	netdev_hold(ndev, &pdata->netdev_tracker, GFP_ATOMIC);
 	spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 
 	add_ndev_hash(pdata);
-	if (old_ndev)
-		__dev_put(old_ndev);
-
 	return 0;
 }
 EXPORT_SYMBOL(ib_device_set_netdev);
@@ -2235,8 +2236,7 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 		spin_lock(&pdata->netdev_lock);
 		res = rcu_dereference_protected(
 			pdata->netdev, lockdep_is_held(&pdata->netdev_lock));
-		if (res)
-			dev_hold(res);
+		dev_hold(res);
 		spin_unlock(&pdata->netdev_lock);
 	}
 
@@ -2251,6 +2251,7 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 
 	return res;
 }
+EXPORT_SYMBOL(ib_device_get_netdev);
 
 /**
  * ib_device_get_by_netdev - Find an IB device associated with a netdev
@@ -2311,9 +2312,7 @@ void ib_enum_roce_netdev(struct ib_device *ib_dev,
 
 			if (filter(ib_dev, port, idev, filter_cookie))
 				cb(ib_dev, port, idev, cookie);
-
-			if (idev)
-				dev_put(idev);
+			dev_put(idev);
 		}
 }
 
@@ -2337,9 +2336,40 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 	unsigned long index;
 
 	down_read(&devices_rwsem);
-	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED)
+	xa_for_each_marked(&devices, index, dev, DEVICE_GID_UPDATES)
 		ib_enum_roce_netdev(dev, filter, filter_cookie, cb, cookie);
 	up_read(&devices_rwsem);
+}
+
+/**
+ * ib_device_enable_gid_updates - Mark device as ready for GID cache updates
+ * @device: Device to mark
+ *
+ * Called after GID table is allocated and initialized. After this mark is set,
+ * netdevice event handlers can update the device's GID cache. This allows
+ * events that arrive during device registration to be processed, avoiding
+ * stale GID entries when netdev properties change during the device
+ * registration process.
+ */
+void ib_device_enable_gid_updates(struct ib_device *device)
+{
+	down_write(&devices_rwsem);
+	xa_set_mark(&devices, device->index, DEVICE_GID_UPDATES);
+	up_write(&devices_rwsem);
+}
+
+/**
+ * ib_device_disable_gid_updates - Clear the GID updates mark
+ * @device: Device to unmark
+ *
+ * Called before GID table cleanup to prevent event handlers from accessing
+ * the device while it's being torn down.
+ */
+void ib_device_disable_gid_updates(struct ib_device *device)
+{
+	down_write(&devices_rwsem);
+	xa_clear_mark(&devices, device->index, DEVICE_GID_UPDATES);
+	up_write(&devices_rwsem);
 }
 
 /*

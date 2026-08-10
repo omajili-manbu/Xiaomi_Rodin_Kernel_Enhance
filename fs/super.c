@@ -40,6 +40,8 @@
 #include <uapi/linux/mount.h>
 #include "internal.h"
 
+#include <trace/hooks/fs.h>
+
 static int thaw_super_locked(struct super_block *sb, enum freeze_holder who);
 
 static LIST_HEAD(super_blocks);
@@ -692,6 +694,7 @@ void generic_shutdown_super(struct super_block *sb)
 			sb->s_dio_done_wq = NULL;
 		}
 
+		trace_android_vh_put_super(sb);
 		if (sop->put_super)
 			sop->put_super(sb);
 
@@ -783,6 +786,17 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct super_block *old;
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
+
+	/*
+	 * Never allow s_user_ns != &init_user_ns when FS_USERNS_MOUNT is
+	 * not set, as the filesystem is likely unprepared to handle it.
+	 * This can happen when fsconfig() is called from init_user_ns with
+	 * an fs_fd opened in another user namespace.
+	 */
+	if (user_ns != &init_user_ns && !(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
+		errorfc(fc, "VFS: Mounting from non-initial user namespace is not allowed");
+		return ERR_PTR(-EPERM);
+	}
 
 retry:
 	spin_lock(&sb_lock);

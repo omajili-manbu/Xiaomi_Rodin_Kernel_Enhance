@@ -139,7 +139,8 @@ TRACE_DEFINE_ENUM(EX_BLOCK_AGE);
 		{ CP_NODE_NEED_CP,	"node needs cp" },		\
 		{ CP_FASTBOOT_MODE,	"fastboot mode" },		\
 		{ CP_SPEC_LOG_NUM,	"log type is 2" },		\
-		{ CP_RECOVER_DIR,	"dir needs recovery" })
+		{ CP_RECOVER_DIR,	"dir needs recovery" },		\
+		{ CP_XATTR_DIR,		"dir's xattr updated" })
 
 #define show_shutdown_mode(type)					\
 	__print_symbolic(type,						\
@@ -173,6 +174,15 @@ TRACE_DEFINE_ENUM(EX_BLOCK_AGE);
 
 #define S_ALL_PERM	(S_ISUID | S_ISGID | S_ISVTX |	\
 			S_IRWXU | S_IRWXG | S_IRWXO)
+
+#define show_lock_name(lock)						\
+	__print_symbolic(lock,						\
+		{ LOCK_NAME_CP_RWSEM,		"cp_rwsem" },		\
+		{ LOCK_NAME_NODE_CHANGE,	"node_change" },	\
+		{ LOCK_NAME_NODE_WRITE,		"node_write" },		\
+		{ LOCK_NAME_GC_LOCK,		"gc_lock" },		\
+		{ LOCK_NAME_CP_GLOBAL,		"cp_global" },		\
+		{ LOCK_NAME_IO_RWSEM,		"io_rwsem" })
 
 struct f2fs_sb_info;
 struct f2fs_io_info;
@@ -1118,11 +1128,11 @@ TRACE_EVENT(f2fs_reserve_new_blocks,
 		(unsigned long long)__entry->count)
 );
 
-DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
+DECLARE_EVENT_CLASS(f2fs__submit_folio_bio,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -1137,9 +1147,9 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= page_file_mapping(page)->host->i_sb->s_dev;
-		__entry->ino		= page_file_mapping(page)->host->i_ino;
-		__entry->index		= page->index;
+		__entry->dev		= folio->mapping->host->i_sb->s_dev;
+		__entry->ino		= folio->mapping->host->i_ino;
+		__entry->index		= folio->index;
 		__entry->old_blkaddr	= fio->old_blkaddr;
 		__entry->new_blkaddr	= fio->new_blkaddr;
 		__entry->op		= fio->op;
@@ -1148,7 +1158,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->type		= fio->type;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
+	TP_printk("dev = (%d,%d), ino = %lu, folio_index = 0x%lx, "
 		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s(%s), type = %s_%s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
@@ -1159,22 +1169,22 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		show_block_type(__entry->type))
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
+DEFINE_EVENT_CONDITION(f2fs__submit_folio_bio, f2fs_submit_folio_bio,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
-	TP_CONDITION(page->mapping)
+	TP_CONDITION(folio->mapping)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_write,
+DEFINE_EVENT_CONDITION(f2fs__submit_folio_bio, f2fs_submit_folio_write,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
-	TP_CONDITION(page->mapping)
+	TP_CONDITION(folio->mapping)
 );
 
 DECLARE_EVENT_CLASS(f2fs__bio,
@@ -1321,12 +1331,11 @@ DECLARE_EVENT_CLASS(f2fs__folio,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= folio_file_mapping(folio)->host->i_sb->s_dev;
-		__entry->ino	= folio_file_mapping(folio)->host->i_ino;
+		__entry->dev	= folio->mapping->host->i_sb->s_dev;
+		__entry->ino	= folio->mapping->host->i_ino;
 		__entry->type	= type;
-		__entry->dir	=
-			S_ISDIR(folio_file_mapping(folio)->host->i_mode);
-		__entry->index	= folio_index(folio);
+		__entry->dir	= S_ISDIR(folio->mapping->host->i_mode);
+		__entry->index	= folio->index;
 		__entry->dirty	= folio_test_dirty(folio);
 		__entry->uptodate = folio_test_uptodate(folio);
 	),
@@ -2402,6 +2411,127 @@ DEFINE_EVENT(f2fs__rw_end, f2fs_datawrite_end,
 	TP_PROTO(struct inode *inode, loff_t offset, int bytes),
 
 	TP_ARGS(inode, offset, bytes)
+);
+
+TRACE_EVENT(f2fs_lock_elapsed_time,
+
+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
+		bool is_write, struct task_struct *p, int ioprio,
+		unsigned long long total_time,
+		unsigned long long running_time,
+		unsigned long long runnable_time,
+		unsigned long long io_sleep_time,
+		unsigned long long other_time),
+
+	TP_ARGS(sbi, lock_name, is_write, p, ioprio, total_time, running_time,
+		runnable_time, io_sleep_time, other_time),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__array(char, comm, TASK_COMM_LEN)
+		__field(pid_t, pid)
+		__field(int, prio)
+		__field(int, ioprio_class)
+		__field(int, ioprio_data)
+		__field(unsigned int, lock_name)
+		__field(bool, is_write)
+		__field(unsigned long long, total_time)
+		__field(unsigned long long, running_time)
+		__field(unsigned long long, runnable_time)
+		__field(unsigned long long, io_sleep_time)
+		__field(unsigned long long, other_time)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sbi->sb->s_dev;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid		= p->pid;
+		__entry->prio		= p->prio;
+		__entry->ioprio_class	= IOPRIO_PRIO_CLASS(ioprio);
+		__entry->ioprio_data	= IOPRIO_PRIO_DATA(ioprio);
+		__entry->lock_name	= lock_name;
+		__entry->is_write	= is_write;
+		__entry->total_time	= total_time;
+		__entry->running_time	= running_time;
+		__entry->runnable_time	= runnable_time;
+		__entry->io_sleep_time	= io_sleep_time;
+		__entry->other_time	= other_time;
+	),
+
+	TP_printk("dev = (%d,%d), comm: %s, pid: %d, prio: %d, "
+		"ioprio_class: %d, ioprio_data: %d, lock_name: %s, "
+		"lock_type: %s, total: %llu, running: %llu, "
+		"runnable: %llu, io_sleep: %llu, other: %llu",
+		show_dev(__entry->dev),
+		__entry->comm,
+		__entry->pid,
+		__entry->prio,
+		__entry->ioprio_class,
+		__entry->ioprio_data,
+		show_lock_name(__entry->lock_name),
+		__entry->is_write ? "wlock" : "rlock",
+		__entry->total_time,
+		__entry->running_time,
+		__entry->runnable_time,
+		__entry->io_sleep_time,
+		__entry->other_time)
+);
+
+DECLARE_EVENT_CLASS(f2fs_priority_update,
+
+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
+		bool is_write, struct task_struct *p, int orig_prio,
+		int new_prio),
+
+	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__array(char, comm, TASK_COMM_LEN)
+		__field(pid_t, pid)
+		__field(unsigned int, lock_name)
+		__field(bool, is_write)
+		__field(int, orig_prio)
+		__field(int, new_prio)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sbi->sb->s_dev;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid		= p->pid;
+		__entry->lock_name	= lock_name;
+		__entry->is_write	= is_write;
+		__entry->orig_prio	= orig_prio;
+		__entry->new_prio	= new_prio;
+	),
+
+	TP_printk("dev = (%d,%d), comm: %s, pid: %d, lock_name: %s, "
+		"lock_type: %s, orig_prio: %d, new_prio: %d",
+		show_dev(__entry->dev),
+		__entry->comm,
+		__entry->pid,
+		show_lock_name(__entry->lock_name),
+		__entry->is_write ? "wlock" : "rlock",
+		__entry->orig_prio,
+		__entry->new_prio)
+);
+
+DEFINE_EVENT(f2fs_priority_update, f2fs_priority_uplift,
+
+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
+		bool is_write, struct task_struct *p, int orig_prio,
+		int new_prio),
+
+	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
+);
+
+DEFINE_EVENT(f2fs_priority_update, f2fs_priority_restore,
+
+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
+		bool is_write, struct task_struct *p, int orig_prio,
+		int new_prio),
+
+	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
 );
 
 #endif /* _TRACE_F2FS_H */

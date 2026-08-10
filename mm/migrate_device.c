@@ -567,6 +567,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 				    struct page *page,
 				    unsigned long *src)
 {
+	struct folio *folio = page_folio(page);
 	struct vm_area_struct *vma = migrate->vma;
 	struct mm_struct *mm = vma->vm_mm;
 	bool flush = false;
@@ -599,17 +600,17 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto abort;
 	if (unlikely(anon_vma_prepare(vma)))
 		goto abort;
-	if (mem_cgroup_charge(page_folio(page), vma->vm_mm, GFP_KERNEL))
+	if (mem_cgroup_charge(folio, vma->vm_mm, GFP_KERNEL))
 		goto abort;
 
 	/*
-	 * The memory barrier inside __SetPageUptodate makes sure that
-	 * preceding stores to the page contents become visible before
+	 * The memory barrier inside __folio_mark_uptodate makes sure that
+	 * preceding stores to the folio contents become visible before
 	 * the set_pte_at() write.
 	 */
-	__SetPageUptodate(page);
+	__folio_mark_uptodate(folio);
 
-	if (is_device_private_page(page)) {
+	if (folio_is_device_private(folio)) {
 		swp_entry_t swp_entry;
 
 		if (vma->vm_flags & VM_WRITE)
@@ -620,8 +621,8 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 						page_to_pfn(page));
 		entry = swp_entry_to_pte(swp_entry);
 	} else {
-		if (is_zone_device_page(page) &&
-		    !is_device_coherent_page(page)) {
+		if (folio_is_zone_device(folio) &&
+		    !folio_is_device_coherent(folio)) {
 			pr_warn_once("Unsupported ZONE_DEVICE page type.\n");
 			goto abort;
 		}
@@ -655,10 +656,10 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto unlock_abort;
 
 	inc_mm_counter(mm, MM_ANONPAGES);
-	page_add_new_anon_rmap(page, vma, addr);
-	if (!is_zone_device_page(page))
-		lru_cache_add_inactive_or_unevictable(page, vma);
-	get_page(page);
+	folio_add_new_anon_rmap(folio, vma, addr, RMAP_EXCLUSIVE);
+	if (!folio_is_zone_device(folio))
+		folio_add_lru_vma(folio, vma);
+	folio_get(folio);
 
 	if (flush) {
 		flush_cache_page(vma, addr, pte_pfn(orig_pte));
@@ -817,42 +818,40 @@ void migrate_device_finalize(unsigned long *src_pfns,
 	unsigned long i;
 
 	for (i = 0; i < npages; i++) {
-		struct folio *dst, *src;
+		struct folio *dst = NULL, *src = NULL;
 		struct page *newpage = migrate_pfn_to_page(dst_pfns[i]);
 		struct page *page = migrate_pfn_to_page(src_pfns[i]);
 
+		if (newpage)
+			dst = page_folio(newpage);
+
 		if (!page) {
-			if (newpage) {
-				unlock_page(newpage);
-				put_page(newpage);
+			if (dst) {
+				folio_unlock(dst);
+				folio_put(dst);
 			}
 			continue;
 		}
 
-		if (!(src_pfns[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
-			if (newpage) {
-				unlock_page(newpage);
-				put_page(newpage);
+		src = page_folio(page);
+
+		if (!(src_pfns[i] & MIGRATE_PFN_MIGRATE) || !dst) {
+			if (dst) {
+				folio_unlock(dst);
+				folio_put(dst);
 			}
-			newpage = page;
+			dst = src;
 		}
 
-		src = page_folio(page);
-		dst = page_folio(newpage);
+		if (!folio_is_zone_device(dst))
+			folio_add_lru(dst);
 		remove_migration_ptes(src, dst, false);
 		folio_unlock(src);
+		folio_put(src);
 
-		if (is_zone_device_page(page))
-			put_page(page);
-		else
-			putback_lru_page(page);
-
-		if (newpage != page) {
-			unlock_page(newpage);
-			if (is_zone_device_page(newpage))
-				put_page(newpage);
-			else
-				putback_lru_page(newpage);
+		if (dst != src) {
+			folio_unlock(dst);
+			folio_put(dst);
 		}
 	}
 }

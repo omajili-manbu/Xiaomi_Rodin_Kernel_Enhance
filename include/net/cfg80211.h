@@ -119,10 +119,6 @@ struct wiphy;
  *	restrictions.
  * @IEEE80211_CHAN_NO_EHT: EHT operation is not permitted on this channel.
  * @IEEE80211_CHAN_DFS_CONCURRENT: See %NL80211_RRF_DFS_CONCURRENT
- * @IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT: Client connection with VLP AP
- *	not permitted using this channel
- * @IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT: Client connection with AFC AP
- *	not permitted using this channel
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED		= 1<<0,
@@ -147,8 +143,6 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_320MHZ	= 1<<19,
 	IEEE80211_CHAN_NO_EHT		= 1<<20,
 	IEEE80211_CHAN_DFS_CONCURRENT	= 1<<21,
-	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT = 1<<22,
-	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT = 1<<23,
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -572,7 +566,7 @@ ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
 {
 	int i;
 
-	if (WARN_ON(iftype >= NL80211_IFTYPE_MAX))
+	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
 		return NULL;
 
 	if (iftype == NL80211_IFTYPE_AP_VLAN)
@@ -2587,7 +2581,7 @@ struct cfg80211_scan_request {
 	ANDROID_KABI_RESERVE(1);
 
 	/* keep last */
-	struct ieee80211_channel *channels[] __counted_by(n_channels);
+	struct ieee80211_channel *channels[];
 };
 
 static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
@@ -4849,7 +4843,7 @@ struct cfg80211_ops {
  * enum wiphy_flags - wiphy capability flags
  *
  * @WIPHY_FLAG_SPLIT_SCAN_6GHZ: if set to true, the scan request will be split
- *	 into two, first for legacy bands and second for 6 GHz.
+ *	 into two, first for legacy bands and second for UHB.
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
@@ -8057,7 +8051,8 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
  * cfg80211_port_authorized - notify cfg80211 of successful security association
  *
  * @dev: network device
- * @bssid: the BSSID of the AP
+ * @peer_addr: BSSID of the AP/P2P GO in case of STA/GC or STA/GC MAC address
+ *	in case of AP/P2P GO
  * @td_bitmap: transition disable policy
  * @td_bitmap_len: Length of transition disable policy
  * @gfp: allocation flags
@@ -8068,8 +8063,11 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
  * should be preceded with a call to cfg80211_connect_result(),
  * cfg80211_connect_done(), cfg80211_connect_bss() or cfg80211_roamed() to
  * indicate the 802.11 association.
+ * This function can also be called by AP/P2P GO driver that supports
+ * authentication offload. In this case the peer_mac passed is that of
+ * associated STA/GC.
  */
-void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+void cfg80211_port_authorized(struct net_device *dev, const u8 *peer_addr,
 			      const u8* td_bitmap, u8 td_bitmap_len, gfp_t gfp);
 
 /**

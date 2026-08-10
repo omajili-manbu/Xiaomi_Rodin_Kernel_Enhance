@@ -63,6 +63,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/module.h>
+
 /*
  * Mutex protects:
  * 1) List of modules (also safely readable with preempt_disable),
@@ -702,14 +705,16 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	struct module *mod;
 	char name[MODULE_NAME_LEN];
 	char buf[MODULE_FLAGS_BUF_SIZE];
-	int ret, forced = 0;
+	int ret, len, forced = 0;
 
 	if (!capable(CAP_SYS_MODULE) || modules_disabled)
 		return -EPERM;
 
-	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
-		return -EFAULT;
-	name[MODULE_NAME_LEN-1] = '\0';
+	len = strncpy_from_user(name, name_user, MODULE_NAME_LEN);
+	if (len == 0 || len == MODULE_NAME_LEN)
+		return -ENOENT;
+	if (len < 0)
+		return len;
 
 	audit_log_kern_module(name);
 
@@ -1242,6 +1247,7 @@ static void module_memory_free(void *ptr, enum mod_mem_type type)
 
 static void free_mod_mem(struct module *mod)
 {
+	trace_android_vh_free_mod_mem(mod);
 	for_each_mod_mem_type(type) {
 		struct module_memory *mod_mem = &mod->mem[type];
 
@@ -1281,7 +1287,7 @@ static void free_module(struct module *mod)
 	module_unload_free(mod);
 
 	/* Free any allocated parameters. */
-	destroy_params(mod->kp, mod->num_kp);
+	module_destroy_params(mod->kp, mod->num_kp);
 
 	if (is_livepatch_module(mod))
 		free_module_elf(mod);
@@ -1458,6 +1464,13 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			break;
 
 		default:
+			if (sym[i].st_shndx >= info->hdr->e_shnum) {
+				pr_err("%s: Symbol %s has an invalid section index %u (max %u)\n",
+				       mod->name, name, sym[i].st_shndx, info->hdr->e_shnum - 1);
+				ret = -ENOEXEC;
+				break;
+			}
+
 			/* Divert to percpu allocation if a percpu var. */
 			if (sym[i].st_shndx == info->index.pcpu)
 				secbase = (unsigned long)mod_percpu(mod);
@@ -2078,12 +2091,14 @@ static void module_augment_kernel_taints(struct module *mod, struct load_info *i
 	}
 #ifdef CONFIG_MODULE_SIG
 	mod->sig_ok = info->sig_ok;
+#ifndef CONFIG_MODULE_SIG_PROTECT
 	if (!mod->sig_ok) {
 		pr_notice_once("%s: module verification failed: signature "
 			       "and/or required key missing - tainting "
 			       "kernel\n", mod->name);
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
+#endif
 #else
 	mod->sig_ok = 0;
 #endif
@@ -2612,6 +2627,7 @@ static noinline int do_init_module(struct module *mod)
 	rcu_assign_pointer(mod->kallsyms, &mod->core_kallsyms);
 #endif
 	module_enable_ro(mod, true);
+	trace_android_vh_set_mod_perm_after_init(mod);
 	mod_tree_remove_init(mod);
 	module_arch_freeing_init(mod);
 	for_class_mod_mem_type(type, init) {
@@ -2779,6 +2795,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
 	module_enable_x(mod);
+	trace_android_vh_set_mod_perm_before_init(mod);
 
 	/*
 	 * Mark state as coming so strong_try_module_get() ignores us,
@@ -3027,7 +3044,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod_sysfs_teardown(mod);
  coming_cleanup:
 	mod->state = MODULE_STATE_GOING;
-	destroy_params(mod->kp, mod->num_kp);
+	module_destroy_params(mod->kp, mod->num_kp);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
@@ -3119,7 +3136,7 @@ static bool idempotent(struct idempotent *u, const void *cookie)
 	struct idempotent *existing;
 	bool first;
 
-	u->ret = 0;
+	u->ret = -EINTR;
 	u->cookie = cookie;
 	init_completion(&u->complete);
 
@@ -3155,12 +3172,34 @@ static int idempotent_complete(struct idempotent *u, int ret)
 	hlist_for_each_entry_safe(pos, next, head, entry) {
 		if (pos->cookie != cookie)
 			continue;
-		hlist_del(&pos->entry);
+		hlist_del_init(&pos->entry);
 		pos->ret = ret;
 		complete(&pos->complete);
 	}
 	spin_unlock(&idem_lock);
 	return ret;
+}
+
+/*
+ * Wait for the idempotent worker.
+ *
+ * If we get interrupted, we need to remove ourselves from the
+ * the idempotent list, and the completion may still come in.
+ *
+ * The 'idem_lock' protects against the race, and 'idem.ret' was
+ * initialized to -EINTR and is thus always the right return
+ * value even if the idempotent work then completes between
+ * the wait_for_completion and the cleanup.
+ */
+static int idempotent_wait_for_completion(struct idempotent *u)
+{
+	if (wait_for_completion_interruptible(&u->complete)) {
+		spin_lock(&idem_lock);
+		if (!hlist_unhashed(&u->entry))
+			hlist_del(&u->entry);
+		spin_unlock(&idem_lock);
+	}
+	return u->ret;
 }
 
 static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
@@ -3198,15 +3237,16 @@ static int idempotent_init_module(struct file *f, const char __user * uargs, int
 	if (!f || !(f->f_mode & FMODE_READ))
 		return -EBADF;
 
-	/* See if somebody else is doing the operation? */
-	if (idempotent(&idem, file_inode(f))) {
-		wait_for_completion(&idem.complete);
-		return idem.ret;
+	/* Are we the winners of the race and get to do this? */
+	if (!idempotent(&idem, file_inode(f))) {
+		int ret = init_module_from_file(f, uargs, flags);
+		return idempotent_complete(&idem, ret);
 	}
 
-	/* Otherwise, we'll do it and complete others */
-	return idempotent_complete(&idem,
-		init_module_from_file(f, uargs, flags));
+	/*
+	 * Somebody else won the race and is loading the module.
+	 */
+	return idempotent_wait_for_completion(&idem);
 }
 
 SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)

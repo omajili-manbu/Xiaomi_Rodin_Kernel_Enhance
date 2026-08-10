@@ -469,6 +469,13 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 	}
 
 	gic_poke_irq(d, reg);
+
+	/*
+	 * Force read-back to guarantee that the active state has taken
+	 * effect, and won't race with a guest-driven deactivation.
+	 */
+	if (reg == GICD_ISACTIVER)
+		gic_peek_irq(d, reg);
 	return 0;
 }
 
@@ -958,15 +965,11 @@ static void __init gic_dist_init(void)
 	 * enabled.
 	 */
 	affinity = gic_cpu_to_affinity(smp_processor_id());
-	for (i = 32; i < GIC_LINE_NR; i++) {
-		trace_android_vh_gic_v3_affinity_init(i, GICD_IROUTER, &affinity);
+	for (i = 32; i < GIC_LINE_NR; i++)
 		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
-	}
 
-	for (i = 0; i < GIC_ESPI_NR; i++) {
-		trace_android_vh_gic_v3_affinity_init(i, GICD_IROUTERnE, &affinity);
+	for (i = 0; i < GIC_ESPI_NR; i++)
 		gic_write_irouter(affinity, base + GICD_IROUTERnE + i * 8);
-	}
 }
 
 static int gic_iterate_rdists(int (*fn)(struct redist_region *, void __iomem *))
@@ -1430,9 +1433,6 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	reg = gic_dist_base(d) + offset + (index * 8);
 	val = gic_cpu_to_affinity(cpu);
 
-	trace_android_rvh_gic_v3_set_affinity(d, mask_val, &val, force, gic_dist_base(d),
-					gic_data.redist_regions[0].redist_base,
-					gic_data.redist_stride);
 	gic_write_irouter(val, reg);
 
 	/*
@@ -1461,7 +1461,7 @@ static int gic_retrigger(struct irq_data *data)
 static int gic_cpu_pm_notifier(struct notifier_block *self,
 			       unsigned long cmd, void *v)
 {
-	if (cmd == CPU_PM_EXIT) {
+	if (cmd == CPU_PM_EXIT || cmd == CPU_PM_ENTER_FAILED) {
 		if (gic_dist_security_disabled())
 			gic_enable_redist(true);
 		gic_cpu_sys_reg_init();

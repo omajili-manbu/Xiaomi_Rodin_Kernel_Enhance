@@ -531,7 +531,7 @@ TEST_F(iommufd_ioas, copy_area)
 {
 	struct iommu_ioas_copy copy_cmd = {
 		.size = sizeof(copy_cmd),
-		.flags = IOMMU_IOAS_MAP_FIXED_IOVA,
+		.flags = IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE,
 		.dst_ioas_id = self->ioas_id,
 		.src_ioas_id = self->ioas_id,
 		.length = PAGE_SIZE,
@@ -1024,7 +1024,7 @@ TEST_F(iommufd_ioas, copy_sweep)
 {
 	struct iommu_ioas_copy copy_cmd = {
 		.size = sizeof(copy_cmd),
-		.flags = IOMMU_IOAS_MAP_FIXED_IOVA,
+		.flags = IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE,
 		.src_ioas_id = self->ioas_id,
 		.dst_iova = MOCK_APERTURE_START,
 		.length = MOCK_PAGE_SIZE,
@@ -1314,7 +1314,7 @@ TEST_F(iommufd_mock_domain, user_copy)
 	};
 	struct iommu_ioas_copy copy_cmd = {
 		.size = sizeof(copy_cmd),
-		.flags = IOMMU_IOAS_MAP_FIXED_IOVA,
+		.flags = IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE,
 		.dst_ioas_id = self->ioas_id,
 		.dst_iova = MOCK_APERTURE_START,
 		.length = BUFFER_SIZE,
@@ -1728,6 +1728,8 @@ TEST_F(vfio_compat_mock_domain, map)
 	ASSERT_EQ(0, ioctl(self->fd, VFIO_IOMMU_MAP_DMA, &map_cmd));
 	ASSERT_EQ(0, ioctl(self->fd, VFIO_IOMMU_UNMAP_DMA, &unmap_cmd));
 	ASSERT_EQ(BUFFER_SIZE, unmap_cmd.size);
+	/* Unmap of empty is success */
+	ASSERT_EQ(0, ioctl(self->fd, VFIO_IOMMU_UNMAP_DMA, &unmap_cmd));
 
 	/* UNMAP_FLAG_ALL requres 0 iova/size */
 	ASSERT_EQ(0, ioctl(self->fd, VFIO_IOMMU_MAP_DMA, &map_cmd));

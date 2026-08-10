@@ -42,6 +42,8 @@ __xchk_btree_process_error(
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
+	case -EIO:
+	case -ENODATA:
 		/* Note the badness but don't abort. */
 		sc->sm->sm_flags |= errflag;
 		*error = 0;
@@ -385,7 +387,12 @@ xchk_btree_check_block_owner(
 	agno = xfs_daddr_to_agno(bs->cur->bc_mp, daddr);
 	agbno = xfs_daddr_to_agbno(bs->cur->bc_mp, daddr);
 
-	init_sa = bs->cur->bc_flags & XFS_BTREE_LONG_PTRS;
+	/*
+	 * If the btree being examined is not itself a per-AG btree, initialize
+	 * sc->sa so that we can check for the presence of an ownership record
+	 * in the rmap btree for the AG containing the block.
+	 */
+	init_sa = bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE;
 	if (init_sa) {
 		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,

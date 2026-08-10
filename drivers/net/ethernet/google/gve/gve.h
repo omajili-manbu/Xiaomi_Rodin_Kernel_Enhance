@@ -585,6 +585,7 @@ struct gve_notify_block {
 	struct gve_priv *priv;
 	struct gve_tx_ring *tx; /* tx rings on this block */
 	struct gve_rx_ring *rx; /* rx rings on this block */
+	u32 irq;
 };
 
 /* Tracks allowed and current queue settings */
@@ -1028,6 +1029,16 @@ static inline u32 gve_xdp_tx_queue_id(struct gve_priv *priv, u32 queue_id)
 static inline u32 gve_xdp_tx_start_queue_id(struct gve_priv *priv)
 {
 	return gve_xdp_tx_queue_id(priv, 0);
+}
+
+static inline bool gve_supports_xdp_xmit(struct gve_priv *priv)
+{
+	switch (priv->queue_format) {
+	case GVE_GQI_QPL_FORMAT:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /* buffers */

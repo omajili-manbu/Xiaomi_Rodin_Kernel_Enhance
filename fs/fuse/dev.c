@@ -335,6 +335,7 @@ void fuse_request_end(struct fuse_req *req)
 		/* Wake up waiter sleeping in request_wait_answer() */
 		wake_up(&req->waitq);
 		trace_android_vh_fuse_request_end(current);
+		trace_android_vh_fuse_request_end_ext(req, current);
 	}
 
 	if (test_bit(FR_ASYNC, &req->flags))
@@ -431,6 +432,7 @@ static void __fuse_request_send(struct fuse_req *req)
 		req->out.h.error = -ENOTCONN;
 	} else {
 		req->in.h.unique = fuse_get_unique(fiq);
+		trace_android_vh_fuse_request_send_ext(req, &fiq->waitq);
 		/* acquire extra reference, since request is still needed
 		   after fuse_request_end() */
 		__fuse_get_request(req);
@@ -836,6 +838,9 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 		folio_mark_uptodate(newfolio);
 
 	folio_clear_mappedtodisk(newfolio);
+
+	if (folio_test_large(newfolio))
+		goto out_fallback_unlock;
 
 	if (fuse_check_folio(newfolio) != 0)
 		goto out_fallback_unlock;
@@ -1280,6 +1285,7 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	}
 
 	req = list_entry(fiq->pending.next, struct fuse_req, list);
+	trace_android_vh_fuse_request_fetch(req, current);
 	clear_bit(FR_PENDING, &req->flags);
 	list_del_init(&req->list);
 	spin_unlock(&fiq->lock);
@@ -1632,9 +1638,11 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 
 		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
 		err = fuse_copy_page(cs, &page, offset, this_num, 0);
-		if (!err && offset == 0 &&
-		    (this_num == PAGE_SIZE || file_size == end))
+		if (!PageUptodate(page) && !err && offset == 0 &&
+		    (this_num == PAGE_SIZE || file_size == end)) {
+			zero_user_segment(page, this_num, PAGE_SIZE);
 			SetPageUptodate(page);
+		}
 		unlock_page(page);
 		put_page(page);
 
