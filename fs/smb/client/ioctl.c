@@ -143,6 +143,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 
 	fsinf->version = 1;
 	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
+	fsinf->tcon_flags = tcon->Flags;
 	fsinf->device_characteristics =
 			le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics);
 	fsinf->device_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
@@ -279,7 +280,7 @@ search_end:
 		break;
 	case SMB2_ENCRYPTION_AES256_CCM:
 	case SMB2_ENCRYPTION_AES256_GCM:
-		out.session_key_length = CIFS_SESS_KEY_SIZE;
+		out.session_key_length = ses->auth_key.len;
 		out.server_in_key_length = out.server_out_key_length = SMB3_GCM256_CRYPTKEY_SIZE;
 		break;
 	default:
@@ -348,6 +349,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	xid = get_xid();
 
 	cifs_dbg(FYI, "cifs ioctl 0x%x\n", command);
+	if (pSMBFile == NULL)
+		trace_smb3_ioctl(xid, 0, command);
+	else
+		trace_smb3_ioctl(xid, pSMBFile->fid.persistent_fid, command);
+
 	switch (command) {
 		case FS_IOC_GETFLAGS:
 			if (pSMBFile == NULL)

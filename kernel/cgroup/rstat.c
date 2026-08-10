@@ -249,13 +249,11 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
 			rcu_read_unlock();
 		}
 
-		/* play nice and yield if necessary */
-		if (need_resched() || spin_needbreak(&cgroup_rstat_lock)) {
-			spin_unlock_irq(&cgroup_rstat_lock);
-			if (!cond_resched())
-				cpu_relax();
-			spin_lock_irq(&cgroup_rstat_lock);
-		}
+		/* play nice and avoid disabling interrupts for a long time */
+		spin_unlock_irq(&cgroup_rstat_lock);
+		if (!cond_resched())
+			cpu_relax();
+		spin_lock_irq(&cgroup_rstat_lock);
 	}
 }
 
@@ -511,7 +509,6 @@ static void root_cgroup_cputime(struct cgroup_base_stat *bstat)
 
 		cputime->sum_exec_runtime += user;
 		cputime->sum_exec_runtime += sys;
-		cputime->sum_exec_runtime += cpustat[CPUTIME_STEAL];
 
 #ifdef CONFIG_SCHED_CORE
 		bstat->forceidle_sum += cpustat[CPUTIME_FORCEIDLE];

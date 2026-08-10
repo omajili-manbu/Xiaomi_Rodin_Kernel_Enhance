@@ -82,11 +82,25 @@ enum pkvm_psci_notification {
  *				CPU will be stuck in an infinite loop. @nr_pages
  *				allows to apply this prot on a range of
  *				contiguous memory.
+ * @host_stage2_enable_lazy_pte:
+ * 				Unmap a range of memory from the host stage-2,
+ * 				leaving the pages host ownership intact. The
+ * 				pages will be remapped lazily (subject to the
+ * 				usual ownership checks) in response to a
+ * 				faulting access from the host.
+ * @host_stage2_disable_lazy_pte:
+ * 				This is the opposite function of
+ * 				host_stage2_enable_lazy_pte. Must be called once
+ * 				the module is done with the region.
  * @host_stage2_get_leaf:	Query the host's stage2 page-table entry for
  *				the page @phys.
  * @register_host_smc_handler:	@cb is called whenever the host issues an SMC
  *				pKVM couldn't handle. If @cb returns false, the
  *				SMC will be forwarded to EL3.
+ * @register_guest_smc_handler:	@cb is called whenever a guest identified by the
+ *				pkvm_handle issues an SMC which pKVM doesn't
+ *				handle. If @cb returns false, the control is
+ *				given back to the host kernel to handle the exit.
  * @register_default_trap_handler:
  *				@cb is called whenever EL2 traps EL1 and pKVM
  *				has not handled it. If @cb returns false, the
@@ -151,6 +165,14 @@ enum pkvm_psci_notification {
  * @iommu_donate_pages_atomic:	Allocate memory from IOMMU identity pool.
  * @iommu_reclaim_pages_atomic:	Reclaim memory from iommu_donate_pages_atomic()
  * @hyp_smp_processor_id:	Current CPU id
+ * @guest_stage2_pa:		Look up and return the PA (@phys) mapped into
+ *				the specified VM (@handle) at the specified
+ *				intermediate physical address (@ipa). If there
+ *				is no mapping, or if it is a block mapping,
+ *				then -EINVAL will be returned. Note that no
+ *				lock or pin is held on the returned PA; the
+ *				only guarantee is that @handle:@ipa -> @phys
+ *				at some point during the call to this function.
  */
 struct pkvm_module_ops {
 	int (*create_private_mapping)(phys_addr_t phys, size_t size,
@@ -215,10 +237,15 @@ struct pkvm_module_ops {
 	int (*iommu_snapshot_host_stage2)(struct kvm_hyp_iommu_domain *domain);
 	int (*hyp_smp_processor_id)(void);
 	ANDROID_KABI_USE(1, void (*iommu_flush_unmap_cache)(struct kvm_iommu_paddr_cache *cache));
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
-	ANDROID_KABI_RESERVE(5);
+	ANDROID_KABI_USE(2, int (*host_stage2_enable_lazy_pte)(u64 addr, u64 nr_pages));
+	ANDROID_KABI_USE(3, int (*host_stage2_disable_lazy_pte)(u64 addr, u64 nr_pages));
+	ANDROID_KABI_USE(4, int (*register_guest_smc_handler)(bool (*cb)(
+						     struct arm_smccc_1_2_regs *,
+						     struct arm_smccc_res *res,
+						     pkvm_handle_t handle),
+					  pkvm_handle_t handle));
+	ANDROID_KABI_USE(5, int (*guest_stage2_pa)(pkvm_handle_t handle,
+						   u64 ipa, phys_addr_t *phys));
 	ANDROID_KABI_RESERVE(6);
 	ANDROID_KABI_RESERVE(7);
 	ANDROID_KABI_RESERVE(8);
@@ -279,11 +306,11 @@ int pkvm_load_early_modules(void);
  */
 #define pkvm_el2_mod_va(kern_va, token)					\
 ({									\
-	unsigned long hyp_text_kern_va =				\
-		(unsigned long)THIS_MODULE->arch.hyp.text.start;	\
+	unsigned long hyp_mod_kern_va =				\
+		(unsigned long)THIS_MODULE->arch.hyp.sections.start;	\
 	unsigned long offset;						\
 									\
-	offset = (unsigned long)kern_va - hyp_text_kern_va;		\
+	offset = (unsigned long)kern_va - hyp_mod_kern_va;		\
 	token + offset;							\
 })
 
@@ -308,6 +335,17 @@ static inline int pkvm_register_el2_mod_call(dyn_hcall_t hfn,
 		WARN_ON(res.a0 != SMCCC_RET_SUCCESS);			\
 									\
 		res.a1;							\
+	})
+
+#define pkvm_el2_mod_call_smccc(id, ...)				\
+	({								\
+		struct arm_smccc_res res;				\
+									\
+		arm_smccc_1_1_hvc(KVM_HOST_SMCCC_ID(id),		\
+				  ##__VA_ARGS__, &res);			\
+		WARN_ON(res.a0 != SMCCC_RET_SUCCESS);			\
+									\
+		res;							\
 	})
 #endif
 #endif

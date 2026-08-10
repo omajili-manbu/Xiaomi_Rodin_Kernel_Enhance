@@ -269,11 +269,6 @@ extern void susfs_sus_kstat_spoof_show_map_vma(struct inode *inode, dev_t *out_d
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 extern struct srcu_struct susfs_srcu_open_redirect;
 extern int susfs_open_redirect_spoof_show_map_vma_srcu(struct inode *inode, unsigned long *out_ino, dev_t *out_dev, char **out_spoofed_name);
-/* SUSFS upstream calls __fold_filemap_fixup_entry() but never defines it;
- * on 4KB page kernels there is no page-size-migration fixup to apply, so a
- * no-op stub is sufficient (only adjusts iter/end alignment for /proc/maps).
- */
-static inline void __fold_filemap_fixup_entry(struct vma_iterator *vmi, unsigned long *end) { }
 #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 
 static void
@@ -391,13 +386,13 @@ done:
 
 static int show_map(struct seq_file *m, void *v)
 {
-	struct vm_area_struct *pad_vma = get_pad_vma(v);
-	struct vm_area_struct *vma = get_data_vma(v);
+	
+	struct vm_area_struct *vma = v;
 
-	if (vma_pages(vma))
+	if (vma_data_pages(vma))
 		show_map_vma(m, vma);
 
-	show_map_pad_vma(vma, pad_vma, m, show_map_vma, false);
+	show_map_pad_vma(vma, m, show_map_vma, false);
 
 	return 0;
 }
@@ -921,8 +916,8 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
 
 static int show_smap(struct seq_file *m, void *v)
 {
-	struct vm_area_struct *pad_vma = get_pad_vma(v);
-	struct vm_area_struct *vma = get_data_vma(v);
+	
+	struct vm_area_struct *vma = v;
 	struct mem_size_stats mss;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MAP
@@ -934,7 +929,7 @@ static int show_smap(struct seq_file *m, void *v)
 
 	memset(&mss, 0, sizeof(mss));
 
-	if (!vma_pages(vma))
+	if (!vma_data_pages(vma))
 		goto show_pad;
 
 	smap_gather_stats(vma, &mss, 0);
@@ -949,15 +944,15 @@ static int show_smap(struct seq_file *m, void *v)
 	__show_smap(m, &mss, false);
 
 	seq_printf(m, "THPeligible:    %8u\n",
-		   !!thp_vma_allowable_orders(vma, vma->vm_flags, true, false,
-					      true, THP_ORDERS_ALL));
+		   !!thp_vma_allowable_orders(vma, vma->vm_flags,
+			   TVA_SMAPS | TVA_ENFORCE_SYSFS, THP_ORDERS_ALL));
 
 	if (arch_pkeys_enabled())
 		seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
 	show_smap_vma_flags(m, vma);
 
 show_pad:
-	show_map_pad_vma(vma, pad_vma, m, show_smap, true);
+	show_map_pad_vma(vma, m, show_smap, true);
 
 	return 0;
 }
@@ -1882,6 +1877,11 @@ const struct file_operations proc_pagemap_operations = {
 	.open		= pagemap_open,
 	.release	= pagemap_release,
 };
+
+bool __is_emulated_pagemap_file(struct file *file)
+{
+	return __PAGE_SIZE != PAGE_SIZE && file->f_op == &proc_pagemap_operations;
+}
 #endif /* CONFIG_PROC_PAGE_MONITOR */
 
 #ifdef CONFIG_NUMA

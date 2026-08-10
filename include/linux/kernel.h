@@ -13,6 +13,7 @@
 
 #include <linux/stdarg.h>
 #include <linux/align.h>
+#include <linux/array_size.h>
 #include <linux/limits.h>
 #include <linux/linkage.h>
 #include <linux/stddef.h>
@@ -49,12 +50,6 @@
 /* generic data direction definitions */
 #define READ			0
 #define WRITE			1
-
-/**
- * ARRAY_SIZE - get the number of elements in array @arr
- * @arr: array to be sized
- */
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
 #define PTR_IF(cond, ptr)	((cond) ? (ptr) : NULL)
 
@@ -260,6 +255,9 @@ enum ftrace_dump_mode {
 	DUMP_NONE,
 	DUMP_ALL,
 	DUMP_ORIG,
+#ifndef __GENKSYMS__
+	DUMP_PARAM,
+#endif
 };
 
 #ifdef CONFIG_TRACING

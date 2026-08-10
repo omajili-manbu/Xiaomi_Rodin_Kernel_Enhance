@@ -1130,6 +1130,13 @@ static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (!skb->secmark)
 		return 0;
 
+	/*
+	 * If reach here before socket_post_create hook is called, in which
+	 * case label is null, drop the packet.
+	 */
+	if (!ctx->label)
+		return -EACCES;
+
 	return apparmor_secmark_check(ctx->label, OP_RECVMSG, AA_MAY_RECEIVE,
 				      skb->secmark, sk);
 }
@@ -1901,6 +1908,69 @@ static int __init apparmor_nf_ip_init(void)
 }
 __initcall(apparmor_nf_ip_init);
 #endif
+
+static char nulldfa_src[] = {
+	#include "nulldfa.in"
+};
+struct aa_dfa *nulldfa;
+
+static char stacksplitdfa_src[] = {
+	#include "stacksplitdfa.in"
+};
+struct aa_dfa *stacksplitdfa;
+struct aa_policydb *nullpdb;
+
+static int __init aa_setup_dfa_engine(void)
+{
+	int error = -ENOMEM;
+
+	nullpdb = aa_alloc_pdb(GFP_KERNEL);
+	if (!nullpdb)
+		return -ENOMEM;
+
+	nulldfa = aa_dfa_unpack(nulldfa_src, sizeof(nulldfa_src),
+			    TO_ACCEPT1_FLAG(YYTD_DATA32) |
+			    TO_ACCEPT2_FLAG(YYTD_DATA32));
+	if (IS_ERR(nulldfa)) {
+		error = PTR_ERR(nulldfa);
+		goto fail;
+	}
+	nullpdb->dfa = aa_get_dfa(nulldfa);
+	nullpdb->perms = kcalloc(2, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!nullpdb->perms)
+		goto fail;
+	nullpdb->size = 2;
+
+	stacksplitdfa = aa_dfa_unpack(stacksplitdfa_src,
+				      sizeof(stacksplitdfa_src),
+				      TO_ACCEPT1_FLAG(YYTD_DATA32) |
+				      TO_ACCEPT2_FLAG(YYTD_DATA32));
+	if (IS_ERR(stacksplitdfa)) {
+		error = PTR_ERR(stacksplitdfa);
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	aa_put_pdb(nullpdb);
+	aa_put_dfa(nulldfa);
+	nullpdb = NULL;
+	nulldfa = NULL;
+	stacksplitdfa = NULL;
+
+	return error;
+}
+
+static void __init aa_teardown_dfa_engine(void)
+{
+	aa_put_dfa(stacksplitdfa);
+	aa_put_dfa(nulldfa);
+	aa_put_pdb(nullpdb);
+	nullpdb = NULL;
+	stacksplitdfa = NULL;
+	nulldfa = NULL;
+}
 
 static int __init apparmor_init(void)
 {

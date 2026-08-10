@@ -39,9 +39,15 @@
 #include "internal.h"
 #include "cma.h"
 
+#undef CREATE_TRACE_POINTS
+#ifndef __GENKSYMS__
+#include <trace/hooks/mm.h>
+#endif
+
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned cma_area_count;
-static DEFINE_MUTEX(cma_mutex);
+DEFINE_MUTEX(cma_mutex);
+EXPORT_SYMBOL_GPL(cma_mutex);
 
 phys_addr_t cma_get_base(const struct cma *cma)
 {
@@ -163,6 +169,25 @@ void __init cma_reserve_pages_on_error(struct cma *cma)
 	cma->reserve_pages_on_error = true;
 }
 
+unsigned long cma_get_first_virtzone_base(int nid)
+{
+        struct pglist_data *pgdata;
+        struct zone *zone;
+        int zone_idx;
+
+        pgdata = NODE_DATA(nid);
+        if (!pgdata)
+                return 0;
+
+        for (zone_idx = ZONE_NOSPLIT; zone_idx <= ZONE_NOMERGE; zone_idx++) {
+                zone = &pgdata->node_zones[zone_idx];
+                if (zone->zone_start_pfn)
+                        return zone->zone_start_pfn << PAGE_SHIFT;
+        }
+
+        return 0;
+}
+
 /**
  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
  * @base: Base address of the reserved area
@@ -189,10 +214,6 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	}
 
 	if (!size || !memblock_is_region_reserved(base, size))
-		return -EINVAL;
-
-	/* alignment should be aligned with order_per_bit */
-	if (!IS_ALIGNED(CMA_MIN_ALIGNMENT_PAGES, 1 << order_per_bit))
 		return -EINVAL;
 
 	/* ensure minimal alignment required by mm core */
@@ -450,6 +471,8 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	int ret = -ENOMEM;
 	int num_attempts = 0;
 	int max_retries = 5;
+	bool bypass = false;
+	u64 stime = 0;
 
 	if (WARN_ON_ONCE((gfp_mask & GFP_KERNEL) == 0 ||
 		(gfp_mask & ~(GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY)) != 0))
@@ -458,6 +481,11 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	if (!cma || !cma->count || !cma->bitmap)
 		goto out;
 
+	trace_android_vh_cma_alloc_bypass(cma, count, align, gfp_mask,
+				&page, &bypass);
+	if (bypass)
+		return page;
+
 	pr_debug("%s(cma %p, name: %s, count %lu, align %d)\n", __func__,
 		(void *)cma, cma->name, count, align);
 
@@ -465,7 +493,6 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 		goto out;
 
 	trace_android_vh_cma_alloc_set_max_retries(&max_retries);
-	trace_cma_alloc_start(cma->name, count, align);
 
 	mask = cma_bitmap_aligned_mask(cma, align);
 	offset = cma_bitmap_aligned_offset(cma, align);
@@ -475,6 +502,9 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	if (bitmap_count > bitmap_maxno)
 		goto out;
 
+	trace_cma_alloc_start(cma->name, count, align);
+	trace_android_vh_cma_alloc_retry(cma->name, &max_retries);
+	trace_android_vh_cma_alloc_lat_start(&stime);
 	for (;;) {
 		spin_lock_irq(&cma->lock);
 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
@@ -536,6 +566,7 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	}
 
 	trace_cma_alloc_finish(cma->name, pfn, page, count, align, ret);
+	trace_android_vh_cma_alloc_end(cma, pfn, page, count, align, ret);
 
 	/*
 	 * CMA can allocate multiple page blocks, which results in different
@@ -555,6 +586,7 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
 
 	pr_debug("%s(): returned %p\n", __func__, page);
 out:
+	trace_android_vh_cma_alloc_lat_end(stime, count);
 	if (page) {
 		count_vm_event(CMA_ALLOC_SUCCESS);
 		cma_sysfs_account_success_pages(cma, count);
@@ -619,6 +651,7 @@ bool cma_release(struct cma *cma, const struct page *pages,
 		 unsigned long count)
 {
 	unsigned long pfn;
+	bool bypass = false;
 
 	if (!cma_pages_valid(cma, pages, count))
 		return false;
@@ -628,6 +661,10 @@ bool cma_release(struct cma *cma, const struct page *pages,
 	pfn = page_to_pfn(pages);
 
 	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+
+	trace_android_vh_cma_release_bypass(cma, pages, count, &bypass);
+	if (bypass)
+		return true;
 
 	free_contig_range(pfn, count);
 	cma_clear_bitmap(cma, pfn, count);
@@ -651,3 +688,7 @@ int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cma_for_each_area);
+EXPORT_TRACEPOINT_SYMBOL_GPL(cma_alloc_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(cma_alloc_busy_retry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(cma_alloc_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(cma_release);

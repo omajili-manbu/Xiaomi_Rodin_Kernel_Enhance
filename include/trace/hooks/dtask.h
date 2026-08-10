@@ -19,6 +19,7 @@ struct rt_mutex_base;
 struct rw_semaphore;
 struct task_struct;
 struct percpu_rw_semaphore;
+struct rq;
 
 DECLARE_HOOK(android_vh_mutex_wait_start,
 	TP_PROTO(struct mutex *lock),
@@ -71,6 +72,38 @@ DECLARE_HOOK(android_vh_rwsem_can_spin_on_owner,
 	TP_PROTO(struct rw_semaphore *sem, bool *ret),
 	TP_ARGS(sem, ret));
 
+struct device;
+DECLARE_HOOK(android_vh_dpm_wait_start,
+	TP_PROTO(struct device *dev),
+	TP_ARGS(dev));
+DECLARE_HOOK(android_vh_dpm_wait_finish,
+	TP_PROTO(struct device *dev),
+	TP_ARGS(dev));
+
+struct irq_desc;
+DECLARE_HOOK(android_vh_sync_irq_wait_start,
+	TP_PROTO(struct irq_desc *desc),
+	TP_ARGS(desc));
+DECLARE_HOOK(android_vh_sync_irq_wait_finish,
+	TP_PROTO(struct irq_desc *desc),
+	TP_ARGS(desc));
+
+struct workqueue_struct;
+DECLARE_HOOK(android_vh_flush_wq_wait_start,
+	TP_PROTO(struct workqueue_struct *wq),
+	TP_ARGS(wq));
+DECLARE_HOOK(android_vh_flush_wq_wait_finish,
+	TP_PROTO(struct workqueue_struct *wq),
+	TP_ARGS(wq));
+
+struct work_struct;
+DECLARE_HOOK(android_vh_flush_work_wait_start,
+	TP_PROTO(struct work_struct *work),
+	TP_ARGS(work));
+DECLARE_HOOK(android_vh_flush_work_wait_finish,
+	TP_PROTO(struct work_struct *work),
+	TP_ARGS(work));
+
 DECLARE_HOOK(android_vh_sched_show_task,
 	TP_PROTO(struct task_struct *task),
 	TP_ARGS(task));
@@ -86,6 +119,9 @@ DECLARE_HOOK(android_vh_percpu_rwsem_up_write,
 DECLARE_RESTRICTED_HOOK(android_rvh_percpu_rwsem_wait_complete,
 	TP_PROTO(struct percpu_rw_semaphore *sem, long state, bool *complete),
 	TP_ARGS(sem, state, complete), 1);
+DECLARE_HOOK(android_vh_percpu_rwsem_init,
+	TP_PROTO(struct percpu_rw_semaphore *sem),
+	TP_ARGS(sem));
 
 struct mutex_waiter;
 DECLARE_HOOK(android_vh_alter_mutex_list_add,
@@ -95,6 +131,9 @@ DECLARE_HOOK(android_vh_alter_mutex_list_add,
 		bool *already_on_list),
 	TP_ARGS(lock, waiter, list, already_on_list));
 DECLARE_HOOK(android_vh_mutex_unlock_slowpath,
+	TP_PROTO(struct mutex *lock),
+	TP_ARGS(lock));
+DECLARE_HOOK(android_vh_mutex_unlock_slowpath_bf_wakeq,
 	TP_PROTO(struct mutex *lock),
 	TP_ARGS(lock));
 
@@ -132,6 +171,9 @@ DECLARE_HOOK(android_vh_record_rwsem_lock_starttime,
 DECLARE_HOOK(android_vh_record_pcpu_rwsem_starttime,
 	TP_PROTO(struct percpu_rw_semaphore *sem, unsigned long settime_jiffies),
 	TP_ARGS(sem, settime_jiffies));
+DECLARE_HOOK(android_vh_record_pcpu_rwsem_rdheld_starttime,
+	TP_PROTO(struct percpu_rw_semaphore *sem, unsigned long settime_jiffies),
+	TP_ARGS(sem, settime_jiffies));
 
 DECLARE_HOOK(android_vh_read_lazy_flag,
 	TP_PROTO(int *thread_lazy_flag, unsigned long *thread_flags),
@@ -140,6 +182,30 @@ DECLARE_HOOK(android_vh_read_lazy_flag,
 DECLARE_HOOK(android_vh_set_tsk_need_resched_lazy,
 	TP_PROTO(struct task_struct *p, struct rq *rq, int *need_lazy),
 	TP_ARGS(p, rq, need_lazy));
+
+DECLARE_HOOK(android_vh_resched_curr_lazy,
+	TP_PROTO(struct rq *rq, bool *skip_preempt),
+	TP_ARGS(rq, skip_preempt));
+
+DECLARE_HOOK(android_vh_restore_curr_resched,
+	TP_PROTO(unsigned long *flags, int *lazy_flage),
+	TP_ARGS(flags, lazy_flage));
+
+DECLARE_HOOK(android_vh_clear_curr_lazy,
+	TP_PROTO(struct task_struct *tsk),
+	TP_ARGS(tsk));
+
+DECLARE_HOOK(android_vh_lock_delay_schedule,
+	TP_PROTO(struct task_struct *prev, unsigned int sched_mode, bool *ext_slice),
+	TP_ARGS(prev, sched_mode, ext_slice));
+
+DECLARE_HOOK(android_vh_lock_task_fork,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
+
+DECLARE_HOOK(android_vh_lock_task_exit,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
 #endif /* _TRACE_HOOK_DTASK_H */
 
 /* This part must be outside protection */

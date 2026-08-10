@@ -91,7 +91,7 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt,
 	entry = tcx_entry_fetch_or_create(dev, true, &created);
 	if (!entry)
 		return -ENOMEM;
-	tcx_miniq_set_active(entry, true);
+	tcx_miniq_inc(entry);
 	mini_qdisc_pair_init(&q->miniqp, sch, &tcx_entry(entry)->miniq);
 	if (created)
 		tcx_entry_update(dev, entry, true);
@@ -113,15 +113,16 @@ static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
-	struct bpf_mprog_entry *entry = rtnl_dereference(dev->tcx_ingress);
+	struct bpf_mprog_entry *entry;
 
 	if (sch->parent != TC_H_INGRESS)
 		return;
 
 	tcf_block_put_ext(q->block, sch, &q->block_info);
 
-	if (entry) {
-		tcx_miniq_set_active(entry, false);
+	if (mini_qdisc_pair_inited(&q->miniqp)) {
+		entry = rtnl_dereference(dev->tcx_ingress);
+		tcx_miniq_dec(entry);
 		if (!tcx_entry_is_active(entry)) {
 			tcx_entry_update(dev, NULL, true);
 			tcx_entry_free(entry);
@@ -256,7 +257,7 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
 	entry = tcx_entry_fetch_or_create(dev, true, &created);
 	if (!entry)
 		return -ENOMEM;
-	tcx_miniq_set_active(entry, true);
+	tcx_miniq_inc(entry);
 	mini_qdisc_pair_init(&q->miniqp_ingress, sch, &tcx_entry(entry)->miniq);
 	if (created)
 		tcx_entry_update(dev, entry, true);
@@ -275,7 +276,7 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
 	entry = tcx_entry_fetch_or_create(dev, false, &created);
 	if (!entry)
 		return -ENOMEM;
-	tcx_miniq_set_active(entry, true);
+	tcx_miniq_inc(entry);
 	mini_qdisc_pair_init(&q->miniqp_egress, sch, &tcx_entry(entry)->miniq);
 	if (created)
 		tcx_entry_update(dev, entry, false);
@@ -289,10 +290,9 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
 
 static void clsact_destroy(struct Qdisc *sch)
 {
+	struct bpf_mprog_entry *ingress_entry, *egress_entry;
 	struct clsact_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
-	struct bpf_mprog_entry *ingress_entry = rtnl_dereference(dev->tcx_ingress);
-	struct bpf_mprog_entry *egress_entry = rtnl_dereference(dev->tcx_egress);
 
 	if (sch->parent != TC_H_CLSACT)
 		return;
@@ -300,16 +300,18 @@ static void clsact_destroy(struct Qdisc *sch)
 	tcf_block_put_ext(q->ingress_block, sch, &q->ingress_block_info);
 	tcf_block_put_ext(q->egress_block, sch, &q->egress_block_info);
 
-	if (ingress_entry) {
-		tcx_miniq_set_active(ingress_entry, false);
+	if (mini_qdisc_pair_inited(&q->miniqp_ingress)) {
+		ingress_entry = rtnl_dereference(dev->tcx_ingress);
+		tcx_miniq_dec(ingress_entry);
 		if (!tcx_entry_is_active(ingress_entry)) {
 			tcx_entry_update(dev, NULL, true);
 			tcx_entry_free(ingress_entry);
 		}
 	}
 
-	if (egress_entry) {
-		tcx_miniq_set_active(egress_entry, false);
+	if (mini_qdisc_pair_inited(&q->miniqp_egress)) {
+		egress_entry = rtnl_dereference(dev->tcx_egress);
+		tcx_miniq_dec(egress_entry);
 		if (!tcx_entry_is_active(egress_entry)) {
 			tcx_entry_update(dev, NULL, false);
 			tcx_entry_free(egress_entry);

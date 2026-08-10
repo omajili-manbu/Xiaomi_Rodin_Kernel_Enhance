@@ -41,6 +41,7 @@ int __init kvm_arm_init_sve(void)
 	if (system_supports_sve()) {
 		kvm_sve_max_vl = sve_max_virtualisable_vl();
 		kvm_host_sve_max_vl = sve_max_vl();
+		kvm_nvhe_sym(kvm_host_sve_max_vl) = kvm_host_sve_max_vl;
 
 		/*
 		 * The get_sve_reg()/set_sve_reg() ioctl interface will need
@@ -95,7 +96,7 @@ static int alloc_sve_state(struct kvm_vcpu *vcpu)
 
 	ret = kvm_share_hyp(buf, buf + reg_sz);
 	if (ret) {
-		kfree(buf);
+		free_pages_exact(buf, reg_sz);
 		return ret;
 	}
 

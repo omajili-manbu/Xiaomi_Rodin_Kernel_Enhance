@@ -113,7 +113,13 @@ int __pkvm_create_private_mapping(phys_addr_t phys, size_t size,
 
 int __hyp_allocator_map(unsigned long va, phys_addr_t phys)
 {
-	return __pkvm_create_mappings(va, PAGE_SIZE, phys, PAGE_HYP);
+	int ret = __pkvm_create_mappings(va, PAGE_SIZE, phys, PAGE_HYP);
+
+	/* Let's not confuse the hyp_alloc callers who will try to top-up pointlessly on -ENOMEM */
+	if (ret == -ENOMEM)
+		ret = -EBUSY;
+
+	return ret;
 }
 
 #ifdef CONFIG_NVHE_EL2_DEBUG
@@ -351,7 +357,7 @@ static void fixmap_clear_slot(struct hyp_fixmap_slot *slot)
 	 */
 	dsb(ishst);
 	__tlbi_level(vale2is, __TLBI_VADDR(addr, 0), level);
-	dsb(ish);
+	__tlbi_sync_s1ish_hyp();
 	isb();
 }
 
@@ -541,7 +547,8 @@ int pkvm_create_stack(phys_addr_t phys, unsigned long *haddr)
 	return ret;
 }
 
-static void *admit_host_page(void *arg, unsigned long order)
+/* Note: The caller has to use a local copy of the arg */
+void *admit_host_page(void *arg, unsigned long order)
 {
 	phys_addr_t p;
 	struct kvm_hyp_memcache *host_mc = arg;
@@ -599,12 +606,19 @@ int refill_hyp_pool(struct hyp_pool *pool, struct kvm_hyp_memcache *host_mc)
 {
 	unsigned long order;
 	void *p;
+	struct kvm_hyp_memcache tmp = *host_mc;
+	u64 nr_pages;
 
-	while (host_mc->nr_pages) {
-		order = FIELD_GET(~PAGE_MASK, host_mc->head);
-		p = admit_host_page(host_mc, order);
+	while (tmp.nr_pages) {
+		order = FIELD_GET(~PAGE_MASK, tmp.head);
+		if (check_shl_overflow(1UL, order, &nr_pages))
+			return -EINVAL;
+
+		p = admit_host_page(&tmp, order);
 		if (!p)
 			return -EINVAL;
+		*host_mc = tmp;
+
 		hyp_virt_to_page(p)->order = order;
 		hyp_set_page_refcounted(hyp_virt_to_page(p));
 		hyp_put_page(pool, p);
@@ -620,18 +634,31 @@ int refill_hyp_pool(struct hyp_pool *pool, struct kvm_hyp_memcache *host_mc)
 int reclaim_hyp_pool(struct hyp_pool *pool, struct kvm_hyp_memcache *host_mc,
 		     int nr_pages)
 {
-	void *p;
 	struct hyp_page *page;
+	u8 order;
+	void *p;
 
 	while (nr_pages > 0) {
 		p = hyp_alloc_pages(pool, 0);
 		if (!p)
 			return -ENOMEM;
 		page = hyp_virt_to_page(p);
-		nr_pages -= (1 << page->order);
-		push_hyp_memcache(host_mc, p, hyp_virt_to_phys, page->order);
-		WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(p), 1 << page->order));
-		memset(page, 0, sizeof(struct hyp_page));
+		order = page->order;
+		nr_pages -= (1 << order);
+
+		/*
+		 * For a compound page all the tail pages should normally
+		 * have page->order == HYP_NO_ORDER which would need to be
+		 * cleared one by one. But in this instance, the order 0
+		 * allocation above can only return an _external_ compound
+		 * page which is in fact ignored by the buddy logic, and the
+		 * tail pages are never touched.
+		 */
+		page->order = 0;
+		hyp_page_ref_dec(page);
+
+		push_hyp_memcache(host_mc, p, hyp_virt_to_phys, order);
+		WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(p), 1 << order));
 	}
 
 	return 0;

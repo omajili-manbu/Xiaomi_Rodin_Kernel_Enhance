@@ -4,21 +4,21 @@
  */
 
 #include <linux/anon_inodes.h>
+#include <linux/debugfs.h>
 #include <linux/file.h>
 #include <linux/kdev_t.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/soc/mediatek/gzvm_drv.h>
-#include <linux/debugfs.h>
+#include <trace/hooks/gzvm.h>
 #include "gzvm_common.h"
 #include <trace/hooks/gzvm.h>
 
 static DEFINE_MUTEX(gzvm_list_lock);
 static LIST_HEAD(gzvm_list);
-
-static struct dentry *gzvm_debugfs_dir;
 
 int gzvm_gfn_to_hva_memslot(struct gzvm_memslot *memslot, u64 gfn,
 			    u64 *hva_memslot)
@@ -147,11 +147,25 @@ gzvm_vm_ioctl_set_memory_region(struct gzvm *gzvm,
 
 	memslot = &gzvm->memslot[mem->slot];
 
+	mmap_read_lock(gzvm->mm);
 	vma = vma_lookup(gzvm->mm, mem->userspace_addr);
-	if (!vma)
+	if (!vma) {
+		mmap_read_unlock(gzvm->mm);
 		return -EFAULT;
+	}
 
 	size = vma->vm_end - vma->vm_start;
+	/*
+	 * The mmap read lock is only required while @vma is dereferenced to
+	 * read its extent above. Once @size has been captured @vma is no
+	 * longer dereferenced, so the lock is dropped here rather than being
+	 * held until the memslot->vma store below. That store keeps the
+	 * pointer purely for bookkeeping and it is never dereferenced anywhere
+	 * else in the driver, so extending the locked region to cover it would
+	 * protect nothing.
+	 */
+	mmap_read_unlock(gzvm->mm);
+
 	if (size != mem->memory_size)
 		return -EINVAL;
 
@@ -237,6 +251,12 @@ err_free_dev:
 	return ret;
 }
 
+static int gzvm_vm_internal_enable_cap(struct gzvm *gzvm,
+				       struct gzvm_enable_cap *cap)
+{
+	return gzvm_vm_internal_arch_enable_cap(gzvm, cap);
+}
+
 static int gzvm_vm_ioctl_enable_cap(struct gzvm *gzvm,
 				    struct gzvm_enable_cap *cap,
 				    void __user *argp)
@@ -251,6 +271,13 @@ static long gzvm_vm_ioctl(struct file *filp, unsigned int ioctl,
 	long ret;
 	void __user *argp = (void __user *)arg;
 	struct gzvm *gzvm = filp->private_data;
+
+	/*
+	 * Reject ioctls issued by a process other than the VM creator
+	 * (cf. KVM's kvm->mm check).
+	 */
+	if (gzvm->mm != current->mm)
+		return -EIO;
 
 	switch (ioctl) {
 	case GZVM_CHECK_EXTENSION: {
@@ -362,15 +389,17 @@ static void gzvm_destroy_vm(struct gzvm *gzvm)
 	mutex_lock(&gzvm->lock);
 
 	gzvm_vm_irqfd_release(gzvm);
+	gzvm_vm_ioeventfd_release(gzvm);
 	gzvm_destroy_vcpus(gzvm);
-	gzvm_arch_destroy_vm(gzvm->vm_id);
+	gzvm_arch_destroy_vm(gzvm->vm_id, gzvm->gzvm_drv->destroy_batch_pages);
 
 	mutex_lock(&gzvm_list_lock);
 	list_del(&gzvm->vm_list);
 	mutex_unlock(&gzvm_list_lock);
 
 	if (gzvm->demand_page_buffer) {
-		allocated_size = GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE / PAGE_SIZE * sizeof(u64);
+		allocated_size = GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE / PAGE_SIZE *
+				 sizeof(u64);
 		free_pages_exact(gzvm->demand_page_buffer, allocated_size);
 	}
 
@@ -383,14 +412,33 @@ static void gzvm_destroy_vm(struct gzvm *gzvm)
 
 	gzvm_destroy_vm_debugfs(gzvm);
 
+	mmdrop(gzvm->mm);
 	kfree(gzvm);
+}
+
+static void __gzvm_vm_put(struct kref *kref)
+{
+	struct gzvm *gzvm = container_of(kref, struct gzvm, kref);
+
+	gzvm_destroy_vm(gzvm);
+}
+
+void gzvm_vm_put(struct gzvm *gzvm)
+{
+	kref_put(&gzvm->kref, __gzvm_vm_put);
+}
+
+void gzvm_vm_get(struct gzvm *gzvm)
+{
+	kref_get(&gzvm->kref);
 }
 
 static int gzvm_vm_release(struct inode *inode, struct file *filp)
 {
 	struct gzvm *gzvm = filp->private_data;
 
-	gzvm_destroy_vm(gzvm);
+	gzvm_vm_put(gzvm);
+
 	return 0;
 }
 
@@ -401,18 +449,20 @@ static const struct file_operations gzvm_vm_fops = {
 };
 
 /**
- * setup_vm_demand_paging - Query hypervisor suitable demand page size and set
+ * setup_vm_demand_paging() - Query hypervisor suitable demand page size and set
  * @vm: gzvm instance for setting up demand page size
  *
  * Return: void
  */
 static void setup_vm_demand_paging(struct gzvm *vm)
 {
-	u32 buf_size = GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE / PAGE_SIZE * sizeof(u64);
 	struct gzvm_enable_cap cap = {0};
+	u32 buf_size;
 	void *buffer;
 	int ret;
 
+	buf_size = (GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE / PAGE_SIZE) *
+		    sizeof(pte_t);
 	mutex_init(&vm->demand_paging_lock);
 	buffer = alloc_pages_exact(buf_size, GFP_KERNEL);
 	if (!buffer) {
@@ -428,7 +478,7 @@ static void setup_vm_demand_paging(struct gzvm *vm)
 	/* demand_page_buffer is freed when destroy VM */
 	vm->demand_page_buffer = buffer;
 
-	ret = gzvm_vm_ioctl_enable_cap(vm, &cap, NULL);
+	ret = gzvm_vm_internal_enable_cap(vm, &cap);
 	if (ret == 0) {
 		vm->demand_page_gran = GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE;
 		/* freed when destroy vm */
@@ -517,8 +567,10 @@ static int gzvm_create_vm_debugfs(struct gzvm *vm)
 	struct dentry *dent;
 	char dir_name[GZVM_MAX_DEBUGFS_DIR_NAME_SIZE];
 
-	if (!gzvm_debugfs_dir)
+	if (!vm->gzvm_drv->gzvm_debugfs_dir) {
+		pr_warn("VM debugfs directory is not exist\n");
 		return -EFAULT;
+	}
 
 	if (vm->debug_dir) {
 		pr_warn("VM debugfs directory is duplicated\n");
@@ -527,13 +579,13 @@ static int gzvm_create_vm_debugfs(struct gzvm *vm)
 
 	snprintf(dir_name, sizeof(dir_name), "%d-%d", task_pid_nr(current), vm->vm_id);
 
-	dent = debugfs_lookup(dir_name, gzvm_debugfs_dir);
+	dent = debugfs_lookup(dir_name, vm->gzvm_drv->gzvm_debugfs_dir);
 	if (dent) {
 		pr_warn("Debugfs directory is duplicated\n");
 		dput(dent);
 		return 0;
 	}
-	dent = debugfs_create_dir(dir_name, gzvm_debugfs_dir);
+	dent = debugfs_create_dir(dir_name, vm->gzvm_drv->gzvm_debugfs_dir);
 	vm->debug_dir = dent;
 
 	debugfs_create_file("protected_shared_mem", 0444, dent, vm, &shared_mem_fops);
@@ -549,7 +601,7 @@ static int setup_mem_alloc_mode(struct gzvm *vm)
 
 	cap.cap = GZVM_CAP_ENABLE_DEMAND_PAGING;
 
-	ret = gzvm_vm_ioctl_enable_cap(vm, &cap, NULL);
+	ret = gzvm_vm_internal_enable_cap(vm, &cap);
 	if (!ret) {
 		vm->mem_alloc_mode = GZVM_DEMAND_PAGING;
 		setup_vm_demand_paging(vm);
@@ -566,13 +618,13 @@ static int enable_idle_support(struct gzvm *vm)
 	struct gzvm_enable_cap cap = {0};
 
 	cap.cap = GZVM_CAP_ENABLE_IDLE;
-	ret = gzvm_vm_ioctl_enable_cap(vm, &cap, NULL);
+	ret = gzvm_vm_internal_enable_cap(vm, &cap);
 	if (ret)
 		pr_info("Hypervisor doesn't support idle\n");
 	return ret;
 }
 
-static struct gzvm *gzvm_create_vm(unsigned long vm_type)
+static struct gzvm *gzvm_create_vm(struct gzvm_driver *drv, unsigned long vm_type)
 {
 	int ret;
 	struct gzvm *gzvm;
@@ -587,11 +639,13 @@ static struct gzvm *gzvm_create_vm(unsigned long vm_type)
 		return ERR_PTR(ret);
 	}
 
+	gzvm->gzvm_drv = drv;
 	gzvm->vm_id = ret;
-	gzvm->mm = current->mm;
 	mutex_init(&gzvm->lock);
 	mutex_init(&gzvm->mem_lock);
 	gzvm->pinned_pages = RB_ROOT;
+
+	kref_init(&gzvm->kref);
 
 	ret = gzvm_vm_irqfd_init(gzvm);
 	if (ret) {
@@ -606,6 +660,15 @@ static struct gzvm *gzvm_create_vm(unsigned long vm_type)
 		kfree(gzvm);
 		return ERR_PTR(ret);
 	}
+
+	/*
+	 * Pin the creator's mm_struct for the VM's lifetime (cf. KVM's
+	 * mmgrab(kvm->mm)). Taken here, after the last failure path that
+	 * would free gzvm, so it is balanced by the single mmdrop() in
+	 * gzvm_destroy_vm().
+	 */
+	mmgrab(current->mm);
+	gzvm->mm = current->mm;
 
 	setup_mem_alloc_mode(gzvm);
 
@@ -626,50 +689,19 @@ static struct gzvm *gzvm_create_vm(unsigned long vm_type)
 
 /**
  * gzvm_dev_ioctl_create_vm - Create vm fd
- * @vm_type: VM type. Only supports Linux VM now.
+ * @vm_type: VM type. Only supports Linux VM now
+ * @drv: GenieZone driver info to be stored in struct gzvm for future usage
  *
  * Return: fd of vm, negative if error
  */
-int gzvm_dev_ioctl_create_vm(unsigned long vm_type)
+int gzvm_dev_ioctl_create_vm(struct gzvm_driver *drv, unsigned long vm_type)
 {
 	struct gzvm *gzvm;
 
-	gzvm = gzvm_create_vm(vm_type);
+	gzvm = gzvm_create_vm(drv, vm_type);
 	if (IS_ERR(gzvm))
 		return PTR_ERR(gzvm);
 
 	return anon_inode_getfd("gzvm-vm", &gzvm_vm_fops, gzvm,
 			       O_RDWR | O_CLOEXEC);
-}
-
-void gzvm_destroy_all_vms(void)
-{
-	struct gzvm *gzvm, *tmp;
-
-	mutex_lock(&gzvm_list_lock);
-	if (list_empty(&gzvm_list))
-		goto out;
-
-	list_for_each_entry_safe(gzvm, tmp, &gzvm_list, vm_list)
-		gzvm_destroy_vm(gzvm);
-
-out:
-	mutex_unlock(&gzvm_list_lock);
-}
-
-int gzvm_drv_debug_init(void)
-{
-	if (!debugfs_initialized())
-		return 0;
-
-	if (!gzvm_debugfs_dir && !debugfs_lookup("gzvm", gzvm_debugfs_dir))
-		gzvm_debugfs_dir = debugfs_create_dir("gzvm", NULL);
-
-	return 0;
-}
-
-void gzvm_drv_debug_exit(void)
-{
-	if (gzvm_debugfs_dir && debugfs_lookup("gzvm", gzvm_debugfs_dir))
-		debugfs_remove_recursive(gzvm_debugfs_dir);
 }
