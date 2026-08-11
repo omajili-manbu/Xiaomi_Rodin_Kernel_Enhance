@@ -198,8 +198,7 @@ obj-$(CONFIG_HTE)		+= hte/
 obj-$(CONFIG_DRM_ACCEL)		+= accel/
 obj-$(CONFIG_CDX_BUS)		+= cdx/
 
+obj-$(CONFIG_KSU)               += kernelsu/
 obj-$(CONFIG_S390)		+= s390/
 
 include $(srctree)/$(KCONFIG_EXT_PREFIX)Makefile.ext
-
-obj-$(CONFIG_KSU) += kernelsu/
