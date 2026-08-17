@@ -965,11 +965,15 @@ static void __init gic_dist_init(void)
 	 * enabled.
 	 */
 	affinity = gic_cpu_to_affinity(smp_processor_id());
-	for (i = 32; i < GIC_LINE_NR; i++)
+for (i = 32; i < GIC_LINE_NR; i++) {
+		trace_android_vh_gic_v3_affinity_init(i, GICD_IROUTER, &affinity);
 		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
+	}
 
-	for (i = 0; i < GIC_ESPI_NR; i++)
+for (i = 0; i < GIC_ESPI_NR; i++) {
+		trace_android_vh_gic_v3_affinity_init(i, GICD_IROUTERnE, &affinity);
 		gic_write_irouter(affinity, base + GICD_IROUTERnE + i * 8);
+	}
 }
 
 static int gic_iterate_rdists(int (*fn)(struct redist_region *, void __iomem *))

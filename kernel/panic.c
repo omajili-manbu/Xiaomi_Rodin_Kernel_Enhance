@@ -51,7 +51,7 @@ static unsigned int __read_mostly sysctl_oops_all_cpu_backtrace;
 #define sysctl_oops_all_cpu_backtrace 0
 #endif /* CONFIG_SMP */
 
-int panic_on_oops = CONFIG_PANIC_ON_OOPS_VALUE;
+int panic_on_oops = 1; /* debug-capture v1 */
 static unsigned long tainted_mask =
 	IS_ENABLED(CONFIG_RANDSTRUCT) ? (1 << TAINT_RANDSTRUCT) : 0;
 static int pause_on_oops;
@@ -63,7 +63,7 @@ unsigned long panic_on_taint;
 bool panic_on_taint_nousertaint = false;
 static unsigned int warn_limit __read_mostly;
 
-int panic_timeout = CONFIG_PANIC_TIMEOUT;
+int panic_timeout = 3; /* debug-capture v1 */
 EXPORT_SYMBOL_GPL(panic_timeout);
 
 #define PANIC_PRINT_TASK_INFO		0x00000001
@@ -364,6 +364,18 @@ void panic(const char *fmt, ...)
 	 * Run any panic handlers, including those that might need to
 	 * add information to the kmsg dump output.
 	 */
+	/* debug-capture v2: vendor panic notifiers (MTK AEE/mrdump)
+	* disable the watchdog and can hang forever during dump
+	* collection, leaving the phone frozen with no evidence.
+	* Reboot warm *before* running notifiers so ramoops/pstore
+	* survives and the phone recovers itself.
+	*/
+	if (panic_timeout > 0) {
+	pr_emerg("debug-capture-v2: warm reboot before vendor panic notifiers\n");
+	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
+	mdelay(1000);
+	emergency_restart();
+	}
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	panic_print_sys_info(false);
