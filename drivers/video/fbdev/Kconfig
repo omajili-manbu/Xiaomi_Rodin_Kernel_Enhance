@@ -1956,13 +1956,3 @@ source "drivers/video/fbdev/mmp/Kconfig"
 
 source "drivers/video/fbdev/core/Kconfig"
 
-config LKFB
-	bool "lkfb early MTK logo framebuffer console"
-	depends on FB && OF
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	default y
-	help
-	  Registers lk's logo framebuffer (mblock-15) as fbdev so fbcon
-	  prints kernel log on screen from postcore_initcall. Debug build.
