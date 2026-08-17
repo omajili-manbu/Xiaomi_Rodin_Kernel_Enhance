@@ -85,7 +85,14 @@ static int __init lkfb_init(void)
 	if (!info)
 		return -ENOMEM;
 
-	info->screen_base = memremap(res.start, resource_size(&res), MEMREMAP_WC);
+	/*
+	 * mblock-15-framebuffer is "map non-reusable" reserved RAM, so
+	 * MEMREMAP_WC would trip memremap's "attempted on ram" WARN_ONCE
+	 * and return NULL (framebuffer never registers). MEMREMAP_WB
+	 * resolves to the direct map, which is coherent with the display
+	 * engine's reads, and succeeds without warning.
+	 */
+	info->screen_base = memremap(res.start, resource_size(&res), MEMREMAP_WB);
 	if (!info->screen_base) {
 		framebuffer_release(info);
 		return -ENOMEM;
