@@ -1033,7 +1033,7 @@ void start_kernel(void)
 #endif
 	early_security_init();
 	setup_arch(&command_line);
-	pr_info("compat-v3: sme-unlock sigill-forensics + panic-capture + all prior fixes\n"); // /* debug-capture v2 */
+	pr_info("compat-v4: lkfb-memremap (screen console live) + sme-unlock + panic-capture + all prior fixes\n"); // /* debug-capture v2 */
 	setup_boot_config();
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
