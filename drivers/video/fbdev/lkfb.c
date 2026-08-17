@@ -85,7 +85,7 @@ static int __init lkfb_init(void)
 	if (!info)
 		return -ENOMEM;
 
-	info->screen_base = ioremap_wc(res.start, resource_size(&res));
+	info->screen_base = memremap(res.start, resource_size(&res), MEMREMAP_WC);
 	if (!info->screen_base) {
 		framebuffer_release(info);
 		return -ENOMEM;
@@ -122,7 +122,7 @@ static int __init lkfb_init(void)
 
 	ret = fb_alloc_cmap(&info->cmap, 16, 0);
 	if (ret) {
-		iounmap(info->screen_base);
+		memunmap(info->screen_base);
 		framebuffer_release(info);
 		return ret;
 	}
@@ -130,7 +130,7 @@ static int __init lkfb_init(void)
 	ret = register_framebuffer(info);
 	if (ret) {
 		fb_dealloc_cmap(&info->cmap);
-		iounmap(info->screen_base);
+		memunmap(info->screen_base);
 		framebuffer_release(info);
 		return ret;
 	}
