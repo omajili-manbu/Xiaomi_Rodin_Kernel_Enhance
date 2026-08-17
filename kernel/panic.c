@@ -375,8 +375,7 @@ void panic(const char *fmt, ...)
 	 * survives and the phone recovers itself.
 	 */
 	if (panic_timeout > 0) {
-		pr_emerg("debug-capture-v2: warm reboot after pstore dump
-");
+		pr_emerg("debug-capture-v2: warm reboot after pstore dump\n");
 		console_flush_on_panic(CONSOLE_FLUSH_PENDING);
 		mdelay(1000);
 		emergency_restart();

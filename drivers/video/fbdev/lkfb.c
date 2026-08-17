@@ -171,4 +171,12 @@ static int __init lkfb_init(void)
 		w, h, &res.start, &res.end);
 	return 0;
 }
-postcore_initcall(lkfb_init);
+/*
+ * NOTE: must register AFTER subsys_initcall(fbmem_init)/fb_console_init().
+ * fb_console_init() unconditionally resets con2fb_map[] to -1; if we register
+ * earlier (postcore), fbcon takes over with a valid map which is then wiped,
+ * leaving fbcon bound to the VT with con2fb_map=-1 -> fbcon_cursor()/putcs()
+ * get a NULL fb_info and NULL-deref (offset 0x388, info->fbcon_par). fs_initcall
+ * is after subsys_initcall, so the map set up here is stable.
+ */
+fs_initcall(lkfb_init);
