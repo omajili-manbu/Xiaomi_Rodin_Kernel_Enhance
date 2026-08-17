@@ -455,7 +455,7 @@ void arm64_notify_segfault(unsigned long addr)
 
 void do_el0_undef(struct pt_regs *regs, unsigned long esr)
 {
-	u32 insn;
+	u32 insn = 0;
 
 	/* check for AArch32 breakpoint instructions */
 	if (!aarch32_break_handler(regs))
@@ -471,6 +471,9 @@ void do_el0_undef(struct pt_regs *regs, unsigned long esr)
 		return;
 
 out_err:
+	pr_err("debug-capture-v3: el0 SIGILL comm=%s tgid=%d pid=%d pc=0x%llx esr=0x%08lx insn=0x%08x\n",
+	       current->comm, current->tgid, current->pid,
+	       (unsigned long long)regs->pc, esr, insn);
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
 
