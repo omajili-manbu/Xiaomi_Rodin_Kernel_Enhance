@@ -18,6 +18,15 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+/*
+ * Debug: boot with lkfb_selftest=1 to write a small test pattern into the
+ * LK-logo buffer and exit WITHOUT registering the fb (no fbcon). Use it to
+ * bisect whether ANY write to the live scanout buffer crashes, or only the
+ * fbcon path does. Remove for production builds.
+ */
+static int lkfb_selftest;
+core_param(lkfb_selftest, lkfb_selftest, int, 0644);
+
 static struct fb_info *lkfb_info;
 
 static int lkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -96,6 +105,21 @@ static int __init lkfb_init(void)
 	if (!info->screen_base) {
 		framebuffer_release(info);
 		return -ENOMEM;
+	}
+
+	if (lkfb_selftest) {
+		/* plain write test: fill the top 64 scanlines, no fbcon */
+		u32 y;
+		u8 *p = (u8 *)info->screen_base;
+
+		pr_info("lkfb: selftest writing %u bytes @ %pa, no fbcon\n",
+			line * 64, &res.start);
+		for (y = 0; y < 64; y++)
+			memset(p + y * line, (y & 1) ? 0xff : 0x00, line);
+		pr_info("lkfb: selftest write done\n");
+		memunmap(info->screen_base);
+		framebuffer_release(info);
+		return -ENODEV;
 	}
 
 	strscpy(info->fix.id, "lkfb", sizeof(info->fix.id));

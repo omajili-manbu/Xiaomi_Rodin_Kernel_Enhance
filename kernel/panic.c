@@ -364,23 +364,24 @@ void panic(const char *fmt, ...)
 	 * Run any panic handlers, including those that might need to
 	 * add information to the kmsg dump output.
 	 */
-	/* debug-capture v2: vendor panic notifiers (MTK AEE/mrdump)
-	* disable the watchdog and can hang forever during dump
-	* collection, leaving the phone frozen with no evidence.
-	* Reboot warm *before* running notifiers so ramoops/pstore
-	* survives and the phone recovers itself.
-	*/
-	if (panic_timeout > 0) {
-	pr_emerg("debug-capture-v2: warm reboot before vendor panic notifiers\n");
-	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
-	mdelay(1000);
-	emergency_restart();
-	}
-	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
-
 	panic_print_sys_info(false);
 
 	kmsg_dump(KMSG_DUMP_PANIC);
+
+	/* debug-capture v2: vendor panic notifiers (MTK AEE/mrdump) disable the
+	 * watchdog and can hang forever during dump collection, leaving the phone
+	 * frozen with no evidence. Dump the full log to ramoops/pstore above,
+	 * then warm-reboot *before* running the vendor notifiers so pstore
+	 * survives and the phone recovers itself.
+	 */
+	if (panic_timeout > 0) {
+		pr_emerg("debug-capture-v2: warm reboot after pstore dump
+");
+		console_flush_on_panic(CONSOLE_FLUSH_PENDING);
+		mdelay(1000);
+		emergency_restart();
+	}
+	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	/*
 	 * If you doubt kdump always works fine in any situation,
