@@ -719,6 +719,26 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 	rc = security_sid_to_context(sad->ssid, &scontext,
 				     &scontext_len);
+
+#ifdef CONFIG_KSU_SUSFS
+	/*
+	 * selinux-hook: for app uids while SUSFS selinux hiding is enabled,
+	 * emit a sanitized stub AVC line and bail early.  This hides
+	 * suspicious scontext/tcontext domains (fsck_untrusted, su, adbroot,
+	 * shell, ...) and the masked permission name (sys_admin, transition)
+	 * from dmesg / logcat / auditd records so root-related transitions
+	 * cannot be fingerprinted by detection tools.
+	 */
+	if (static_branch_likely(&susfs_is_avc_log_spoofing_enabled) &&
+	    current_uid().val >= 10000) {
+		audit_log_format(ab, " scontext=%s tcontext=%s tclass=%s",
+				 "u:r:priv_app:s0:c512,c768",
+				 "u:r:priv_app:s0:c512,c768",
+				 secclass_map[sad->tclass-1].name);
+		kfree(scontext);
+		return;
+	}
+#endif
 	if (rc)
 		audit_log_format(ab, " ssid=%d", sad->ssid);
 	else
