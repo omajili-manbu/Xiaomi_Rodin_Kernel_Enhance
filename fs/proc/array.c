@@ -82,6 +82,9 @@
 #include <linux/times.h>
 #include <linux/cpuset.h>
 #include <linux/rcupdate.h>
+#ifdef CONFIG_KSU_SUSFS
+extern struct static_key_false susfs_is_avc_log_spoofing_enabled;
+#endif
 #include <linux/delayacct.h>
 #include <linux/seq_file.h>
 #include <linux/pid_namespace.h>
@@ -322,6 +325,21 @@ static inline void task_cap(struct seq_file *m, struct task_struct *p)
 	cap_bset	= cred->cap_bset;
 	cap_ambient	= cred->cap_ambient;
 	rcu_read_unlock();
+
+#ifdef CONFIG_KSU_SUSFS
+	/*
+	 * selinux-hook: hide CAP_SYS_ADMIN (bit 21) from app readers so
+	 * /proc/<pid>/status of a rooted / su process does not reveal the
+	 * "sys_admin" clue to detection tools.  Only applies to ordinary app
+	 * uids (>= 10000) while the SUSFS selinux-hide toggle is on.
+	 */
+	if (static_branch_unlikely(&susfs_is_avc_log_spoofing_enabled) &&
+	    current_uid().val >= 10000) {
+		cap_effective.val &= ~BIT_ULL(CAP_SYS_ADMIN);
+		cap_permitted.val &= ~BIT_ULL(CAP_SYS_ADMIN);
+		cap_bset.val	   &= ~BIT_ULL(CAP_SYS_ADMIN);
+	}
+#endif
 
 	render_cap_t(m, "CapInh:\t", &cap_inheritable);
 	render_cap_t(m, "CapPrm:\t", &cap_permitted);
