@@ -49,6 +49,7 @@ extern struct selinux_policy *backup_sepolicy;
 extern struct page *fake_status;
 extern struct static_key_false fake_status_initialize_key;
 extern bool ksu_selinux_hide_running __read_mostly;
+extern struct static_key_false susfs_is_avc_log_spoofing_enabled;
 extern bool ksu_selinux_hide_enabled __read_mostly;
 extern void initialize_fake_status(void);
 extern int security_context_to_sid_with_policy(struct selinux_policy *policy, const char *scontext, u32 scontext_len,
@@ -985,54 +986,80 @@ out:
 #ifdef CONFIG_KSU_SUSFS
 static ssize_t my_write_access(struct file *file, char *buf, size_t size)
 {
-	char *scon = NULL, *tcon = NULL;
-	u32 ssid, tsid;
-	u16 tclass;
-	struct av_decision avd;
-	ssize_t length;
+        char *scon = NULL, *tcon = NULL, *tctx = NULL;
+        u32 ssid, tsid, tctxlen;
+        u16 tclass;
+        struct av_decision avd;
+        ssize_t length;
+        int hide;
 
-	// apply to all app uids
-	if (likely(current_uid().val < 10000 || !ksu_selinux_hide_running))
-		return sel_write_access(file, buf, size);
+        /*
+         * PRECISION_SELINUX_HOOK_ACCESS
+         * selinux-hook (minimal, precision): only strip the suspicious items an
+         * ordinary app must not see from the compute_av answer it reads on
+         * /sys/fs/selinux/access:
+         *   - target types su / ssu / adbroot / addr / fsck_untrusted
+         *   - capability-class permission sys_admin (capability bit 21)
+         * Everything else keeps the real policy, and non-app / hidden-off callers
+         * are untouched: no EACCES, no impact on normal runtime (no boot impact).
+         */
+        hide = current_uid().val >= 10000 &&
+               (static_branch_unlikely(&susfs_is_avc_log_spoofing_enabled) ||
+                ksu_selinux_hide_running);
+        if (!hide)
+                return sel_write_access(file, buf, size);
 
-	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
-			      SECCLASS_SECURITY, SECURITY__COMPUTE_AV, NULL);
-	if (length)
-		goto out;
+        length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+                              SECCLASS_SECURITY, SECURITY__COMPUTE_AV, NULL);
+        if (length)
+                goto out;
 
-	length = -ENOMEM;
-	scon = kzalloc(size + 1, GFP_KERNEL);
-	if (!scon)
-		goto out;
+        length = -ENOMEM;
+        scon = kzalloc(size + 1, GFP_KERNEL);
+        if (!scon)
+                goto out;
 
-	length = -ENOMEM;
-	tcon = kzalloc(size + 1, GFP_KERNEL);
-	if (!tcon)
-		goto out;
+        length = -ENOMEM;
+        tcon = kzalloc(size + 1, GFP_KERNEL);
+        if (!tcon)
+                goto out;
 
-	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
-		goto out;
+        length = -EINVAL;
+        if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
+                goto out;
 
-	length = security_context_to_sid_with_policy(backup_sepolicy, scon, strlen(scon), &ssid, SECSID_NULL, GFP_KERNEL);
-	if (length)
-		goto out;
+        length = security_context_str_to_sid(scon, &ssid, GFP_KERNEL);
+        if (length)
+                goto out;
 
-	length = security_context_to_sid_with_policy(backup_sepolicy, tcon, strlen(tcon), &tsid, SECSID_NULL, GFP_KERNEL);
-	if (length)
-		goto out;
+        length = security_context_str_to_sid(tcon, &tsid, GFP_KERNEL);
+        if (length)
+                goto out;
 
-	security_compute_av_user_with_policy(backup_sepolicy, ssid, tsid, tclass, &avd);
+        security_compute_av_user(ssid, tsid, tclass, &avd);
 
-	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
-			  "%x %x %x %x %u %x",
-			  avd.allowed, 0xffffffff,
-			  avd.auditallow, avd.auditdeny,
-			  avd.seqno, avd.flags);
+        /* strip suspicious target types from the app-visible avd */
+        if (security_sid_to_context(tsid, &tctx, &tctxlen) == 0 && tctx) {
+                if (strstr(tctx, ":su:") || strstr(tctx, ":ssu:") ||
+                    strstr(tctx, ":adbroot") || strstr(tctx, ":addr:") ||
+                    strstr(tctx, ":fsck_untrusted:"))
+                        avd.allowed = 0;
+                kfree(tctx);
+        }
+
+        /* strip capability sys_admin (bit 21) as well */
+        if (tclass == SECCLASS_CAPABILITY || tclass == SECCLASS_CAPABILITY2)
+                avd.allowed &= ~(1U << 21);
+
+        length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
+                          "%x %x %x %x %u %x",
+                          avd.allowed, 0xffffffff,
+                          avd.auditallow, avd.auditdeny,
+                          avd.seqno, avd.flags);
 out:
-	kfree(tcon);
-	kfree(scon);
-	return length;
+        kfree(tcon);
+        kfree(scon);
+        return length;
 }
 #endif // #ifdef CONFIG_KSU_SUSFS
 
