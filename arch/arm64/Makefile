@@ -38,6 +38,7 @@ endif
 
 KBUILD_CFLAGS	+= -mgeneral-regs-only	\
 		   $(compat_vdso) $(cc_has_k_constraint)
+KBUILD_CFLAGS   += $(call cc-option,-mcpu=cortex-a725) -mtune=cortex-a725
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
 KBUILD_AFLAGS	+= $(compat_vdso)
 
