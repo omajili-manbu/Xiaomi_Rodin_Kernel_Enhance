@@ -696,6 +696,21 @@ out:
 }
 
 #ifdef CONFIG_KSU_SUSFS
+/*
+ * PRECISION_SELINUX_HOOK_HIDELIST
+ * selinux-hook: types that must look non-existent to ordinary apps.
+ */
+static bool susfs_hide_suspicious_ctx(const char *ctx)
+{
+        return ctx && (strstr(ctx, ":su:") || strstr(ctx, ":ssu:") ||
+                       strstr(ctx, ":ksu_file:") ||
+                       strstr(ctx, ":lsposed_file:") ||
+                       strstr(ctx, ":adb_data_file:") ||
+                       strstr(ctx, ":dsp_bypass") ||
+                       strstr(ctx, ":adbroot") || strstr(ctx, ":addr:") ||
+                       strstr(ctx, ":fsck_untrusted:"));
+}
+
 static ssize_t my_write_context(struct file *file, char *buf, size_t size)
 {
 	char *canon = NULL;
@@ -710,6 +725,11 @@ static ssize_t my_write_context(struct file *file, char *buf, size_t size)
 			      SECCLASS_SECURITY, SECURITY__CHECK_CONTEXT, NULL);
 	if (length)
 		goto out;
+
+	if (susfs_hide_suspicious_ctx(buf)) {
+		length = -EINVAL;
+		goto out;
+	}
 
 	length = security_context_to_sid_with_policy(backup_sepolicy, buf, size, &sid, SECSID_NULL, GFP_KERNEL);
 	if (length)
@@ -855,6 +875,14 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	if (rc)
 		goto out;
 
+	if (current_uid().val >= 10000 &&
+	    (susfs_hide_suspicious_ctx(oldcon) ||
+	     susfs_hide_suspicious_ctx(newcon) ||
+	     susfs_hide_suspicious_ctx(taskcon))) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	rc = security_validate_transition_user(osid, nsid, tsid, tclass);
 	if (!rc)
 		rc = count;
@@ -913,6 +941,12 @@ static ssize_t selinux_transaction_write(struct file *file, const char __user *b
 	data = simple_transaction_get(file, buf, size);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+
+#ifdef CONFIG_KSU_SUSFS
+	if (ino != SEL_ACCESS && current_uid().val >= 10000 &&
+	    susfs_hide_suspicious_ctx(data))
+		return -EINVAL;
+#endif
 
 	rv = write_op[ino](file, data, size);
 	if (rv > 0) {
@@ -986,8 +1020,9 @@ out:
 #ifdef CONFIG_KSU_SUSFS
 static ssize_t my_write_access(struct file *file, char *buf, size_t size)
 {
-        char *scon = NULL, *tcon = NULL, *tctx = NULL;
-        u32 ssid, tsid, tctxlen;
+        char *scon = NULL, *tcon = NULL, *tctx = NULL, *sctx = NULL;
+        u32 ssid, tsid, tctxlen, sctxlen, system_server_sid = 0;
+        int src_hidden, tgt_hidden;
         u16 tclass;
         struct av_decision avd;
         ssize_t length;
@@ -998,8 +1033,10 @@ static ssize_t my_write_access(struct file *file, char *buf, size_t size)
          * selinux-hook (minimal, precision): only strip the suspicious items an
          * ordinary app must not see from the compute_av answer it reads on
          * /sys/fs/selinux/access:
-         *   - target types su / ssu / adbroot / addr / fsck_untrusted
+         *   - target types su / ssu / ksu_file / lsposed_file / adbroot /
+         *     addr / fsck_untrusted / adb_data_file / dsp_bypass
          *   - capability-class permission sys_admin (capability bit 21)
+         *   - process-class execmem (bit 25) when source is system_server
          * Everything else keeps the real policy, and non-app / hidden-off callers
          * are untouched: no EACCES, no impact on normal runtime (no boot impact).
          */
@@ -1036,20 +1073,41 @@ static ssize_t my_write_access(struct file *file, char *buf, size_t size)
         if (length)
                 goto out;
 
-        security_compute_av_user(ssid, tsid, tclass, &avd);
-
-        /* strip suspicious target types from the app-visible avd */
-        if (security_sid_to_context(tsid, &tctx, &tctxlen) == 0 && tctx) {
-                if (strstr(tctx, ":su:") || strstr(tctx, ":ssu:") ||
-                    strstr(tctx, ":adbroot") || strstr(tctx, ":addr:") ||
-                    strstr(tctx, ":fsck_untrusted:"))
-                        avd.allowed = 0;
-                kfree(tctx);
+        /*
+         * hidden types must look non-existent: a query naming one in its
+         * source or target context gets -EINVAL, byte-for-byte what
+         * sel_write_access returns for an unknown context.
+         */
+        src_hidden = tgt_hidden = 0;
+        if (security_sid_to_context(ssid, &sctx, &sctxlen) == 0 && sctx) {
+                if (!strncmp(sctx, "u:r:system_server:s0",
+                             strlen("u:r:system_server:s0")))
+                        system_server_sid = ssid;
+                else
+                        src_hidden = susfs_hide_suspicious_ctx(sctx);
+                kfree(sctx);
         }
+        sctx = NULL;
+        if (!src_hidden &&
+            security_sid_to_context(tsid, &tctx, &tctxlen) == 0 && tctx) {
+                tgt_hidden = susfs_hide_suspicious_ctx(tctx);
+                kfree(tctx);
+                tctx = NULL;
+        }
+        if (src_hidden || tgt_hidden) {
+                length = -EINVAL;
+                goto out;
+        }
+
+        security_compute_av_user(ssid, tsid, tclass, &avd);
 
         /* strip capability sys_admin (bit 21) as well */
         if (tclass == SECCLASS_CAPABILITY || tclass == SECCLASS_CAPABILITY2)
                 avd.allowed &= ~(1U << 21);
+
+        /* strip process execmem (bit 25) when source is system_server */
+        if (tclass == SECCLASS_PROCESS && ssid == system_server_sid)
+                avd.allowed &= ~(1U << 25);
 
         length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
                           "%x %x %x %x %u %x",
