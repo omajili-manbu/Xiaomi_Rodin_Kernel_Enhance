@@ -820,3 +820,7 @@ CONFIG_DEFAULT_TCP_CONG="bbr"
 CONFIG_LTO_CLANG_THIN=y
 # Perf: zram default compressor -> lz4 (CRYPTO_LZ4 already builtin)
 CONFIG_ZRAM_DEF_COMP_LZ4=y
+# Perf: default qdisc -> fq (pairs with BBR)
+CONFIG_DEFAULT_FQ=y
+# Perf: allow default qdisc selection
+CONFIG_NET_SCH_DEFAULT=y
