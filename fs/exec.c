@@ -75,6 +75,10 @@
 #include <linux/dma-buf.h>
 #endif
 
+#ifndef __GENKSYMS__
+#include <linux/dma-buf.h>
+#endif
+
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>

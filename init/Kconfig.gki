@@ -300,6 +300,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_MM_CONFIGS
 	select GKI_HIDDEN_ETHERNET_CONFIGS
 	select GKI_HIDDEN_DMA_CONFIGS
+	select GKI_DYNAMIC_TASK_STRUCT_SIZE
 
 	help
 	  Dummy config option used to enable core functionality used by

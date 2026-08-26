@@ -335,14 +335,18 @@ int gzvm_vm_ioctl_create_vcpu(struct gzvm *gzvm, u32 cpuid)
 	if (ret < 0)
 		goto free_vcpu_run;
 
+	gzvm_vm_get(gzvm);
+
 	ret = create_vcpu_fd(vcpu);
 	if (ret < 0)
-		goto free_vcpu_run;
+		goto put_vm;
 	gzvm->vcpus[cpuid] = vcpu;
 
 	gzvm_vtimer_init(vcpu);
 	return ret;
 
+put_vm:
+	gzvm_vm_put(gzvm);
 free_vcpu_run:
 	free_pages_exact(vcpu->run, GZVM_VCPU_RUN_MAP_SIZE);
 free_vcpu:
