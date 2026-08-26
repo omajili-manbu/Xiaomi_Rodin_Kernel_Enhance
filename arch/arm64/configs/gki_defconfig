@@ -818,3 +818,5 @@ CONFIG_DEFAULT_BBR=y
 CONFIG_DEFAULT_TCP_CONG="bbr"
 # Perf: enable ThinLTO whole-program optimization
 CONFIG_LTO_CLANG_THIN=y
+# Perf: zram default compressor -> lz4 (CRYPTO_LZ4 already builtin)
+CONFIG_ZRAM_DEF_COMP_LZ4=y
