@@ -82,54 +82,51 @@
 /*-************************************************************************
  *	STREAMING CONSTANTS AND STRUCTURES
  **************************************************************************/
-#define LZ4_STREAMSIZE_U64 ((1 << (LZ4_MEMORY_USAGE - 3)) + 4)
-#define LZ4_STREAMSIZE	(LZ4_STREAMSIZE_U64 * sizeof(unsigned long long))
-
-#define LZ4_STREAMHCSIZE        262192
-#define LZ4_STREAMHCSIZE_SIZET (262192 / sizeof(size_t))
-
-#define LZ4_STREAMDECODESIZE_U64	4
-#define LZ4_STREAMDECODESIZE		 (LZ4_STREAMDECODESIZE_U64 * \
-	sizeof(unsigned long long))
+#define LZ4_STREAM_MINSIZE	((1UL << (LZ4_MEMORY_USAGE)) + 32)
 
 /*
  * LZ4_stream_t - information structure to track an LZ4 stream.
  */
-typedef struct {
+typedef struct LZ4_stream_t_internal {
 	uint32_t hashTable[LZ4_HASH_SIZE_U32];
-	uint32_t currentOffset;
-	uint32_t initCheck;
 	const uint8_t *dictionary;
-	uint8_t *bufferStart;
+	const struct LZ4_stream_t_internal *dictCtx;
+	uint32_t currentOffset;
+	uint32_t tableType;
 	uint32_t dictSize;
 } LZ4_stream_t_internal;
 typedef union {
-	unsigned long long table[LZ4_STREAMSIZE_U64];
+	char minStateSize[LZ4_STREAM_MINSIZE];
 	LZ4_stream_t_internal internal_donotuse;
 } LZ4_stream_t;
 
 /*
  * LZ4_streamHC_t - information structure to track an LZ4HC stream.
  */
-typedef struct {
+#define LZ4_STREAMHC_MINSIZE	262200
+
+typedef struct LZ4HC_CCtx_internal {
 	unsigned int	 hashTable[LZ4HC_HASHTABLESIZE];
 	unsigned short	 chainTable[LZ4HC_MAXD];
 	/* next block to continue on current prefix */
 	const unsigned char *end;
 	/* All index relative to this position */
-	const unsigned char *base;
-	/* alternate base for extDict */
-	const unsigned char *dictBase;
+	const unsigned char *prefixStart;
+	/* alternate reference for extDict */
+	const unsigned char *dictStart;
 	/* below that point, need extDict */
 	unsigned int	 dictLimit;
-	/* below that point, no more dict */
+	/* below that point, no more history */
 	unsigned int	 lowLimit;
 	/* index from which to continue dict update */
 	unsigned int	 nextToUpdate;
-	unsigned int	 compressionLevel;
+	short		 compressionLevel;
+	int8_t		 favorDecSpeed; /* favor decompression speed if set */
+	int8_t		 dirty;	 /* stream has to be fully reset if set */
+	const struct LZ4HC_CCtx_internal *dictCtx;
 } LZ4HC_CCtx_internal;
 typedef union {
-	size_t table[LZ4_STREAMHCSIZE_SIZET];
+	char minStateSize[LZ4_STREAMHC_MINSIZE];
 	LZ4HC_CCtx_internal internal_donotuse;
 } LZ4_streamHC_t;
 
@@ -145,6 +142,9 @@ typedef struct {
 	const uint8_t *prefixEnd;
 	size_t prefixSize;
 } LZ4_streamDecode_t_internal;
+#define LZ4_STREAMDECODESIZE_U64	4
+#define LZ4_STREAMDECODESIZE		 (LZ4_STREAMDECODESIZE_U64 * sizeof(unsigned long long))
+
 typedef union {
 	unsigned long long table[LZ4_STREAMDECODESIZE_U64];
 	LZ4_streamDecode_t_internal internal_donotuse;
@@ -153,8 +153,8 @@ typedef union {
 /*-************************************************************************
  *	SIZE OF STATE
  **************************************************************************/
-#define LZ4_MEM_COMPRESS	LZ4_STREAMSIZE
-#define LZ4HC_MEM_COMPRESS	LZ4_STREAMHCSIZE
+#define LZ4_MEM_COMPRESS	LZ4_STREAM_MINSIZE
+#define LZ4HC_MEM_COMPRESS	LZ4_STREAMHC_MINSIZE
 
 /*-************************************************************************
  *	Compression Functions
