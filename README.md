@@ -1,156 +1,139 @@
-# How do I submit patches to Android Common Kernels
+# Xiaomi Rodin Kernel Enhance
 
-1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
-   These patches will be merged automatically in the corresponding common kernels. If the patch is already
-   in upstream Linux, post a backport of the patch that conforms to the patch requirements below.
-   - Do not send patches upstream that contain only symbol exports. To be considered for upstream Linux,
-additions of `EXPORT_SYMBOL_GPL()` require an in-tree modular driver that uses the symbol -- so include
-the new driver or changes to an existing driver in the same patchset as the export.
-   - When sending patches upstream, the commit message must contain a clear case for why the patch
-is needed and beneficial to the community. Enabling out-of-tree drivers or functionality is not
-a persuasive case.
+[![Kernel](https://img.shields.io/badge/kernel-6.6.142_LTS-blue)](https://kernel.org)
+[![Base](https://img.shields.io/badge/base-MiCode%20bsp--rodin--v--oss-orange)](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/bsp-rodin-v-oss)
+[![Root](https://img.shields.io/badge/Root-ReSukiSU-green)](https://github.com/ReSukiSU/ReSukiSU)
+[![SuSFS](https://img.shields.io/badge/Hiding-SuSFS-green)](https://gitlab.com/simonpunk/susfs4ksu)
+[![License](https://img.shields.io/badge/license-GPL--2.0-lightgrey)](LICENSES)
 
-2. LESS GOOD: Develop your patches out-of-tree (from an upstream Linux point-of-view). Unless these are
-   fixing an Android-specific bug, these are very unlikely to be accepted unless they have been
-   coordinated with kernel-team@android.com. If you want to proceed, post a patch that conforms to the
-   patch requirements below.
+**English** | [简体中文](#简体中文)
 
-# Common Kernel patch requirements
+An enhanced Android kernel for Xiaomi **rodin** devices, built on top of Xiaomi's released [`bsp-rodin-v-oss`](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/bsp-rodin-v-oss) kernel source (Android15-6.6 GKI / MediaTek) and kept in sync with the latest **6.6 LTS**.
 
-- All patches must conform to the Linux kernel coding standards and pass `scripts/checkpatch.pl`
-- Patches shall not break gki_defconfig or allmodconfig builds for arm, arm64, x86, x86_64 architectures
-(see  https://source.android.com/setup/build/building-kernels)
-- If the patch is not merged from an upstream branch, the subject must be tagged with the type of patch:
-`UPSTREAM:`, `BACKPORT:`, `FROMGIT:`, `FROMLIST:`, or `ANDROID:`.
-- All patches must have a `Change-Id:` tag (see https://gerrit-review.googlesource.com/Documentation/user-changeid.html)
-- If an Android bug has been assigned, there must be a `Bug:` tag.
-- All patches must have a `Signed-off-by:` tag by the author and the submitter
+## Highlights
 
-Additional requirements are listed below based on patch type
+### Root & Hiding
+- **ReSukiSU** built-in (`drivers/kernelsu`, integrated via the `resukisu-susfs` tree)
+- **SuSFS** with upstream sync (`TIF_PROC_NO_SU` + `zygote_next`)
+- Hiding of suspicious SELinux contexts/rules from app-visible policy probes, tied to the SuSFS AVC log spoofing switch
 
-## Requirements for backports from mainline Linux: `UPSTREAM:`, `BACKPORT:`
+### Brick Protection
+- **Baseband-guard (BBG)** LSM: blocks unauthorized writes to critical partitions/device nodes at the kernel level ([vc-teahouse/Baseband-guard](https://github.com/vc-teahouse/Baseband-guard), allowlist adjusted for rodin)
 
-- If the patch is a cherry-pick from Linux mainline with no changes at all
-    - tag the patch subject with `UPSTREAM:`.
-    - add upstream commit information with a `(cherry picked from commit ...)` line
-    - Example:
-        - if the upstream commit message is
-```
-        important patch from upstream
+### Performance
+- Cortex-A725 compiler tuning (`-mcpu/-mtune`, requires clang 19+) + **ThinLTO**
+- **BBR** as default TCP congestion control (BIC/CUBIC/WESTWOOD/HTCP also available), **fq** qdisc
+- **ZSTD** upgraded to v1.5.7
+- ZRAM built-in with a full compression algorithm set (LZ4 / LZ4HC / DEFLATE / 842 / ZSTD), default LZ4
 
-        This is the detailed description of the important patch
+### Stability & Fixes
+- Fixed probabilistic boot hang (`init` SIGILL) and restored vendor module compatibility (6.6.77 vendor modules, `zsmalloc.ko` symbol/CRC issues)
+- Backported fixes: fscrypt, `mm/swap_cgroup` NULL deref, BPF `lpm_trie` UBSAN OOB
+- Unprivileged BPF disabled by default (`CONFIG_BPF_UNPRIV_DEFAULT_OFF=y`)
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-```
->- then Joe Smith would upload the patch for the common kernel as
-```
-        UPSTREAM: important patch from upstream
+The tuning philosophy is **balanced** — all gains come from compile-time optimizations, an up-to-date kernel, updated compression algorithms and bug fixes on top of Xiaomi's official kernel, with nothing biased toward either performance or battery life.
 
-        This is the detailed description of the important patch
+## Supported Devices
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
+| Device | Codename | OS |
+|---|---|---|
+| Redmi Turbo 4 | rodin | HyperOS 3 (Android 15) |
+| POCO X7 Pro | rodin | HyperOS 3 (Android 15) |
 
-        Bug: 135791357
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+> **Note:** Untested on POCO hardware, but it should work — Xiaomi ships the same kernel source for the POCO and Redmi variants. If you run into any issues, feel free to open an issue with logs attached, and I'll try to fix it.
 
-- If the patch requires any changes from the upstream version, tag the patch with `BACKPORT:`
-instead of `UPSTREAM:`.
-    - use the same tags as `UPSTREAM:`
-    - add comments about the changes under the `(cherry picked from commit ...)` line
-    - Example:
-```
-        BACKPORT: important patch from upstream
+## Branches
 
-        This is the detailed description of the important patch
+- [`bsp-rodin-v-oss-bp`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-oss-bp) — main build branch, based on Xiaomi's official rodin source with additional backports and enhancements
+- Release tags (`v1.x`) mark the exact commit of each prebuilt release
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
+## Roadmap
 
-        Bug: 135791357
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
-        [joe: Resolved minor conflict in drivers/foo/bar.c ]
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+- HyperOS 4 support is planned
 
-## Requirements for other backports: `FROMGIT:`, `FROMLIST:`,
+## Downloads & Support
 
-- If the patch has been merged into an upstream maintainer tree, but has not yet
-been merged into Linux mainline
-    - tag the patch subject with `FROMGIT:`
-    - add info on where the patch came from as `(cherry picked from commit <sha1> <repo> <branch>)`. This
-must be a stable maintainer branch (not rebased, so don't use `linux-next` for example).
-    - if changes were required, use `BACKPORT: FROMGIT:`
-    - Example:
-        - if the commit message in the maintainer tree is
-```
-        important patch from upstream
+- Prebuilt images: [Releases](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/releases)
+- Flashing notes and announcements: [Discussions](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/discussions)
+- After flashing, `uname -r` should report something like `6.6.142-by-Omachirimanbu-4k-g<commit>`
+- Bug reports: open an [issue](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/issues) with kernel logs (`dmesg` / `last_kmsg`) attached
 
-        This is the detailed description of the important patch
+## Acknowledgements
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-```
->- then Joe Smith would upload the patch for the common kernel as
-```
-        FROMGIT: important patch from upstream
+- [MiCode/Xiaomi_Kernel_OpenSource](https://github.com/MiCode/Xiaomi_Kernel_OpenSource) — official rodin kernel source (`bsp-rodin-v-oss`)
+- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) / [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) / [KernelSU](https://github.com/tiann/KernelSU) — root solution
+- [SusFS](https://gitlab.com/simonpunk/susfs4ksu) — root hiding
+- [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) — brick protection
+- AOSP `android15-6.6` / upstream Linux 6.6 LTS
 
-        This is the detailed description of the important patch
+## License
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
+This repository is licensed under **GPL-2.0**, following the Linux kernel and the upstream sources it is based on. See [LICENSES](LICENSES) for details.
 
-        Bug: 135791357
-        (cherry picked from commit 878a2fd9de10b03d11d2f622250285c7e63deace
-         https://git.kernel.org/pub/scm/linux/kernel/git/foo/bar.git test-branch)
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+---
 
+# 简体中文
 
-- If the patch has been submitted to LKML, but not accepted into any maintainer tree
-    - tag the patch subject with `FROMLIST:`
-    - add a `Link:` tag with a link to the submittal on lore.kernel.org
-    - add a `Bug:` tag with the Android bug (required for patches not accepted into
-a maintainer tree)
-    - if changes were required, use `BACKPORT: FROMLIST:`
-    - Example:
-```
-        FROMLIST: important patch from upstream
+[English](#xiaomi-rodin-kernel-enhance) | 简体中文
 
-        This is the detailed description of the important patch
+基于小米已开源的 [`bsp-rodin-v-oss`](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/bsp-rodin-v-oss) 内核源码（Android15-6.6 GKI / 联发科）构建的 rodin 设备增强内核，并持续跟进最新 **6.6 LTS**。
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
+## 特性
 
-        Bug: 135791357
-        Link: https://lore.kernel.org/lkml/20190619171517.GA17557@someone.com/
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+### Root 与隐藏
+- 内置 **ReSukiSU**（`drivers/kernelsu`，经由 `resukisu-susfs` 树集成）
+- **SuSFS**，已跟进上游（`TIF_PROC_NO_SU` + `zygote_next`）
+- 对应用隐藏可疑 SELinux 上下文/规则，绑定到 SuSFS AVC 日志欺骗开关
 
-- If a patch has been submitted to the community, but rejected, do NOT use the
-  `FROMLIST:` tag to try to hide this fact.  Use the `ANDROID:` tag as
-  described below as this must be considered as an Android-specific submission,
-  not an upstream submission as the community will not accept these changes
-  as-is.
+### 防格机
+- **Baseband-guard (BBG)** LSM：在内核层拦截对关键分区/设备节点的未授权写入（来自 [vc-teahouse/Baseband-guard](https://github.com/vc-teahouse/Baseband-guard)，白名单已针对 rodin 调整）
 
-## Requirements for Android-specific patches: `ANDROID:`
+### 性能
+- 针对 Cortex-A725 的编译优化（`-mcpu/-mtune`，需要 clang 19+）+ **ThinLTO**
+- **BBR** 作为默认 TCP 拥塞控制（同时可用 BIC/CUBIC/WESTWOOD/HTCP），网络队列调度 **fq**
+- **ZSTD** 升级至 v1.5.7
+- ZRAM 内建，压缩算法补全（LZ4 / LZ4HC / DEFLATE / 842 / ZSTD），默认 LZ4
 
-- If the patch is fixing a bug to Android-specific code
-    - tag the patch subject with `ANDROID:`
-    - add a `Fixes:` tag that cites the patch with the bug
-    - Example:
-```
-        ANDROID: fix android-specific bug in foobar.c
+### 稳定性修复
+- 修复概率性开机卡死（`init` SIGILL），恢复 vendor 模块兼容（6.6.77 vendor 模块、`zsmalloc.ko` 符号/CRC 问题）
+- 反向移植修复：fscrypt、`mm/swap_cgroup` 空指针、BPF `lpm_trie` UBSAN 数组越界
+- 默认禁用非特权 BPF（`CONFIG_BPF_UNPRIV_DEFAULT_OFF=y`）
 
-        This is the detailed description of the important fix
+调优方向是**性能与续航兼顾**——所有提升均来自编译时优化、更新的内核、更新的压缩算法，以及对小米官方内核的 bug 修复，没有偏向任何一方的激进调整。
 
-        Fixes: 1234abcd2468 ("foobar: add cool feature")
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+## 支持设备
 
-- If the patch is a new feature
-    - tag the patch subject with `ANDROID:`
-    - add a `Bug:` tag with the Android bug (required for android-specific features)
+| 设备 | 代号 | 系统 |
+|---|---|---|
+| Redmi Turbo 4 | rodin | HyperOS 3（Android 15） |
+| POCO X7 Pro | rodin | HyperOS 3（Android 15） |
 
+> **说明：** 未在 POCO 实机上测试过，但大概率可用——小米在 POCO 与 Redmi 机型上使用同一套内核源码。遇到问题欢迎带日志开 issue，我会尝试修复。
+
+## 分支
+
+- [`bsp-rodin-v-oss-bp`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-oss-bp) — 主构建分支，在小米官方 rodin 源码基础上叠加反向移植与增强
+- Release 标签（`v1.x`）标记每个预编译版本对应的提交
+
+## 计划
+
+- 适配 HyperOS 4
+
+## 下载与支持
+
+- 预编译镜像：[Releases](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/releases)
+- 刷入说明与公告：[Discussions](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/discussions)
+- 刷入后可用 `uname -r` 验证，应显示类似 `6.6.142-by-Omachirimanbu-4k-g<commit>`
+- 问题反馈：请携带内核日志（`dmesg` / `last_kmsg`）开 [issue](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/issues)
+
+## 致谢
+
+- [MiCode/Xiaomi_Kernel_OpenSource](https://github.com/MiCode/Xiaomi_Kernel_OpenSource) — rodin 官方内核源码（`bsp-rodin-v-oss`）
+- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) / [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) / [KernelSU](https://github.com/tiann/KernelSU) — Root 方案
+- [SusFS](https://gitlab.com/simonpunk/susfs4ksu) — Root 隐藏
+- [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) — 防格机
+- AOSP `android15-6.6` / 上游 Linux 6.6 LTS
+
+## 许可证
+
+本仓库遵循 **GPL-2.0**，与 Linux 内核及其上游源码保持一致，详见 [LICENSES](LICENSES)。
