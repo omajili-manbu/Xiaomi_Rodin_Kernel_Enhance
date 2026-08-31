@@ -1,0 +1,69 @@
+# Xiaomi Rodin Kernel Enhance
+
+[![Kernel](https://img.shields.io/badge/kernel-6.6.142_LTS-blue)](https://kernel.org)
+[![Base](https://img.shields.io/badge/base-MiCode%20bsp--rodin--v--oss-orange)](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/bsp-rodin-v-oss)
+[![Root](https://img.shields.io/badge/Root-ReSukiSU-green)](https://github.com/ReSukiSU/ReSukiSU)
+[![SuSFS](https://img.shields.io/badge/Hiding-SuSFS-green)](https://gitlab.com/simonpunk/susfs4ksu)
+[![License](https://img.shields.io/badge/license-GPL--2.0-lightgrey)](LICENSES)
+
+[English](README.md) | 简体中文
+
+基于小米已开源的 [`bsp-rodin-v-oss`](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/bsp-rodin-v-oss) 内核源码（AOSP `android15-6.6` GKI / 联发科）构建的 rodin 设备增强内核，并持续跟进最新 **6.6 LTS**。
+
+## 特性
+
+### Root 与隐藏
+- 内置 **ReSukiSU**
+- **SuSFS**，已跟进上游
+- 对应用隐藏可疑 SELinux 上下文/规则，绑定到 SuSFS AVC 日志欺骗开关
+
+### 防格机
+- **Baseband-guard (BBG)** LSM：在内核层拦截对关键分区/设备节点的未授权写入（来自 [vc-teahouse/Baseband-guard](https://github.com/vc-teahouse/Baseband-guard)，白名单已针对 rodin 调整）
+
+### 性能
+- 针对 Cortex-A725 的编译优化（需要 clang 19+）+ **ThinLTO**
+- **BBR** 作为默认 TCP 拥塞控制，网络队列调度 **fq**
+- **ZSTD** 升级至 v1.5.7
+- ZRAM 内建，压缩算法补全，默认 LZ4
+
+### 稳定性修复
+- 修复概率性开机卡死，恢复 vendor 模块兼容
+- 在小米官方内核基础上反向移植上游修复
+- 默认禁用非特权 BPF
+
+调优方向是**性能与续航兼顾**——所有提升均来自编译时优化、更新的内核、更新的压缩算法，以及对小米官方内核的 bug 修复，没有偏向任何一方的激进调整。
+
+## 支持设备
+
+| 设备 | 代号 | 系统 |
+|---|---|---|
+| Redmi Turbo 4 | rodin | HyperOS 3（Android 16） |
+| POCO X7 Pro | rodin | HyperOS 3（Android 16） |
+
+> **说明：** 未在 POCO 实机上测试过，但大概率可用——小米在 POCO 与 Redmi 机型上使用同一套内核源码。遇到问题欢迎带日志开 issue，我会尝试修复。
+
+## 分支
+
+- [`bsp-rodin-v-oss-bp`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-oss-bp) — 主构建分支，在小米官方 rodin 源码基础上叠加反向移植与增强
+- Release 标签（`v1.x`）标记每个预编译版本对应的提交
+
+## 计划
+
+- 适配 HyperOS 4
+
+## 下载与支持
+
+- 预编译镜像：[Releases](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/releases)
+- 问题反馈：请携带内核日志开 [issue](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/issues)
+
+## 致谢
+
+- [MiCode/Xiaomi_Kernel_OpenSource](https://github.com/MiCode/Xiaomi_Kernel_OpenSource) — rodin 官方内核源码（`bsp-rodin-v-oss`）
+- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) / [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) / [KernelSU](https://github.com/tiann/KernelSU) — Root 方案
+- [SusFS](https://gitlab.com/simonpunk/susfs4ksu) — Root 隐藏
+- [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) — 防格机
+- AOSP `android15-6.6` / 上游 Linux 6.6 LTS
+
+## 许可证
+
+本仓库遵循 **GPL-2.0**，与 Linux 内核及其上游源码保持一致，详见 [LICENSES](LICENSES)。
