@@ -45,7 +45,6 @@
 ## 分支
 
 - [`bsp-rodin-v-oss-bp`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-oss-bp) — 主构建分支，在小米官方 rodin 源码基础上叠加反向移植与增强
-- Release 标签（`v1.x`）标记每个预编译版本对应的提交
 
 ## 计划
 
