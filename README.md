@@ -45,7 +45,6 @@ The tuning philosophy is **balanced** — all gains come from compile-time optim
 ## Branches
 
 - [`bsp-rodin-v-oss-bp`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-oss-bp) — main build branch, based on Xiaomi's official rodin source with additional backports and enhancements
-- Release tags (`v1.x`) mark the exact commit of each prebuilt release
 
 ## Roadmap
 
