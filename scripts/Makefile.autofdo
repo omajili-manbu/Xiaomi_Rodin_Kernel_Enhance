@@ -2,6 +2,12 @@
 
 # Enable available and selected Clang AutoFDO features.
 
+# Default to the Google-published android15-6.6 AutoFDO profile kept
+# in-tree, so a plain make applies it without extra parameters.
+# Override per build with CLANG_AUTOFDO_PROFILE=xxx; pass an empty
+# value to disable sample-use entirely.
+CLANG_AUTOFDO_PROFILE ?= $(srctree)/android/gki/aarch64/afdo/kernel.afdo
+
 CFLAGS_AUTOFDO_CLANG := -fdebug-info-for-profiling -mllvm -enable-fs-discriminator=true -mllvm -improved-fs-discriminator=true
 
 ifndef CONFIG_DEBUG_INFO
