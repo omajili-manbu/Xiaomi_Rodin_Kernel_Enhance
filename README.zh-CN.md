@@ -13,7 +13,7 @@
 ## 特性
 
 ### Root 与隐藏
-- 内置 **ReSukiSU**，集成自 [`omajili-manbu/ReSukiSU`（`main-susfs`）](https://github.com/omajili-manbu/ReSukiSU/tree/main-susfs)
+- 内置 **ReSukiSU**，集成自 [`omajili-manbu/ReSukiSU`（`main`）](https://github.com/omajili-manbu/ReSukiSU/tree/main)
 - **SuSFS**，已跟进上游，集成自 [`omajili-manbu/susfs4ksu`（`gki-android15-6.6-mod`）](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
 - 对应用隐藏可疑 SELinux 上下文/规则，绑定到 SuSFS AVC 日志欺骗开关
 
