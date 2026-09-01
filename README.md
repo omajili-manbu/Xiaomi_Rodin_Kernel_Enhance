@@ -13,7 +13,7 @@ An enhanced Android kernel for Xiaomi **rodin** devices, built on top of Xiaomi'
 ## Highlights
 
 ### Root & Hiding
-- **ReSukiSU** built-in, integrated from [`omajili-manbu/ReSukiSU` (`main`, synced @ `0b5efe9e`)](https://github.com/omajili-manbu/ReSukiSU/tree/main) via `drivers/kernelsu -> resukisu-susfs/kernel`
+- **ReSukiSU** built-in, integrated from [`omajili-manbu/ReSukiSU` (`main`)](https://github.com/omajili-manbu/ReSukiSU/tree/main)
 - **SuSFS** with upstream sync, integrated from [`omajili-manbu/susfs4ksu` (`gki-android15-6.6-mod`)](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
 - Hiding of suspicious SELinux contexts/rules from app-visible policy probes, tied to the SuSFS AVC log spoofing switch
 
