@@ -14,24 +14,25 @@
 
 ### Root 与隐藏
 - 内置 **ReSukiSU**，集成自 [`omajili-manbu/ReSukiSU`（`main`）](https://github.com/omajili-manbu/ReSukiSU/tree/main)
-- **SuSFS**，已跟进上游，集成自 [`omajili-manbu/susfs4ksu`（`gki-android15-6.6-mod`）](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
-- 对应用隐藏可疑 SELinux 上下文/规则，绑定到 SuSFS AVC 日志欺骗开关
+- 内置 **SuSFS**，集成自 [`omajili-manbu/susfs4ksu`（`gki-android15-6.6-mod`）](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
+- 具备对应用隐藏可疑 SELinux 上下文/规则的能力，绑定在 SuSFS AVC 日志欺骗开关
 
 ### 防格机
 - **Baseband-guard (BBG)** LSM：在内核层拦截对关键分区/设备节点的未授权写入（来自 [vc-teahouse/Baseband-guard](https://github.com/vc-teahouse/Baseband-guard)，白名单已针对 rodin 调整）
 
 ### 性能
-- 针对 Cortex-A725 的编译优化（需要 clang 19+）+ **ThinLTO**
-- **BBR** 作为默认 TCP 拥塞控制，网络队列调度 **fq**
+- 针对 Cortex-A725 的编译优化（clang 19+）
+- **ThinLTO** 链接优化
+- **AutoFDO** 基于实际运行场景的链接优化（clang 17+）
+- **BBRv3** 作为默认 TCP 拥塞控制，**fq** 作为配套网络队列调度
 - **ZSTD** 升级至 v1.5.7
 - ZRAM 内建，压缩算法补全，默认 LZ4
 
 ### 稳定性修复
 - 修复概率性开机卡死，恢复 vendor 模块兼容
 - 在小米官方内核基础上反向移植上游修复
-- 默认禁用非特权 BPF
 
-调优方向是**性能与续航兼顾**——所有提升均来自编译时优化、更新的内核、更新的压缩算法，以及对小米官方内核的 bug 修复，没有偏向任何一方的激进调整。
+调优理念是**性能与续航兼顾**——所有提升均来自编译时优化、更新的内核、更新的算法，以及对小米官方内核的 bug 修复，没有偏向任何一方的激进调整。
 
 ## 支持设备
 
@@ -61,6 +62,7 @@
 - [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) / [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) / [KernelSU](https://github.com/tiann/KernelSU) — Root 方案
 - [SusFS](https://gitlab.com/simonpunk/susfs4ksu) — Root 隐藏
 - [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) — 防格机
+- [Linux-Patches](https://gitlab.com/xanmod/linux-patches) — BBRv3 补丁
 - AOSP `android15-6.6` / 上游 Linux 6.6 LTS
 
 ## 许可证
