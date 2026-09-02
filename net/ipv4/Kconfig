@@ -678,6 +678,27 @@ config TCP_CONG_BBR
 	  AQM schemes that do not provide a delay signal. It requires the fq
 	  ("Fair Queue") pacing packet scheduler.
 
+config TCP_CONG_BBR3
+	tristate "BBRv3 TCP (bbr3)"
+	default n
+	help
+
+	  BBRv3 congestion control, backported from Google TCP BBR v3
+	  release (github.com/google/bbr) via hrimfaxi/tcp_bbr_modules and
+	  adapted for in-tree build on 6.6. Registers as a separate "bbr3"
+	  algorithm alongside the in-kernel BBR v1, so both remain
+	  selectable at runtime via net.ipv4.tcp_congestion_control.
+	  Kernel struct layouts are unchanged: the per-connection state
+	  block (~200 bytes) is heap allocated, since mainline
+	  icsk_ca_priv (104 bytes) cannot hold it.
+
+	  The core BBRv3 algorithm, loss-driven inflight_hi adaptation,
+	  ECN alpha estimation and PLB are functional on 6.6. Google-tree
+	  extras (per-skb loss tracking, TLP recovery events, custom TSO
+	  sizing, the ecn_low per-route attribute) do not exist on mainline
+	  and are compiled out. ECN negotiation can be enabled at boot
+	  with the parameter tcp_bbr3.ecn_low=1.
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -715,6 +736,9 @@ choice
 	config DEFAULT_BBR
 		bool "BBR" if TCP_CONG_BBR=y
 
+	config DEFAULT_BBR3
+		bool "BBRv3" if TCP_CONG_BBR3=y
+
 	config DEFAULT_RENO
 		bool "Reno"
 endchoice
@@ -739,6 +763,7 @@ config DEFAULT_TCP_CONG
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
 	default "bbr" if DEFAULT_BBR
+default "bbr3" if DEFAULT_BBR3
 	default "cubic"
 
 config TCP_MD5SIG
