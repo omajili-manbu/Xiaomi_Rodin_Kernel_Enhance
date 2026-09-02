@@ -14,24 +14,25 @@ An enhanced Android kernel for Xiaomi **rodin** devices, built on top of Xiaomi'
 
 ### Root & Hiding
 - **ReSukiSU** built-in, integrated from [`omajili-manbu/ReSukiSU` (`main`)](https://github.com/omajili-manbu/ReSukiSU/tree/main)
-- **SuSFS** with upstream sync, integrated from [`omajili-manbu/susfs4ksu` (`gki-android15-6.6-mod`)](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
-- Hiding of suspicious SELinux contexts/rules from app-visible policy probes, tied to the SuSFS AVC log spoofing switch
+- **SuSFS** built-in, integrated from [`omajili-manbu/susfs4ksu` (`gki-android15-6.6-mod`)](https://github.com/omajili-manbu/susfs4ksu/tree/gki-android15-6.6-mod)
+- Able to hide suspicious SELinux contexts/rules from apps, tied to the SuSFS AVC log spoofing switch
 
 ### Brick Protection
 - **Baseband-guard (BBG)** LSM: blocks unauthorized writes to critical partitions/device nodes at the kernel level ([vc-teahouse/Baseband-guard](https://github.com/vc-teahouse/Baseband-guard), allowlist adjusted for rodin)
 
 ### Performance
-- Cortex-A725 compiler tuning (requires clang 19+) + **ThinLTO**
-- **BBR** as default TCP congestion control, **fq** qdisc
+- Cortex-A725 compiler tuning (clang 19+)
+- **ThinLTO** link-time optimization
+- **AutoFDO** link-time optimization guided by real-world profiles (clang 17+)
+- **BBRv3** as the default TCP congestion control, with **fq** as the companion queueing discipline
 - **ZSTD** upgraded to v1.5.7
 - ZRAM built-in with a full compression algorithm set, default LZ4
 
 ### Stability & Fixes
 - Fixed probabilistic boot hang and restored vendor module compatibility
 - Backported upstream fixes on top of Xiaomi's official kernel
-- Unprivileged BPF disabled by default
 
-The tuning philosophy is **balanced** — all gains come from compile-time optimizations, an up-to-date kernel, updated compression algorithms and bug fixes on top of Xiaomi's official kernel, with nothing biased toward either performance or battery life.
+The tuning philosophy is **balancing performance and battery life** — all gains come from compile-time optimizations, an up-to-date kernel, updated algorithms, and bug fixes on top of Xiaomi's official kernel, with no aggressive tweaks biased toward either side.
 
 ## Supported Devices
 
@@ -54,6 +55,7 @@ The tuning philosophy is **balanced** — all gains come from compile-time optim
 
 - Prebuilt images: [Releases](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/releases)
 - Bug reports: open an [issue](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/issues) with kernel logs attached
+- If you like this project, please consider giving it a Star to support me!
 
 ## Acknowledgements
 
@@ -61,6 +63,7 @@ The tuning philosophy is **balanced** — all gains come from compile-time optim
 - [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) / [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) / [KernelSU](https://github.com/tiann/KernelSU) — root solution
 - [SusFS](https://gitlab.com/simonpunk/susfs4ksu) — root hiding
 - [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) — brick protection
+- [Linux-Patches](https://gitlab.com/xanmod/linux-patches) — BBRv3 patches
 - AOSP `android15-6.6` / upstream Linux 6.6 LTS
 
 ## License
