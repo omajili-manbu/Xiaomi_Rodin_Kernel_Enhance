@@ -55,6 +55,7 @@
 
 - 预编译镜像：[Releases](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/releases)
 - 问题反馈：请携带内核日志开 [issue](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/issues)
+- 如果你觉得这个项目不错，欢迎点个 Star 支持我！
 
 ## 致谢
 
