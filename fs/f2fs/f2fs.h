@@ -1909,8 +1909,8 @@ struct f2fs_sb_info {
 	struct f2fs_rwsem quota_sem;		/* blocking cp for flags */
 	struct task_struct *umount_lock_holder;	/* s_umount lock holder */
 
-	/* # of pages, see count_type */
-	atomic_t nr_pages[NR_COUNT_TYPE];
+	/* # of cache entries, see count_type */
+	atomic_t nr_caches[NR_COUNT_TYPE];
 	/* # of allocated blocks */
 	struct percpu_counter alloc_valid_block_count;
 	/* # of node block writes as roll forward recovery */
@@ -2869,9 +2869,9 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 	f2fs_i_blocks_write(inode, count, false, true);
 }
 
-static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
+static inline void inc_cache_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	atomic_inc(&sbi->nr_pages[count_type]);
+	atomic_inc(&sbi->nr_caches[count_type]);
 
 	if (count_type == F2FS_DIRTY_DENTS ||
 			count_type == F2FS_DIRTY_NODES ||
@@ -2884,15 +2884,15 @@ static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 static inline void inode_inc_dirty_pages(struct inode *inode)
 {
 	atomic_inc(&F2FS_I(inode)->dirty_pages);
-	inc_page_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
+	inc_cache_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA);
 	if (IS_NOQUOTA(inode))
-		inc_page_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
+		inc_cache_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
 }
 
-static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
+static inline void dec_cache_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	atomic_dec(&sbi->nr_pages[count_type]);
+	atomic_dec(&sbi->nr_caches[count_type]);
 }
 
 static inline void inode_dec_dirty_pages(struct inode *inode)
@@ -2902,10 +2902,10 @@ static inline void inode_dec_dirty_pages(struct inode *inode)
 		return;
 
 	atomic_dec(&F2FS_I(inode)->dirty_pages);
-	dec_page_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
+	dec_cache_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA);
 	if (IS_NOQUOTA(inode))
-		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
+		dec_cache_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
 }
 
 static inline void inc_atomic_write_cnt(struct inode *inode)
@@ -2930,9 +2930,9 @@ static inline void release_atomic_write_cnt(struct inode *inode)
 	fi->atomic_write_cnt = 0;
 }
 
-static inline s64 get_pages(struct f2fs_sb_info *sbi, int count_type)
+static inline s64 get_nr_caches(struct f2fs_sb_info *sbi, int count_type)
 {
-	return atomic_read(&sbi->nr_pages[count_type]);
+	return atomic_read(&sbi->nr_caches[count_type]);
 }
 
 static inline int get_dirty_pages(struct inode *inode)
@@ -2942,7 +2942,7 @@ static inline int get_dirty_pages(struct inode *inode)
 
 static inline int get_blocktype_secs(struct f2fs_sb_info *sbi, int block_type)
 {
-	return div_u64(get_pages(sbi, block_type) + BLKS_PER_SEC(sbi) - 1,
+	return div_u64(get_nr_caches(sbi, block_type) + BLKS_PER_SEC(sbi) - 1,
 							BLKS_PER_SEC(sbi));
 }
 
@@ -3302,11 +3302,13 @@ static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
 
 static inline bool is_inflight_io(struct f2fs_sb_info *sbi, int type)
 {
-	if (get_pages(sbi, F2FS_RD_DATA) || get_pages(sbi, F2FS_RD_NODE) ||
-		get_pages(sbi, F2FS_RD_META) || get_pages(sbi, F2FS_WB_DATA) ||
-		get_pages(sbi, F2FS_WB_CP_DATA) ||
-		get_pages(sbi, F2FS_DIO_READ) ||
-		get_pages(sbi, F2FS_DIO_WRITE))
+	if (get_nr_caches(sbi, F2FS_RD_DATA) ||
+	    get_nr_caches(sbi, F2FS_RD_NODE) ||
+	    get_nr_caches(sbi, F2FS_RD_META) ||
+	    get_nr_caches(sbi, F2FS_WB_DATA) ||
+	    get_nr_caches(sbi, F2FS_WB_CP_DATA) ||
+	    get_nr_caches(sbi, F2FS_DIO_READ) ||
+	    get_nr_caches(sbi, F2FS_DIO_WRITE))
 		return true;
 
 	if (type != DISCARD_TIME && SM_I(sbi) && SM_I(sbi)->dcc_info &&
@@ -3321,7 +3323,8 @@ static inline bool is_inflight_io(struct f2fs_sb_info *sbi, int type)
 
 static inline bool is_inflight_read_io(struct f2fs_sb_info *sbi)
 {
-	return get_pages(sbi, F2FS_RD_DATA) || get_pages(sbi, F2FS_DIO_READ);
+	return get_nr_caches(sbi, F2FS_RD_DATA) ||
+	       get_nr_caches(sbi, F2FS_DIO_READ);
 }
 
 static inline bool is_idle(struct f2fs_sb_info *sbi, int type)

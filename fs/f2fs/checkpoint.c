@@ -563,7 +563,7 @@ static bool __f2fs_write_meta_cache(struct f2fs_cached_block *entry,
 	if (unlikely(f2fs_cp_error(sbi))) {
 		if (is_sbi_flag_set(sbi, SBI_IS_CLOSE)) {
 			f2fs_cache_clear_uptodate(entry);
-			dec_page_count(sbi, F2FS_DIRTY_META);
+			dec_cache_count(sbi, F2FS_DIRTY_META);
 			f2fs_cache_update_tag(entry, F2FS_CACHE_TAG_DIRTY,
 						F2FS_CACHE_TAG_NONE);
 			f2fs_unlock_cache(entry);
@@ -575,7 +575,7 @@ static bool __f2fs_write_meta_cache(struct f2fs_cached_block *entry,
 		goto redirty_out;
 
 	f2fs_do_write_meta_cache(sbi, entry, io_type);
-	dec_page_count(sbi, F2FS_DIRTY_META);
+	dec_cache_count(sbi, F2FS_DIRTY_META);
 
 	f2fs_unlock_cache(entry);
 
@@ -598,7 +598,7 @@ void f2fs_write_meta_caches(struct f2fs_sb_info *sbi)
 		return;
 
 	/* collect a number of dirty meta caches and write together */
-	if (get_pages(sbi, F2FS_DIRTY_META) <
+	if (get_nr_caches(sbi, F2FS_DIRTY_META) <
 			nr_pages_to_skip(sbi, META))
 		return;
 
@@ -1367,12 +1367,12 @@ int f2fs_sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type,
 	unsigned long ino = 0;
 
 	trace_f2fs_sync_dirty_inodes_enter(sbi->sb, is_dir,
-				get_pages(sbi, is_dir ?
+				get_nr_caches(sbi, is_dir ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 retry:
 	if (unlikely(f2fs_cp_error(sbi))) {
 		trace_f2fs_sync_dirty_inodes_exit(sbi->sb, is_dir,
-				get_pages(sbi, is_dir ?
+				get_nr_caches(sbi, is_dir ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 		return -EIO;
 	}
@@ -1383,7 +1383,7 @@ retry:
 	if (list_empty(head)) {
 		spin_unlock(&sbi->inode_lock[type]);
 		trace_f2fs_sync_dirty_inodes_exit(sbi->sb, is_dir,
-				get_pages(sbi, is_dir ?
+				get_nr_caches(sbi, is_dir ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 		return 0;
 	}
@@ -1421,7 +1421,7 @@ static int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 	struct list_head *head = &sbi->inode_list[DIRTY_META];
 	struct inode *inode;
 	struct f2fs_inode_info *fi;
-	s64 total = get_pages(sbi, F2FS_DIRTY_IMETA);
+	s64 total = get_nr_caches(sbi, F2FS_DIRTY_IMETA);
 
 	while (total--) {
 		if (unlikely(f2fs_cp_error(sbi)))
@@ -1485,7 +1485,7 @@ static bool __need_flush_quota(struct f2fs_sb_info *sbi)
 	} else if (is_sbi_flag_set(sbi, SBI_QUOTA_NEED_FLUSH)) {
 		clear_sbi_flag(sbi, SBI_QUOTA_NEED_FLUSH);
 		ret = true;
-	} else if (get_pages(sbi, F2FS_DIRTY_QDATA)) {
+	} else if (get_nr_caches(sbi, F2FS_DIRTY_QDATA)) {
 		ret = true;
 	}
 	f2fs_up_write(&sbi->quota_sem);
@@ -1529,7 +1529,7 @@ retry_flush_quotas:
 
 retry_flush_dents:
 	/* write all the dirty dentry pages */
-	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
+	if (get_nr_caches(sbi, F2FS_DIRTY_DENTS)) {
 		f2fs_unlock_all(sbi);
 		err = f2fs_sync_dirty_inodes(sbi, DIR_INODE, true);
 		if (err)
@@ -1544,7 +1544,7 @@ retry_flush_dents:
 	 */
 	f2fs_down_write(&sbi->node_change);
 
-	if (get_pages(sbi, F2FS_DIRTY_IMETA)) {
+	if (get_nr_caches(sbi, F2FS_DIRTY_IMETA)) {
 		f2fs_up_write(&sbi->node_change);
 		f2fs_unlock_all(sbi);
 		err = f2fs_sync_inode_meta(sbi);
@@ -1557,7 +1557,7 @@ retry_flush_dents:
 retry_flush_nodes:
 	f2fs_down_write(&sbi->node_write);
 
-	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
+	if (get_nr_caches(sbi, F2FS_DIRTY_NODES)) {
 		f2fs_up_write(&sbi->node_write);
 		atomic_inc(&sbi->wb_sync_req[NODE]);
 		err = f2fs_writeback_node_caches(sbi, LONG_MAX,
@@ -1592,7 +1592,7 @@ void f2fs_sync_dirty_data(struct f2fs_sb_info *sbi, int type)
 	DEFINE_WAIT(wait);
 
 	for (;;) {
-		if (!get_pages(sbi, type))
+		if (!get_nr_caches(sbi, type))
 			break;
 
 		if (unlikely(f2fs_cp_error(sbi) &&
@@ -1914,11 +1914,11 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	 * redirty superblock if metadata like node caches or inode cache is
 	 * updated during writing checkpoint.
 	 */
-	if (get_pages(sbi, F2FS_DIRTY_NODES) ||
-			get_pages(sbi, F2FS_DIRTY_IMETA))
+	if (get_nr_caches(sbi, F2FS_DIRTY_NODES) ||
+			get_nr_caches(sbi, F2FS_DIRTY_IMETA))
 		set_sbi_flag(sbi, SBI_IS_DIRTY);
 
-	f2fs_bug_on(sbi, get_pages(sbi, F2FS_DIRTY_DENTS));
+	f2fs_bug_on(sbi, get_nr_caches(sbi, F2FS_DIRTY_DENTS));
 
 	return unlikely(f2fs_cp_error(sbi)) ? -EIO : 0;
 }
