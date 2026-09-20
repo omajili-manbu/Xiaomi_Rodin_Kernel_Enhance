@@ -1,0 +1,3 @@
+set noparent
+include kernel/common:refs/heads/android-mainline:/OWNERS_DrNo
+yangjianlong@xiaomi.com

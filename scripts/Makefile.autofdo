@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Enable available and selected Clang AutoFDO features.
+
+# Default to the Google-published android15-6.6 AutoFDO profile kept
+# in-tree, so a plain make applies it without extra parameters.
+# Override per build with CLANG_AUTOFDO_PROFILE=xxx; pass an empty
+# value to disable sample-use entirely.
+CLANG_AUTOFDO_PROFILE ?= $(srctree)/android/gki/aarch64/afdo/kernel.afdo
+
+CFLAGS_AUTOFDO_CLANG := -fdebug-info-for-profiling -mllvm -enable-fs-discriminator=true -mllvm -improved-fs-discriminator=true
+
+ifndef CONFIG_DEBUG_INFO
+  CFLAGS_AUTOFDO_CLANG += -gmlt
+endif
+
+ifdef CLANG_AUTOFDO_PROFILE
+  CFLAGS_AUTOFDO_CLANG += -fprofile-sample-use=$(CLANG_AUTOFDO_PROFILE)
+endif
+
+ifdef CONFIG_LTO_CLANG_THIN
+  ifdef CLANG_AUTOFDO_PROFILE
+    KBUILD_LDFLAGS += --lto-sample-profile=$(CLANG_AUTOFDO_PROFILE)
+  endif
+  KBUILD_LDFLAGS += --mllvm=-enable-fs-discriminator=true --mllvm=-improved-fs-discriminator=true -plugin-opt=thinlto
+endif
+
+export CFLAGS_AUTOFDO_CLANG
