@@ -53,7 +53,7 @@ static unsigned int __read_mostly sysctl_oops_all_cpu_backtrace;
 #define sysctl_oops_all_cpu_backtrace 0
 #endif /* CONFIG_SMP */
 
-int panic_on_oops = IS_ENABLED(CONFIG_PANIC_ON_OOPS);
+int panic_on_oops = 1; /* debug-capture v1 */
 static unsigned long tainted_mask =
 	IS_ENABLED(CONFIG_RANDSTRUCT) ? (1 << TAINT_RANDSTRUCT) : 0;
 static int pause_on_oops;
@@ -69,7 +69,7 @@ static bool panic_console_replay;
 bool panic_triggering_all_cpu_backtrace;
 static bool panic_this_cpu_backtrace_printed;
 
-int panic_timeout = CONFIG_PANIC_TIMEOUT;
+int panic_timeout = 3; /* debug-capture v1 */
 EXPORT_SYMBOL_GPL(panic_timeout);
 
 unsigned long panic_print;
@@ -517,11 +517,23 @@ void vpanic(const char *fmt, va_list args)
 	 * Run any panic handlers, including those that might need to
 	 * add information to the kmsg dump output.
 	 */
-	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
-
 	sys_info(panic_print);
 
 	kmsg_dump_desc(KMSG_DUMP_PANIC, buf);
+
+	/* debug-capture v2: vendor panic notifiers (MTK AEE/mrdump) disable the
+	 * watchdog and can hang forever during dump collection, leaving the phone
+	 * frozen with no evidence. Dump the full log to ramoops/pstore above,
+	 * then warm-reboot *before* running the vendor notifiers so pstore
+	 * survives and the phone recovers itself.
+	 */
+	if (panic_timeout > 0) {
+		pr_emerg("debug-capture-v2: warm reboot after pstore dump\n");
+		console_flush_on_panic(CONSOLE_FLUSH_PENDING);
+		mdelay(1000);
+		emergency_restart();
+	}
+	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	/*
 	 * If you doubt kdump always works fine in any situation,
