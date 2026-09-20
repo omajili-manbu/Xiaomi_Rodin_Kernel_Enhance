@@ -1053,6 +1053,7 @@ void start_kernel(void)
 	setup_arch_task_struct_size();
 #endif
 	setup_arch(&command_line);
+	pr_info("compat-v5: no-screen-console (lkfb removed) + sme-unlock + panic/pstore-capture + all prior fixes\n"); /* debug-capture v2 */
 	/* Static keys and static calls are needed by LSMs */
 	jump_label_init();
 	static_call_init();
