@@ -92,6 +92,10 @@ struct symsearch {
 	const struct kernel_symbol *start, *stop;
 	const u32 *crcs;
 	const u8 *flagstab;
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	const struct kernel_symbol *gpl_start, *gpl_stop;
+	const u32 *gpl_crcs;
+#endif
 };
 
 /*
@@ -363,29 +367,53 @@ int cmp_name(const void *name, const void *sym)
 	return strcmp(name, kernel_symbol_name(sym));
 }
 
-static bool find_exported_symbol_in_section(const struct symsearch *syms,
-					    struct module *owner,
-					    struct find_symbol_arg *fsa)
+static bool find_exported_symbol_in_range(const struct kernel_symbol *start,
+					  const struct kernel_symbol *stop,
+					  const u32 *crcs, const u8 *flagstab,
+					  u8 force_flags,
+					  struct module *owner,
+					  struct find_symbol_arg *fsa)
 {
 	struct kernel_symbol *sym;
 	u8 sym_flags;
 
-	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
-			sizeof(struct kernel_symbol), cmp_name);
+	if (!start || start == stop)
+		return false;
+
+	sym = bsearch(fsa->name, start, stop - start,
+		      sizeof(struct kernel_symbol), cmp_name);
 	if (!sym)
 		return false;
 
-	sym_flags = *(syms->flagstab + (sym - syms->start));
+	sym_flags = (flagstab ? *(flagstab + (sym - start)) : 0) | force_flags;
 	if (!fsa->gplok && (sym_flags & KSYM_FLAG_GPL_ONLY))
 		return false;
 
 	fsa->owner = owner;
-	fsa->crc = symversion(syms->crcs, sym - syms->start);
+	fsa->crc = symversion(crcs, sym - start);
 	fsa->sym = sym;
 	fsa->license = (sym_flags & KSYM_FLAG_GPL_ONLY) ? GPL_ONLY : NOT_GPL_ONLY;
 	fsa->is_protected = sym_flags & KSYM_FLAG_PROTECTED;
 
 	return true;
+}
+
+static bool find_exported_symbol_in_section(const struct symsearch *syms,
+					    struct module *owner,
+					    struct find_symbol_arg *fsa)
+{
+	if (find_exported_symbol_in_range(syms->start, syms->stop, syms->crcs,
+					  syms->flagstab, 0, owner, fsa))
+		return true;
+
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (find_exported_symbol_in_range(syms->gpl_start, syms->gpl_stop,
+					  syms->gpl_crcs, NULL,
+					  KSYM_FLAG_GPL_ONLY, owner, fsa))
+		return true;
+#endif
+
+	return false;
 }
 
 /*
@@ -412,6 +440,11 @@ bool find_symbol(struct find_symbol_arg *fsa)
 			.stop		= mod->syms + mod->num_syms,
 			.crcs		= mod->crcs,
 			.flagstab	= mod->flagstab,
+#ifdef CONFIG_MODULE_FORCE_LOAD
+			.gpl_start	= mod->gpl_syms,
+			.gpl_stop	= mod->gpl_syms ? mod->gpl_syms + mod->num_gpl_syms : NULL,
+			.gpl_crcs	= mod->gpl_crcs,
+#endif
 		};
 
 		if (mod->state == MODULE_STATE_UNFORMED)
@@ -2077,6 +2110,46 @@ static int elf_validity_cache_index_info(struct load_info *info)
 	return 0;
 }
 
+#ifdef CONFIG_MODULE_FORCE_LOAD
+#define MODULE_6_6_SIZEOF	1536
+#define MODULE_6_6_OFF_INIT	392
+#define MODULE_6_6_OFF_EXIT	1464
+
+static void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
+{
+	static const unsigned int off[][2] = {
+		{ MODULE_6_6_OFF_INIT, offsetof(struct module, init) },
+		{ MODULE_6_6_OFF_EXIT, offsetof(struct module, exit) },
+	};
+	Elf_Shdr *shdr = &info->sechdrs[mod_idx];
+	char *mod = (char *)info->hdr + shdr->sh_offset;
+	unsigned int i, j, k;
+
+	for (j = 0; j < ARRAY_SIZE(off); j++)
+		memset(mod + off[j][0], 0, sizeof(void *));
+
+	for (i = 1; i < info->hdr->e_shnum; i++) {
+		Elf_Rela *rela;
+		unsigned int n;
+
+		if (info->sechdrs[i].sh_type != SHT_RELA ||
+		    info->sechdrs[i].sh_info != mod_idx)
+			continue;
+
+		rela = (void *)info->hdr + info->sechdrs[i].sh_offset;
+		n = info->sechdrs[i].sh_size / sizeof(Elf_Rela);
+
+		for (k = 0; k < n; k++)
+			for (j = 0; j < ARRAY_SIZE(off); j++)
+				if (rela[k].r_offset == off[j][0])
+					rela[k].r_offset = off[j][1];
+	}
+
+	shdr->sh_size = sizeof(struct module);
+	info->mod_6_6 = true;
+}
+#endif
+
 /**
  * elf_validity_cache_index_mod() - Validates and caches this_module section
  * @info: Load info to cache this_module on.
@@ -2128,9 +2201,24 @@ static int elf_validity_cache_index_mod(struct load_info *info)
 	}
 
 	if (shdr->sh_size != sizeof(struct module)) {
+#ifdef CONFIG_MODULE_FORCE_LOAD
+		if (shdr->sh_offset + sizeof(struct module) > info->len) {
+			pr_err("module %s: .gnu.linkonce.this_module is too close to the end of the file to be padded\n",
+			       info->name ?: "(missing .modinfo section or name field)");
+			return -ENOEXEC;
+		}
+		pr_warn("module %s: .gnu.linkonce.this_module is %zu bytes, kernel needs %zu, force-loading\n",
+			info->name ?: "(missing .modinfo section or name field)",
+			(size_t)shdr->sh_size, sizeof(struct module));
+		if (shdr->sh_size == MODULE_6_6_SIZEOF)
+			module_fixup_6_6(info, mod_idx);
+		else
+			shdr->sh_size = sizeof(struct module);
+#else
 		pr_err("module %s: .gnu.linkonce.this_module section size must match the kernel's built struct module size at run time\n",
 		       info->name ?: "(missing .modinfo section or name field)");
 		return -ENOEXEC;
+#endif
 	}
 
 	info->index.mod = mod_idx;
@@ -2642,10 +2730,21 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	mod->crcs = section_addr(info, "__kcrctab");
 	mod->flagstab = section_addr(info, "__kflagstab");
 
-	if (section_addr(info, "__ksymtab_gpl"))
+	if (section_addr(info, "__ksymtab_gpl")) {
+#ifdef CONFIG_MODULE_FORCE_LOAD
+		mod->gpl_syms = section_objs(info, "__ksymtab_gpl",
+					     sizeof(*mod->gpl_syms),
+					     &mod->num_gpl_syms);
+		mod->gpl_crcs = section_addr(info, "__kcrctab_gpl");
+		pr_warn("%s: honoring obsolete section __ksymtab_gpl\n",
+			mod->name);
+#else
 		pr_warn("%s: ignoring obsolete section __ksymtab_gpl\n",
 			mod->name);
-	if (section_addr(info, "__kcrctab_gpl"))
+#endif
+	}
+	if (section_addr(info, "__kcrctab_gpl") &&
+	    !section_addr(info, "__ksymtab_gpl"))
 		pr_warn("%s: ignoring obsolete section __kcrctab_gpl\n",
 			mod->name);
 
@@ -2854,8 +2953,12 @@ out_err:
 static int check_export_symbol_sections(struct module *mod)
 {
 	if (mod->num_syms && !mod->flagstab) {
+#ifdef CONFIG_MODULE_FORCE_LOAD
+		pr_warn("%s: no flags for exported symbols, assuming none\n", mod->name);
+#else
 		pr_err("%s: no flags for exported symbols\n", mod->name);
 		return -ENOEXEC;
+#endif
 	}
 #ifdef CONFIG_MODVERSIONS
 	if (mod->num_syms && !mod->crcs) {
@@ -3521,6 +3624,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		err = PTR_ERR(mod);
 		goto free_copy;
 	}
+
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (info->mod_6_6)
+		mod->exit = NULL;
+#endif
 
 	module_allocated = true;
 
