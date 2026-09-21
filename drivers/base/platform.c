@@ -1431,6 +1431,12 @@ static void platform_remove(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (drv->remove_new) {
+		drv->remove_new(dev);
+		return;
+	}
+#endif
 	if (drv->remove)
 		drv->remove(dev);
 }
