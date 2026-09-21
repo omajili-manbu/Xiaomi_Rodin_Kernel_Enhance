@@ -38,6 +38,8 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/scatterlist.h>
 #include <linux/shrinker.h>
+#include <linux/virtio.h>
+#include <linux/virtio_config.h>
 
 /* 6.18 turned these names into macros; the 6.6 symbols come back below */
 #ifdef blk_queue_logical_block_size
@@ -134,101 +136,189 @@
 #undef disk_set_zoned
 #undef sg_next
 #undef mmc_can_gpio_cd
-#undef unregister_shrinker
 
+/* 6.6-ABI prototypes: 6.18 inlined or deleted these names. */
+void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask);
+struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set);
+void blk_mq_virtio_map_queues(struct blk_mq_queue_map *qmap,
+			      struct virtio_device *vdev, int first_vec);
+void disk_set_zoned(struct gendisk *disk, int model);
+struct scatterlist *sg_next(struct scatterlist *sg);
+void virtqueue_disable_dma_api_for_buffers(struct virtqueue *vq);
+
+void blk_queue_logical_block_size(struct request_queue *q, unsigned int size);
+void blk_queue_physical_block_size(struct request_queue *q, unsigned int size);
+void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset);
+void blk_queue_io_min(struct request_queue *q, unsigned int min);
+void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
+void blk_queue_chunk_sectors(struct request_queue *q, unsigned int chunk_sectors);
+void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors);
+void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments);
+void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size);
+void blk_queue_max_discard_sectors(struct request_queue *q, unsigned int max_discard_sectors);
+void blk_queue_max_discard_segments(struct request_queue *q, unsigned short max_discard_segments);
+void blk_queue_max_secure_erase_sectors(struct request_queue *q, unsigned int max_sectors);
+void blk_queue_max_write_zeroes_sectors(struct request_queue *q, unsigned int max_write_zeroes_sectors);
+void blk_queue_max_zone_append_sectors(struct request_queue *q, unsigned int max_zone_append_sectors);
+void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
+bool mmc_can_gpio_cd(struct mmc_host *host);
 void blk_queue_logical_block_size(struct request_queue *q, unsigned int size)
 {
-	blk_queue_logical_block_size_618(q, size);
+	q->limits.logical_block_size = size;
+
+	if (q->limits.physical_block_size < size)
+		q->limits.physical_block_size = size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
+
+	q->limits.max_hw_sectors = round_down(q->limits.max_hw_sectors,
+					    size >> SECTOR_SHIFT);
+	q->limits.max_sectors = round_down(q->limits.max_sectors,
+					  size >> SECTOR_SHIFT);
 }
 EXPORT_SYMBOL_GPL(blk_queue_logical_block_size);
 
 void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
 {
-	blk_queue_physical_block_size_618(q, size);
+	q->limits.physical_block_size = size;
+
+	if (q->limits.physical_block_size < q->limits.logical_block_size)
+		q->limits.physical_block_size = q->limits.logical_block_size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
 }
 EXPORT_SYMBOL_GPL(blk_queue_physical_block_size);
 
 void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
 {
-	blk_queue_alignment_offset_618(q, offset);
+	q->limits.alignment_offset =
+		offset & (q->limits.physical_block_size - 1);
+	q->limits.flags &= ~BLK_FLAG_MISALIGNED;
 }
 EXPORT_SYMBOL_GPL(blk_queue_alignment_offset);
 
 void blk_queue_io_min(struct request_queue *q, unsigned int min)
 {
-	blk_queue_io_min_618(q, min);
+	q->limits.io_min = min;
+
+	if (q->limits.io_min < q->limits.logical_block_size)
+		q->limits.io_min = q->limits.logical_block_size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
 }
 EXPORT_SYMBOL_GPL(blk_queue_io_min);
 
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
-	blk_queue_io_opt_618(q, opt);
+	q->limits.io_opt = opt;
 }
 EXPORT_SYMBOL_GPL(blk_queue_io_opt);
 
 void blk_queue_chunk_sectors(struct request_queue *q, unsigned int chunk_sectors)
 {
-	blk_queue_chunk_sectors_618(q, chunk_sectors);
+	q->limits.chunk_sectors = chunk_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_chunk_sectors);
 
 void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 {
-	blk_queue_max_hw_sectors_618(q, max_hw_sectors);
+	unsigned int min_max_hw_sectors = PAGE_SIZE >> SECTOR_SHIFT;
+	unsigned int max_sectors;
+
+	if (max_hw_sectors < min_max_hw_sectors)
+		max_hw_sectors = min_max_hw_sectors;
+
+	max_hw_sectors = round_down(max_hw_sectors,
+				    q->limits.logical_block_size >> SECTOR_SHIFT);
+	q->limits.max_hw_sectors = max_hw_sectors;
+
+	max_sectors = min(max_hw_sectors, q->limits.max_dev_sectors);
+	if (max_sectors > BLK_SAFE_MAX_SECTORS)
+		max_sectors = BLK_SAFE_MAX_SECTORS;
+	max_sectors = round_down(max_sectors,
+			       q->limits.logical_block_size >> SECTOR_SHIFT);
+	q->limits.max_sectors = max_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_hw_sectors);
 
 void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments)
 {
-	blk_queue_max_segments_618(q, max_segments);
+	if (!max_segments)
+		max_segments = 1;
+
+	q->limits.max_segments = max_segments;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_segments);
 
 void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 {
-	blk_queue_max_segment_size_618(q, max_size);
+	unsigned int min_max_segment_size = PAGE_SIZE;
+
+	if (max_size < min_max_segment_size)
+		max_size = SECTOR_SIZE;
+
+	q->limits.max_segment_size = max_size;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_segment_size);
 
 void blk_queue_max_discard_sectors(struct request_queue *q,
 				   unsigned int max_discard_sectors)
 {
-	blk_queue_max_discard_sectors_618(q, max_discard_sectors);
+	q->limits.max_hw_discard_sectors = max_discard_sectors;
+	q->limits.max_discard_sectors = max_discard_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_discard_sectors);
 
 void blk_queue_max_discard_segments(struct request_queue *q,
 				    unsigned short max_discard_segments)
 {
-	blk_queue_max_discard_segments_618(q, max_discard_segments);
+	q->limits.max_discard_segments = max_discard_segments;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_discard_segments);
 
 void blk_queue_max_secure_erase_sectors(struct request_queue *q,
 					unsigned int max_sectors)
 {
-	blk_queue_max_secure_erase_sectors_618(q, max_sectors);
+	q->limits.max_secure_erase_sectors = max_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_secure_erase_sectors);
 
 void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 					unsigned int max_write_zeroes_sectors)
 {
-	blk_queue_max_write_zeroes_sectors_618(q, max_write_zeroes_sectors);
+	q->limits.max_write_zeroes_sectors = max_write_zeroes_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_write_zeroes_sectors);
 
 void blk_queue_max_zone_append_sectors(struct request_queue *q,
 				       unsigned int max_zone_append_sectors)
 {
-	blk_queue_max_zone_append_sectors_618(q, max_zone_append_sectors);
+	unsigned int max_sectors;
+
+	if (!blk_queue_is_zoned(q))
+		return;
+
+	max_sectors = min(q->limits.max_hw_sectors, max_zone_append_sectors);
+	max_sectors = min(q->limits.chunk_sectors, max_sectors);
+	q->limits.max_zone_append_sectors = max_sectors;
 }
 EXPORT_SYMBOL_GPL(blk_queue_max_zone_append_sectors);
 
-/* 6.6 blk_queue_write_cache(q, wc, fua): 6.18 models it as queue limits */
+/* 6.6 blk_queue_write_cache(q, wc, fua): 6.18 models it via features bits */
 void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua)
 {
-	blk_queue_write_cache_618(q, enabled, fua);
+	if (enabled)
+		q->limits.features |= BLK_FEAT_WRITE_CACHE;
+	else
+		q->limits.features &= ~BLK_FEAT_WRITE_CACHE;
+
+	if (fua)
+		q->limits.features |= BLK_FEAT_FUA;
+	else if (!(q->limits.features & BLK_FEAT_WRITE_CACHE))
+		q->limits.features &= ~BLK_FEAT_FUA;
 }
 EXPORT_SYMBOL_GPL(blk_queue_write_cache);
 
@@ -249,7 +339,7 @@ EXPORT_SYMBOL(sg_next);
 
 bool mmc_can_gpio_cd(struct mmc_host *host)
 {
-	return mmc_can_gpio_cd_618(host);
+	return mmc_host_can_gpio_cd(host);
 }
 EXPORT_SYMBOL(mmc_can_gpio_cd);
 
@@ -289,15 +379,19 @@ EXPORT_SYMBOL_GPL(blk_mq_virtio_map_queues);
 /*
  * 6.6 disk_set_zoned(): 6.18 derives the zone model from the queue limits
  * passed at gendisk allocation, so there is no late knob to set.  On this
- * platform no zoned device exists (BLK_ZONED_NONE), which is the effective
- * result; non-none requests are logged so a future zoned backend is noticed.
+ * platform no zoned device exists (model == 0 == 6.6 BLK_ZONED_NONE), which
+ * is the effective result; non-none requests are logged so a future zoned
+ * backend is noticed.
  */
-void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
+void disk_set_zoned(struct gendisk *disk, int model)
 {
-	if (WARN_ON_ONCE(model != BLK_ZONED_NONE))
-		pr_warn("%s: zoned model %d ignored (no 6.18 late knob)
-",
+	if (WARN_ON_ONCE(model != 0)) {
+		/* 6.18 flags zoned via queue_limits.features (BLK_FEAT_ZONED) */
+		if (model > 0 && disk->queue)
+			disk->queue->limits.features |= BLK_FEAT_ZONED;
+		pr_warn("%s: zoned model %d mapped to 6.18 feature flag\n",
 			disk->disk_name, model);
+	}
 }
 EXPORT_SYMBOL_GPL(disk_set_zoned);
 
@@ -313,8 +407,7 @@ void virtqueue_disable_dma_api_for_buffers(struct virtqueue *vq)
 
 	if (!warned) {
 		warned = true;
-		pr_info("virtio: disable_dma_api_for_buffers not supported on 6.18; vq=%ps continues with DMA API
-",
+		pr_info("virtio: disable_dma_api_for_buffers not supported on 6.18; vq=%ps continues with DMA API\n",
 			vq);
 	}
 }

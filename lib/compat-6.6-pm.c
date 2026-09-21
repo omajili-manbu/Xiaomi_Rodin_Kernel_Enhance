@@ -11,7 +11,6 @@
 #define dma_sync_single_for_device	dma_sync_single_for_device_618
 #define dma_pool_create			dma_pool_create_618
 #define tty_port_tty_hangup		tty_port_tty_hangup_618
-#define pwmchip_add			pwmchip_add_618
 #define page_pool_put_page		page_pool_put_page_618
 
 #include <linux/module.h>
@@ -27,6 +26,14 @@
 #include <linux/slab.h>
 #include <net/page_pool/helpers.h>
 #include <linux/thermal.h>
+#include <linux/gpio.h>
+#include <linux/virtio.h>
+#include <linux/mmc/sdio_func.h>
+#include <sound/soc.h>
+#include <sound/soc-dapm.h>
+#include <drm/drm_print.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-subdev.h>
 
 /* 6.18 turned these names into macros; the 6.6 symbols come back below */
 #ifdef fwnode_handle_put
@@ -62,6 +69,47 @@
 #ifdef page_pool_put_defragged_page
 #undef page_pool_put_page
 #undef page_pool_put_defragged_page
+
+/* 6.6-ABI prototypes: 6.18 inlined or deleted these names. */
+void fwnode_handle_put(struct fwnode_handle *fwnode);
+unsigned int device_get_child_node_count(const struct device *dev);
+void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
+			 int nents, enum dma_data_direction dir);
+void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
+			    int nents, enum dma_data_direction dir);
+void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
+			     enum dma_data_direction dir);
+void dma_sync_single_for_device(struct device *dev, dma_addr_t addr, size_t size,
+				enum dma_data_direction dir);
+struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+				 size_t size, size_t align, size_t boundary);
+void tty_port_tty_hangup(struct tty_port *port, bool check_clocal);
+int pwmchip_add(struct pwm_chip *chip);
+void page_pool_put_defragged_page(struct page_pool *pool, struct page *page,
+				  unsigned int dma_sync_size, bool allow_direct);
+struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+						 const char *property);
+struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
+						      const char *property);
+int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
+void snd_soc_unregister_component(struct device *dev);
+unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
+struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(
+	const struct snd_kcontrol *kcontrol);
+int dapm_clock_event(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event);
+int dapm_regulator_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
+int v4l2_async_register_subdev(struct v4l2_subdev *sd);
+int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
+				struct v4l2_subdev *sd);
+const void *__v4l2_find_nearest_size(const void *array, size_t array_size,
+				     size_t entry_size, size_t width_offset,
+				     size_t height_offset, int width, int height);
+void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
+		const char *format, ...);
+int sdio_register_driver(struct sdio_driver *drv);
+int register_virtio_driver(struct virtio_driver *driver);
 #endif
 #ifdef power_supply_get_by_phandle
 #undef power_supply_get_by_phandle
@@ -117,6 +165,47 @@
 #undef tty_port_tty_hangup
 #undef pwmchip_add
 #undef page_pool_put_defragged_page
+
+/* 6.6-ABI prototypes: 6.18 inlined or deleted these names. */
+void fwnode_handle_put(struct fwnode_handle *fwnode);
+unsigned int device_get_child_node_count(const struct device *dev);
+void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
+			 int nents, enum dma_data_direction dir);
+void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
+			    int nents, enum dma_data_direction dir);
+void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
+			     enum dma_data_direction dir);
+void dma_sync_single_for_device(struct device *dev, dma_addr_t addr, size_t size,
+				enum dma_data_direction dir);
+struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+				 size_t size, size_t align, size_t boundary);
+void tty_port_tty_hangup(struct tty_port *port, bool check_clocal);
+int pwmchip_add(struct pwm_chip *chip);
+void page_pool_put_defragged_page(struct page_pool *pool, struct page *page,
+				  unsigned int dma_sync_size, bool allow_direct);
+struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+						 const char *property);
+struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
+						      const char *property);
+int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
+void snd_soc_unregister_component(struct device *dev);
+unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
+struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(
+	const struct snd_kcontrol *kcontrol);
+int dapm_clock_event(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event);
+int dapm_regulator_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
+int v4l2_async_register_subdev(struct v4l2_subdev *sd);
+int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
+				struct v4l2_subdev *sd);
+const void *__v4l2_find_nearest_size(const void *array, size_t array_size,
+				     size_t entry_size, size_t width_offset,
+				     size_t height_offset, int width, int height);
+void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
+		const char *format, ...);
+int sdio_register_driver(struct sdio_driver *drv);
+int register_virtio_driver(struct virtio_driver *driver);
 
 /* ---- property helpers (6.18 made them inline) ---- */
 
@@ -181,13 +270,15 @@ EXPORT_SYMBOL_GPL(tty_port_tty_hangup);
 
 int pwmchip_add(struct pwm_chip *chip)
 {
-	return pwmchip_add_618(chip);
+	return __pwmchip_add(chip, THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(pwmchip_add);
 
 int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state);
 int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
-	__alias(pwm_apply_might_sleep);
+{
+	return pwm_apply_might_sleep(pwm, state);
+}
 EXPORT_SYMBOL_GPL(pwm_apply_state);
 
 /* ---- page_pool (ccci_dpmaif / wlan_page_pool) ---- */
@@ -203,64 +294,21 @@ EXPORT_SYMBOL(page_pool_put_defragged_page);
 
 /* ---- power supply: 6.6 phandle lookups (charger family) ---- */
 
-extern struct class *power_supply_class;
-
-static int power_supply_match_device_node(struct device *dev, const void *data)
-{
-	return dev->parent && dev->parent->of_node == data;
-}
-
+/* 6.6 phandle lookups: 6.18 got rid of the public power_supply_class +
+ * self-walk; its power_supply_get_by_reference() / devm_ variant search by
+ * fwnode reference, which is exactly the 6.6 phandle semantics.
+ */
 struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 							const char *property)
 {
-	struct device_node *power_supply_np;
-	struct power_supply *psy = NULL;
-	struct device *dev;
-
-	power_supply_np = of_parse_phandle(np, property, 0);
-	if (!power_supply_np)
-		return ERR_PTR(-ENODEV);
-
-	dev = class_find_device(power_supply_class, NULL, power_supply_np,
-				power_supply_match_device_node);
-	of_node_put(power_supply_np);
-
-	if (dev) {
-		psy = dev_get_drvdata(dev);
-		atomic_inc(&psy->use_cnt);
-	}
-
-	return psy;
+	return power_supply_get_by_reference(of_fwnode_handle(np), property);
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
-
-static void devm_power_supply_put(void *res)
-{
-	struct power_supply *psy = *(struct power_supply **)res;
-
-	power_supply_put(psy);
-}
 
 struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 						      const char *property)
 {
-	struct power_supply **ptr, *psy;
-
-	if (!dev->of_node)
-		return ERR_PTR(-ENODEV);
-
-	ptr = devres_alloc(devm_power_supply_put, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	psy = power_supply_get_by_phandle(dev->of_node, property);
-	if (IS_ERR_OR_NULL(psy)) {
-		devres_free(ptr);
-	} else {
-		*ptr = psy;
-		devres_add(dev, ptr);
-	}
-	return psy;
+	return devm_power_supply_get_by_reference(dev, property);
 }
 EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 
@@ -289,7 +337,7 @@ EXPORT_SYMBOL_GPL(dapm_kcontrol_get_value);
 struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(
 	const struct snd_kcontrol *kcontrol)
 {
-	return snd_soc_dapm_kcontrol_to_widget(kcontrol);
+	return snd_soc_dapm_kcontrol_to_widget((struct snd_kcontrol *)kcontrol);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_widget);
 
@@ -328,7 +376,7 @@ const void *__v4l2_find_nearest_size(const void *array, size_t array_size,
 {
 	return __v4l2_find_nearest_size_conditional(array, array_size, entry_size,
 						    width_offset, height_offset,
-						    NULL, width, height);
+						    width, height, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(__v4l2_find_nearest_size);
 

@@ -1001,7 +1001,7 @@ repeat:
 }
 EXPORT_SYMBOL_GPL(kthread_worker_fn);
 
-static __printf(3, 0) struct kthread_worker *
+__printf(3, 0) struct kthread_worker *
 __kthread_create_worker_on_node(unsigned int flags, int node,
 				const char namefmt[], va_list args)
 {
@@ -1028,6 +1028,7 @@ fail_task:
 	kfree(worker);
 	return ERR_CAST(task);
 }
+EXPORT_SYMBOL_GPL(__kthread_create_worker_on_node);
 
 /**
  * kthread_create_worker_on_node - create a kthread worker
