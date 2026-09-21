@@ -32,7 +32,7 @@ int __init early_init_dt_scan_ultravisor(unsigned long node, const char *uname,
 static struct memcons *uv_memcons;
 
 static ssize_t uv_msglog_read(struct file *file, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr, char *to,
+			      struct bin_attribute *bin_attr, char *to,
 			      loff_t pos, size_t count)
 {
 	return memcons_copy(uv_memcons, to, pos, count);

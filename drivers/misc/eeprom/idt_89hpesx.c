@@ -842,7 +842,7 @@ err_mutex_unlock:
  * @count:	Number of bytes to write
  */
 static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
-			    const struct bin_attribute *attr,
+			    struct bin_attribute *attr,
 			    char *buf, loff_t off, size_t count)
 {
 	struct idt_89hpesx_dev *pdev;
@@ -866,7 +866,7 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
  * @count:	Number of bytes to write
  */
 static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   const struct bin_attribute *attr,
+			   struct bin_attribute *attr,
 			   char *buf, loff_t off, size_t count)
 {
 	struct idt_89hpesx_dev *pdev;
@@ -1012,7 +1012,7 @@ static ssize_t idt_dbgfs_csr_read(struct file *filep, char __user *ubuf,
  * NOTE Size will be changed in compliance with OF node. EEPROM attribute will
  * be read-only as well if the corresponding flag is specified in OF node.
  */
-static const BIN_ATTR_RW(eeprom, EEPROM_DEF_SIZE);
+static BIN_ATTR_RW(eeprom, EEPROM_DEF_SIZE);
 
 /*
  * csr_dbgfs_ops - CSR debugfs-node read/write operations

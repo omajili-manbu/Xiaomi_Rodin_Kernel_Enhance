@@ -43,7 +43,7 @@ struct tm_context {
 };
 
 static ssize_t tm_digest_read(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *attr, char *buffer,
+			      struct bin_attribute *attr, char *buffer,
 			      loff_t off, size_t count)
 {
 	struct tm_context *ctx;
@@ -89,7 +89,7 @@ static ssize_t tm_digest_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t tm_digest_write(struct file *filp, struct kobject *kobj,
-			       const struct bin_attribute *attr, char *buffer,
+			       struct bin_attribute *attr, char *buffer,
 			       loff_t off, size_t count)
 {
 	struct tm_context *ctx;
@@ -173,7 +173,7 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 	 * so that we don't have to free MR names one-by-one in
 	 * tsm_mr_free_attribute_group()
 	 */
-	const struct bin_attribute **attrs __free(kfree) =
+	struct bin_attribute **attrs __free(kfree) =
 		kzalloc(sizeof(*attrs) * (tm->nr_mrs + 1) + nlen, GFP_KERNEL);
 	struct tm_context *ctx __free(kfree) =
 		kzalloc(struct_size(ctx, mrs, tm->nr_mrs), GFP_KERNEL);

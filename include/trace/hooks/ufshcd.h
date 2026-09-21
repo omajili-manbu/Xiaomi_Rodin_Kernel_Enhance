@@ -94,6 +94,40 @@ DECLARE_HOOK(android_vh_ufs_mcq_cleanup,
 	TP_PROTO(struct ufs_hba *hba, int task_tag, bool start),
 	TP_ARGS(hba, task_tag, start));
 
+DECLARE_HOOK(android_vh_ufs_send_command_post_change,
+	TP_PROTO(struct ufs_hba *hba, struct ufshcd_lrb *lrbp),
+	TP_ARGS(hba, lrbp));
+
+DECLARE_HOOK(android_vh_ufs_perf_huristic_ctrl,
+	TP_PROTO(struct ufs_hba *hba,
+		 struct ufshcd_lrb *lrbp, int *err),
+	TP_ARGS(hba, lrbp, err));
+
+DECLARE_HOOK(android_vh_ufs_abort_success_ctrl,
+	TP_PROTO(struct ufs_hba *hba,
+		 struct ufshcd_lrb *lrbp),
+	TP_ARGS(hba, lrbp));
+
+DECLARE_HOOK(android_vh_ufs_err_handler,
+	TP_PROTO(struct ufs_hba *hba,
+		 bool *err_handled),
+	TP_ARGS(hba, err_handled));
+
+DECLARE_HOOK(android_vh_ufs_compl_rsp_check_done,
+	TP_PROTO(struct ufs_hba *hba,
+		 struct ufshcd_lrb *lrbp, bool *done),
+	TP_ARGS(hba, lrbp, done));
+
+DECLARE_HOOK(android_vh_ufs_err_print_ctrl,
+	TP_PROTO(struct ufs_hba *hba,
+		 bool *skip),
+	TP_ARGS(hba, skip));
+
+DECLARE_HOOK(android_vh_ufs_err_check_ctrl,
+	TP_PROTO(struct ufs_hba *hba,
+		 bool *err_check),
+	TP_ARGS(hba, err_check));
+
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

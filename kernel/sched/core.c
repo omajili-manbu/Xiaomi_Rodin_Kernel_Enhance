@@ -139,6 +139,43 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_iowait);
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 EXPORT_SYMBOL_GPL(runqueues);
+
+/*
+ * rodin 6.6-compat: 6.18 renamed the sched_class op to wakeup_preempt; keep
+ * the 6.6 entry point for scheduler.ko.
+ */
+void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags);
+struct task_struct *pick_migrate_task(struct rq *rq);
+
+void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
+{
+	rq->curr->sched_class->wakeup_preempt(rq, p, flags);
+}
+EXPORT_SYMBOL_GPL(check_preempt_curr);
+
+/*
+ * rodin 6.6-compat: 6.6 pick_migrate_task() for scheduler.ko.  Borrow the
+ * next runnable task from this rq across all sched classes, then put it back.
+ */
+struct task_struct *pick_migrate_task(struct rq *rq)
+{
+	const struct sched_class *class;
+	struct task_struct *next;
+	struct rq_flags rf = { };
+
+	for_each_class(class) {
+		next = class->pick_next_task(rq, &rf);
+		if (next) {
+			next->sched_class->put_prev_task(rq, next, next);
+			return next;
+		}
+	}
+
+	/* The idle class should always have a runnable task */
+	BUG();
+}
+EXPORT_SYMBOL_GPL(pick_migrate_task);
+
 DEFINE_PER_CPU(struct rnd_state, sched_rnd_state);
 
 #ifdef CONFIG_SCHED_PROXY_EXEC
@@ -8741,6 +8778,7 @@ const char *preempt_model_str(void)
 				       brace ? "_{" : "_",
 				       brace ? "," : "");
 
+#ifdef CONFIG_PREEMPT_DYNAMIC
 		if (IS_ENABLED(CONFIG_PREEMPT_DYNAMIC)) {
 			seq_buf_printf(&s, "(%s)%s",
 				       preempt_dynamic_mode >= 0 ?
@@ -8748,6 +8786,7 @@ const char *preempt_model_str(void)
 				       brace ? "}" : "");
 			return seq_buf_str(&s);
 		}
+#endif
 
 		if (IS_ENABLED(CONFIG_PREEMPT_LAZY)) {
 			seq_buf_printf(&s, "LAZY%s",

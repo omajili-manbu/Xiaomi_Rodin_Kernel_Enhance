@@ -114,7 +114,7 @@ static void page_idle_clear_pte_refs(struct folio *folio)
 }
 
 static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
-				     const struct bin_attribute *attr, char *buf,
+				     struct bin_attribute *attr, char *buf,
 				     loff_t pos, size_t count)
 {
 	u64 *out = (u64 *)buf;
@@ -159,7 +159,7 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
-				      const struct bin_attribute *attr, char *buf,
+				      struct bin_attribute *attr, char *buf,
 				      loff_t pos, size_t count)
 {
 	const u64 *in = (u64 *)buf;
@@ -195,11 +195,11 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
 	return (char *)in - buf;
 }
 
-static const struct bin_attribute page_idle_bitmap_attr =
+static struct bin_attribute page_idle_bitmap_attr =
 		__BIN_ATTR(bitmap, 0600,
 			   page_idle_bitmap_read, page_idle_bitmap_write, 0);
 
-static const struct bin_attribute *const page_idle_bin_attrs[] = {
+static struct bin_attribute *page_idle_bin_attrs[] = {
 	&page_idle_bitmap_attr,
 	NULL,
 };

@@ -3096,7 +3096,7 @@ EXPORT_SYMBOL_GPL(device_remove_file_self);
  * @attr: device binary attribute descriptor.
  */
 int device_create_bin_file(struct device *dev,
-			   const struct bin_attribute *attr)
+			   struct bin_attribute *attr)
 {
 	int error = -EINVAL;
 	if (dev)
@@ -3111,7 +3111,7 @@ EXPORT_SYMBOL_GPL(device_create_bin_file);
  * @attr: device binary attribute descriptor.
  */
 void device_remove_bin_file(struct device *dev,
-			    const struct bin_attribute *attr)
+			    struct bin_attribute *attr)
 {
 	if (dev)
 		sysfs_remove_bin_file(&dev->kobj, attr);

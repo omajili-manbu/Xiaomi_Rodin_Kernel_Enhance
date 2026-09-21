@@ -33,7 +33,7 @@ KASAN_SANITIZE_string.o := n
 CFLAGS_string.o += -fno-stack-protector
 endif
 
-obj-$(CONFIG_MODULE_FORCE_LOAD) += compat-6.6-syms.o
+obj-$(CONFIG_MODULE_FORCE_LOAD) += compat-6.6-syms.o compat-6.6-alloc.o compat-6.6-core.o compat-6.6-net.o compat-6.6-block.o compat-6.6-pm.o
 
 lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 rbtree.o radix-tree.o timerqueue.o xarray.o \

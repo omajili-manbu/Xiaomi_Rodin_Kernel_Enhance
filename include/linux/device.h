@@ -278,9 +278,9 @@ void device_remove_file(struct device *dev,
 bool device_remove_file_self(struct device *dev,
 			     const struct device_attribute *attr);
 int __must_check device_create_bin_file(struct device *dev,
-					const struct bin_attribute *attr);
+					struct bin_attribute *attr);
 void device_remove_bin_file(struct device *dev,
-			    const struct bin_attribute *attr);
+			    struct bin_attribute *attr);
 
 /**
  * devm_alloc_percpu - Resource-managed alloc_percpu

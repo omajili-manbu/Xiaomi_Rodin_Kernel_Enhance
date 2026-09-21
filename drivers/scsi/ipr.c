@@ -3366,7 +3366,7 @@ static void ipr_worker_thread(struct work_struct *work)
  *	number of bytes printed to buffer
  **/
 static ssize_t ipr_read_trace(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr,
+			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -3383,7 +3383,7 @@ static ssize_t ipr_read_trace(struct file *filp, struct kobject *kobj,
 	return ret;
 }
 
-static const struct bin_attribute ipr_trace_attr = {
+static struct bin_attribute ipr_trace_attr = {
 	.attr =	{
 		.name = "trace",
 		.mode = S_IRUGO,
@@ -4087,7 +4087,7 @@ static struct device_attribute ipr_ioa_fw_type_attr = {
 };
 
 static ssize_t ipr_read_async_err_log(struct file *filep, struct kobject *kobj,
-				const struct bin_attribute *bin_attr, char *buf,
+				struct bin_attribute *bin_attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct device *cdev = kobj_to_dev(kobj);
@@ -4111,7 +4111,7 @@ static ssize_t ipr_read_async_err_log(struct file *filep, struct kobject *kobj,
 }
 
 static ssize_t ipr_next_async_err_log(struct file *filep, struct kobject *kobj,
-				const struct bin_attribute *bin_attr, char *buf,
+				struct bin_attribute *bin_attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct device *cdev = kobj_to_dev(kobj);
@@ -4134,7 +4134,7 @@ static ssize_t ipr_next_async_err_log(struct file *filep, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute ipr_ioa_async_err_log = {
+static struct bin_attribute ipr_ioa_async_err_log = {
 	.attr = {
 		.name =		"async_err_log",
 		.mode =		S_IRUGO | S_IWUSR,
@@ -4172,7 +4172,7 @@ ATTRIBUTE_GROUPS(ipr_ioa);
  *	number of bytes printed to buffer
  **/
 static ssize_t ipr_read_dump(struct file *filp, struct kobject *kobj,
-			     const struct bin_attribute *bin_attr,
+			     struct bin_attribute *bin_attr,
 			     char *buf, loff_t off, size_t count)
 {
 	struct device *cdev = kobj_to_dev(kobj);
@@ -4361,7 +4361,7 @@ static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg)
  *	number of bytes printed to buffer
  **/
 static ssize_t ipr_write_dump(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr,
+			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
 	struct device *cdev = kobj_to_dev(kobj);
@@ -4385,7 +4385,7 @@ static ssize_t ipr_write_dump(struct file *filp, struct kobject *kobj,
 		return count;
 }
 
-static const struct bin_attribute ipr_dump_attr = {
+static struct bin_attribute ipr_dump_attr = {
 	.attr =	{
 		.name = "dump",
 		.mode = S_IRUSR | S_IWUSR,

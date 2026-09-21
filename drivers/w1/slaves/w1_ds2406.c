@@ -24,7 +24,7 @@
 
 static ssize_t w1_f12_read_state(
 	struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr,
+	struct bin_attribute *bin_attr,
 	char *buf, loff_t off, size_t count)
 {
 	u8 w1_buf[6] = {W1_F12_FUNC_READ_STATUS, 7, 0, 0, 0, 0};
@@ -57,7 +57,7 @@ static ssize_t w1_f12_read_state(
 
 static ssize_t w1_f12_write_output(
 	struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr,
+	struct bin_attribute *bin_attr,
 	char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -87,7 +87,7 @@ static ssize_t w1_f12_write_output(
 }
 
 #define NB_SYSFS_BIN_FILES 2
-static const struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
+static struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 	{
 		.attr = {
 			.name = "state",

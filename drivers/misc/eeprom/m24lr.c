@@ -394,7 +394,7 @@ static int m24lr_nvmem_write(void *priv, unsigned int offset, void *val,
 }
 
 static ssize_t m24lr_ctl_sss_read(struct file *filep, struct kobject *kobj,
-				  const struct bin_attribute *attr, char *buf,
+				  struct bin_attribute *attr, char *buf,
 				  loff_t offset, size_t count)
 {
 	struct m24lr *m24lr = attr->private;
@@ -409,7 +409,7 @@ static ssize_t m24lr_ctl_sss_read(struct file *filep, struct kobject *kobj,
 }
 
 static ssize_t m24lr_ctl_sss_write(struct file *filep, struct kobject *kobj,
-				   const struct bin_attribute *attr, char *buf,
+				   struct bin_attribute *attr, char *buf,
 				   loff_t offset, size_t count)
 {
 	struct m24lr *m24lr = attr->private;

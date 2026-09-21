@@ -47,7 +47,7 @@ static int amd_hsmp_pci_rdwr(struct hsmp_socket *sock, u32 offset,
 }
 
 static ssize_t hsmp_metric_tbl_plat_read(struct file *filp, struct kobject *kobj,
-					 const struct bin_attribute *bin_attr, char *buf,
+					 struct bin_attribute *bin_attr, char *buf,
 					 loff_t off, size_t count)
 {
 	struct hsmp_socket *sock;
@@ -63,7 +63,7 @@ static ssize_t hsmp_metric_tbl_plat_read(struct file *filp, struct kobject *kobj
 }
 
 static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
-					 const struct bin_attribute *battr, int id)
+					 struct bin_attribute *battr, int id)
 {
 	u16 sock_ind;
 
@@ -90,13 +90,13 @@ static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
 static_assert(MAX_AMD_NUM_NODES == 8);
 
 #define HSMP_BIN_ATTR(index, _list)					\
-static const struct bin_attribute attr##index = {			\
+static struct bin_attribute attr##index = {			\
 	.attr = { .name = HSMP_METRICS_TABLE_NAME, .mode = 0444},	\
 	.private = (void *)index,					\
 	.read = hsmp_metric_tbl_plat_read,				\
 	.size = sizeof(struct hsmp_metric_table),			\
 };									\
-static const struct bin_attribute _list[] = {				\
+static struct bin_attribute _list[] = {				\
 	&attr##index,							\
 	NULL								\
 }

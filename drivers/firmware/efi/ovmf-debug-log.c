@@ -29,7 +29,7 @@ static u8 *logbuf;
 static u64 logbufsize;
 
 static ssize_t ovmf_log_read(struct file *filp, struct kobject *kobj,
-			     const struct bin_attribute *attr, char *buf,
+			     struct bin_attribute *attr, char *buf,
 			     loff_t offset, size_t count)
 {
 	u64 start, end;

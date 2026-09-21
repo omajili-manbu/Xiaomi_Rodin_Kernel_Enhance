@@ -271,7 +271,7 @@ void pci_vpd_init(struct pci_dev *dev)
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *bin_attr, char *buf,
+			struct bin_attribute *bin_attr, char *buf,
 			loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
@@ -295,7 +295,7 @@ static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
-			 const struct bin_attribute *bin_attr, char *buf,
+			 struct bin_attribute *bin_attr, char *buf,
 			 loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
@@ -317,15 +317,15 @@ static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
 
 	return ret;
 }
-static const BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
+static BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
 
-static const struct bin_attribute *const vpd_attrs[] = {
+static struct bin_attribute *vpd_attrs[] = {
 	&bin_attr_vpd,
 	NULL,
 };
 
 static umode_t vpd_attr_is_visible(struct kobject *kobj,
-				   const struct bin_attribute *a, int n)
+				   struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 

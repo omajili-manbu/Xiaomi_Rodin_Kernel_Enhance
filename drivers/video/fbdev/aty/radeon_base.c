@@ -2199,7 +2199,7 @@ static ssize_t radeon_show_one_edid(char *buf, loff_t off, size_t count, const u
 
 
 static ssize_t radeon_show_edid1(struct file *filp, struct kobject *kobj,
-				 const struct bin_attribute *bin_attr,
+				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2211,7 +2211,7 @@ static ssize_t radeon_show_edid1(struct file *filp, struct kobject *kobj,
 
 
 static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
-				 const struct bin_attribute *bin_attr,
+				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2221,7 +2221,7 @@ static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
 	return radeon_show_one_edid(buf, off, count, rinfo->mon2_EDID);
 }
 
-static const struct bin_attribute edid1_attr = {
+static struct bin_attribute edid1_attr = {
 	.attr   = {
 		.name	= "edid1",
 		.mode	= 0444,
@@ -2230,7 +2230,7 @@ static const struct bin_attribute edid1_attr = {
 	.read	= radeon_show_edid1,
 };
 
-static const struct bin_attribute edid2_attr = {
+static struct bin_attribute edid2_attr = {
 	.attr   = {
 		.name	= "edid2",
 		.mode	= 0444,

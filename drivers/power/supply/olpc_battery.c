@@ -527,7 +527,7 @@ static enum power_supply_property olpc_xo15_bat_props[] = {
 #define EEPROM_SIZE	(EEPROM_END - EEPROM_START)
 
 static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
-		const struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;
 	int ret;
@@ -547,7 +547,7 @@ static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute olpc_bat_eeprom = {
+static struct bin_attribute olpc_bat_eeprom = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
@@ -584,7 +584,7 @@ static struct attribute *olpc_bat_sysfs_attrs[] = {
 	NULL
 };
 
-static const struct bin_attribute *const olpc_bat_sysfs_bin_attrs[] = {
+static struct bin_attribute *olpc_bat_sysfs_bin_attrs[] = {
 	&olpc_bat_eeprom,
 	NULL
 };

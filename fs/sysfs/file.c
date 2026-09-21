@@ -83,7 +83,7 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 				 size_t count, loff_t pos)
 {
-	const struct bin_attribute *battr = of->kn->priv;
+	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 	loff_t size = file_inode(of->file)->i_size;
 
@@ -146,7 +146,7 @@ static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 				  size_t count, loff_t pos)
 {
-	const struct bin_attribute *battr = of->kn->priv;
+	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 	loff_t size = file_inode(of->file)->i_size;
 
@@ -167,7 +167,7 @@ static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 static int sysfs_kf_bin_mmap(struct kernfs_open_file *of,
 			     struct vm_area_struct *vma)
 {
-	const struct bin_attribute *battr = of->kn->priv;
+	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 
 	return battr->mmap(of->file, kobj, battr, vma);
@@ -176,10 +176,11 @@ static int sysfs_kf_bin_mmap(struct kernfs_open_file *of,
 static loff_t sysfs_kf_bin_llseek(struct kernfs_open_file *of, loff_t offset,
 				  int whence)
 {
-	const struct bin_attribute *battr = of->kn->priv;
+	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 
-	if (battr->llseek)
+	/* rodin 6.6-compat: 6.6-built modules have no ->llseek member */
+	if (!rodin_obj_is_legacy66(battr) && battr->llseek)
 		return battr->llseek(of->file, kobj, battr, offset, whence);
 	else
 		return generic_file_llseek(of->file, offset, whence);
@@ -187,7 +188,7 @@ static loff_t sysfs_kf_bin_llseek(struct kernfs_open_file *of, loff_t offset,
 
 static int sysfs_kf_bin_open(struct kernfs_open_file *of)
 {
-	const struct bin_attribute *battr = of->kn->priv;
+	struct bin_attribute *battr = of->kn->priv;
 
 	if (battr->f_mapping)
 		of->file->f_mapping = battr->f_mapping();
@@ -321,7 +322,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 }
 
 int sysfs_add_bin_file_mode_ns(struct kernfs_node *parent,
-		const struct bin_attribute *battr, umode_t mode, size_t size,
+		struct bin_attribute *battr, umode_t mode, size_t size,
 		kuid_t uid, kgid_t gid, const void *ns)
 {
 	const struct attribute *attr = &battr->attr;
@@ -577,7 +578,7 @@ EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
  *	@attr:	attribute descriptor.
  */
 int sysfs_create_bin_file(struct kobject *kobj,
-			  const struct bin_attribute *attr)
+			  struct bin_attribute *attr)
 {
 	kuid_t uid;
 	kgid_t gid;
@@ -597,7 +598,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
  *	@attr:	attribute descriptor.
  */
 void sysfs_remove_bin_file(struct kobject *kobj,
-			   const struct bin_attribute *attr)
+			   struct bin_attribute *attr)
 {
 	kernfs_remove_by_name(kobj->sd, attr->attr.name);
 }
@@ -811,7 +812,7 @@ EXPORT_SYMBOL_GPL(sysfs_emit_at);
  * Returns number of bytes written to @buf.
  */
 ssize_t sysfs_bin_attr_simple_read(struct file *file, struct kobject *kobj,
-				   const struct bin_attribute *attr, char *buf,
+				   struct bin_attribute *attr, char *buf,
 				   loff_t off, size_t count)
 {
 	memcpy(buf, attr->private + off, count);

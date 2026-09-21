@@ -478,7 +478,7 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 }
 
 static ssize_t data_read(struct file *filp, struct kobject *kobj,
-			 const struct bin_attribute *bin_attr,
+			 struct bin_attribute *bin_attr,
 			 char *buffer, loff_t pos, size_t count)
 {
 	ssize_t ret_count = 0;
@@ -495,7 +495,7 @@ static ssize_t data_read(struct file *filp, struct kobject *kobj,
 	spin_unlock(&rbu_data.lock);
 	return ret_count;
 }
-static const BIN_ATTR_RO(data, 0);
+static BIN_ATTR_RO(data, 0);
 
 static void callbackfn_rbu(const struct firmware *fw, void *context)
 {
@@ -533,7 +533,7 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 }
 
 static ssize_t image_type_read(struct file *filp, struct kobject *kobj,
-			       const struct bin_attribute *bin_attr,
+			       struct bin_attribute *bin_attr,
 			       char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
@@ -543,7 +543,7 @@ static ssize_t image_type_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *bin_attr,
+				struct bin_attribute *bin_attr,
 				char *buffer, loff_t pos, size_t count)
 {
 	int rc = count;
@@ -600,10 +600,10 @@ static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
-static const BIN_ATTR_RW(image_type, 0);
+static BIN_ATTR_RW(image_type, 0);
 
 static ssize_t packet_size_read(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *bin_attr,
+				struct bin_attribute *bin_attr,
 				char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
@@ -616,7 +616,7 @@ static ssize_t packet_size_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t packet_size_write(struct file *filp, struct kobject *kobj,
-				 const struct bin_attribute *bin_attr,
+				 struct bin_attribute *bin_attr,
 				 char *buffer, loff_t pos, size_t count)
 {
 	unsigned long temp;
@@ -632,9 +632,9 @@ static ssize_t packet_size_write(struct file *filp, struct kobject *kobj,
 	spin_unlock(&rbu_data.lock);
 	return count;
 }
-static const BIN_ATTR_RW(packet_size, 0);
+static BIN_ATTR_RW(packet_size, 0);
 
-static const struct bin_attribute *const rbu_bin_attrs[] = {
+static struct bin_attribute *rbu_bin_attrs[] = {
 	&bin_attr_data,
 	&bin_attr_image_type,
 	&bin_attr_packet_size,

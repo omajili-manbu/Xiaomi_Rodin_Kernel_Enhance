@@ -29,7 +29,7 @@ static const struct bus_type node_subsys = {
 };
 
 static inline ssize_t cpumap_read(struct file *file, struct kobject *kobj,
-				  const struct bin_attribute *attr, char *buf,
+				  struct bin_attribute *attr, char *buf,
 				  loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -47,10 +47,10 @@ static inline ssize_t cpumap_read(struct file *file, struct kobject *kobj,
 	return n;
 }
 
-static const BIN_ATTR_RO(cpumap, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(cpumap, CPUMAP_FILE_MAX_BYTES);
 
 static inline ssize_t cpulist_read(struct file *file, struct kobject *kobj,
-				   const struct bin_attribute *attr, char *buf,
+				   struct bin_attribute *attr, char *buf,
 				   loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -68,7 +68,7 @@ static inline ssize_t cpulist_read(struct file *file, struct kobject *kobj,
 	return n;
 }
 
-static const BIN_ATTR_RO(cpulist, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(cpulist, CPULIST_FILE_MAX_BYTES);
 
 /**
  * struct node_access_nodes - Access class device to hold user visible
@@ -649,7 +649,7 @@ static struct attribute *node_dev_attrs[] = {
 	NULL
 };
 
-static const struct bin_attribute *node_dev_bin_attrs[] = {
+static struct bin_attribute *node_dev_bin_attrs[] = {
 	&bin_attr_cpumap,
 	&bin_attr_cpulist,
 	NULL

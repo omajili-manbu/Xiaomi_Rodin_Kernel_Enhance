@@ -94,7 +94,7 @@ static struct device_attribute afu_attrs[] = {
 };
 
 static ssize_t global_mmio_read(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *bin_attr, char *buf,
+				struct bin_attribute *bin_attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct ocxl_afu *afu = to_afu(kobj_to_dev(kobj));
@@ -125,7 +125,7 @@ static const struct vm_operations_struct global_mmio_vmops = {
 };
 
 static int global_mmio_mmap(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *bin_attr,
+			struct bin_attribute *bin_attr,
 			struct vm_area_struct *vma)
 {
 	struct ocxl_afu *afu = to_afu(kobj_to_dev(kobj));

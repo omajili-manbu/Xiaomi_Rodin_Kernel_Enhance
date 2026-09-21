@@ -375,7 +375,7 @@ out:
 }
 
 static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *attr, char *buf, loff_t offset,
+			struct bin_attribute *attr, char *buf, loff_t offset,
 			size_t max_size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -450,7 +450,7 @@ static DEVICE_ATTR_RO(security_enabled);
 static DEVICE_ATTR_RO(module_id);
 static DEVICE_ATTR_RO(parent_device);
 
-static const struct bin_attribute bin_attr_eeprom = {
+static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
 	.size = PAGE_SIZE,
 	.read = eeprom_read_handler
@@ -479,7 +479,7 @@ static struct attribute *hl_dev_attrs[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const hl_dev_bin_attrs[] = {
+static struct bin_attribute *hl_dev_bin_attrs[] = {
 	&bin_attr_eeprom,
 	NULL
 };

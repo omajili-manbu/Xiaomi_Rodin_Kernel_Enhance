@@ -13227,3 +13227,4 @@ out:
 }
 
 subsys_initcall(net_dev_init);
+EXPORT_SYMBOL(__dev_change_net_namespace);

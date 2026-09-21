@@ -66,6 +66,20 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_exit);
  * so we need some other way of telling a new secondary core
  * where to place its SVC stack
  */
+/* rodin 6.6-compat: 6.6 modules dereference per-CPU cpu_number directly */
+DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
+EXPORT_PER_CPU_SYMBOL(cpu_number);
+
+static int __init rodin_cpu_number_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(cpu_number, cpu) = cpu;
+	return 0;
+}
+early_initcall(rodin_cpu_number_init);
+
 struct secondary_data secondary_data;
 /* Number of CPUs which aren't online, but looping in kernel text. */
 static int cpus_stuck_in_kernel;

@@ -56,6 +56,10 @@ DEFINE_STATIC_KEY_FALSE(arm64_ptdump_lock_key);
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
 
+/* rodin 6.6-compat: virtual base of the kernel image (6.6 removed upstream) */
+u64 kimage_vaddr __ro_after_init = (u64)&_text;
+EXPORT_SYMBOL(kimage_vaddr);
+
 u32 __boot_cpu_mode[] = { BOOT_CPU_MODE_EL2, BOOT_CPU_MODE_EL1 };
 
 static bool rodata_is_rw __ro_after_init = true;

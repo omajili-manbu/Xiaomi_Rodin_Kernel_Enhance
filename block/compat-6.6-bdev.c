@@ -78,3 +78,35 @@ void blkdev_put(struct block_device *bdev, void *holder)
 EXPORT_SYMBOL(blkdev_put);
 
 #endif
+
+struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
+				       void *holder,
+				       const struct blk_holder_ops *hops);
+
+struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
+				       void *holder,
+				       const struct blk_holder_ops *hops)
+{
+	struct cp_bdev_open *e;
+	struct file *file;
+
+	file = bdev_file_open_by_dev(dev, mode, holder, hops);
+	if (IS_ERR(file))
+		return ERR_CAST(file);
+
+	e = kmalloc(sizeof(*e), GFP_KERNEL);
+	if (!e) {
+		bdev_fput(file);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	e->bdev_file = file;
+	e->bdev = file_bdev(file);
+
+	mutex_lock(&cp_bdev_lock);
+	list_add(&e->list, &cp_bdev_opens);
+	mutex_unlock(&cp_bdev_lock);
+
+	return e->bdev;
+}
+EXPORT_SYMBOL(blkdev_get_by_dev);

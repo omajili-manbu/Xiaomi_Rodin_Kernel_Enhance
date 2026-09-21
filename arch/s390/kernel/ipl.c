@@ -302,7 +302,7 @@ static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 #define IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)				\
 static ssize_t sys_##_prefix##_scp_data_show(struct file *filp,			\
 					    struct kobject *kobj,		\
-					    const struct bin_attribute *attr,	\
+					    struct bin_attribute *attr,	\
 					    char *buf, loff_t off,		\
 					    size_t count)			\
 {										\
@@ -316,7 +316,7 @@ static ssize_t sys_##_prefix##_scp_data_show(struct file *filp,			\
 #define IPL_ATTR_SCP_DATA_STORE_FN(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len)\
 static ssize_t sys_##_prefix##_scp_data_store(struct file *filp,		\
 					struct kobject *kobj,			\
-					const struct bin_attribute *attr,	\
+					struct bin_attribute *attr,	\
 					char *buf, loff_t off,			\
 					size_t count)				\
 {										\
@@ -343,14 +343,14 @@ static ssize_t sys_##_prefix##_scp_data_store(struct file *filp,		\
 
 #define DEFINE_IPL_ATTR_SCP_DATA_RO(_prefix, _ipl_block, _size)		\
 IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)				\
-static const struct bin_attribute sys_##_prefix##_scp_data_attr =	\
+static struct bin_attribute sys_##_prefix##_scp_data_attr =	\
 	__BIN_ATTR(scp_data, 0444, sys_##_prefix##_scp_data_show,	\
 		   NULL, _size)
 
 #define DEFINE_IPL_ATTR_SCP_DATA_RW(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len, _size)\
 IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)					\
 IPL_ATTR_SCP_DATA_STORE_FN(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len)\
-static const struct bin_attribute sys_##_prefix##_scp_data_attr =		\
+static struct bin_attribute sys_##_prefix##_scp_data_attr =		\
 	__BIN_ATTR(scp_data, 0644, sys_##_prefix##_scp_data_show,		\
 		   sys_##_prefix##_scp_data_store, _size)
 
@@ -453,19 +453,19 @@ static struct kobj_attribute sys_ipl_device_attr =
 	__ATTR(device, 0444, sys_ipl_device_show, NULL);
 
 static ssize_t sys_ipl_parameter_read(struct file *filp, struct kobject *kobj,
-				      const struct bin_attribute *attr, char *buf,
+				      struct bin_attribute *attr, char *buf,
 				      loff_t off, size_t count)
 {
 	return memory_read_from_buffer(buf, count, &off, &ipl_block,
 				       ipl_block.hdr.len);
 }
-static const struct bin_attribute sys_ipl_parameter_attr =
+static struct bin_attribute sys_ipl_parameter_attr =
 	__BIN_ATTR(binary_parameter, 0444, sys_ipl_parameter_read, NULL,
 		   PAGE_SIZE);
 
 DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_fcp, ipl_block.fcp, PAGE_SIZE);
 
-static const struct bin_attribute *const ipl_fcp_bin_attrs[] = {
+static struct bin_attribute *ipl_fcp_bin_attrs[] = {
 	&sys_ipl_parameter_attr,
 	&sys_ipl_fcp_scp_data_attr,
 	NULL,
@@ -473,7 +473,7 @@ static const struct bin_attribute *const ipl_fcp_bin_attrs[] = {
 
 DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_nvme, ipl_block.nvme, PAGE_SIZE);
 
-static const struct bin_attribute *const ipl_nvme_bin_attrs[] = {
+static struct bin_attribute *ipl_nvme_bin_attrs[] = {
 	&sys_ipl_parameter_attr,
 	&sys_ipl_nvme_scp_data_attr,
 	NULL,
@@ -481,7 +481,7 @@ static const struct bin_attribute *const ipl_nvme_bin_attrs[] = {
 
 DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_eckd, ipl_block.eckd, PAGE_SIZE);
 
-static const struct bin_attribute *const ipl_eckd_bin_attrs[] = {
+static struct bin_attribute *ipl_eckd_bin_attrs[] = {
 	&sys_ipl_parameter_attr,
 	&sys_ipl_eckd_scp_data_attr,
 	NULL,
@@ -827,7 +827,7 @@ DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_fcp, reipl_block_fcp->hdr,
 			    IPL_BP_FCP_LEN, IPL_BP0_FCP_LEN,
 			    DIAG308_SCPDATA_SIZE);
 
-static const struct bin_attribute *const reipl_fcp_bin_attrs[] = {
+static struct bin_attribute *reipl_fcp_bin_attrs[] = {
 	&sys_reipl_fcp_scp_data_attr,
 	NULL,
 };
@@ -952,7 +952,7 @@ DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_nvme, reipl_block_nvme->hdr,
 			    IPL_BP_NVME_LEN, IPL_BP0_NVME_LEN,
 			    DIAG308_SCPDATA_SIZE);
 
-static const struct bin_attribute *const reipl_nvme_bin_attrs[] = {
+static struct bin_attribute *reipl_nvme_bin_attrs[] = {
 	&sys_reipl_nvme_scp_data_attr,
 	NULL,
 };
@@ -1052,7 +1052,7 @@ DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_eckd, reipl_block_eckd->hdr,
 			    IPL_BP_ECKD_LEN, IPL_BP0_ECKD_LEN,
 			    DIAG308_SCPDATA_SIZE);
 
-static const struct bin_attribute *const reipl_eckd_bin_attrs[] = {
+static struct bin_attribute *reipl_eckd_bin_attrs[] = {
 	&sys_reipl_eckd_scp_data_attr,
 	NULL,
 };
@@ -1610,7 +1610,7 @@ static struct attribute *dump_fcp_attrs[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const dump_fcp_bin_attrs[] = {
+static struct bin_attribute *dump_fcp_bin_attrs[] = {
 	&sys_dump_fcp_scp_data_attr,
 	NULL,
 };
@@ -1645,7 +1645,7 @@ static struct attribute *dump_nvme_attrs[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const dump_nvme_bin_attrs[] = {
+static struct bin_attribute *dump_nvme_bin_attrs[] = {
 	&sys_dump_nvme_scp_data_attr,
 	NULL,
 };
@@ -1680,7 +1680,7 @@ static struct attribute *dump_eckd_attrs[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const dump_eckd_bin_attrs[] = {
+static struct bin_attribute *dump_eckd_bin_attrs[] = {
 	&sys_dump_eckd_scp_data_attr,
 	NULL,
 };

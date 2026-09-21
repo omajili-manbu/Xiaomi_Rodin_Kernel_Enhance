@@ -43,6 +43,21 @@ static struct kmem_cache *bfilp_cachep __ro_after_init;
 
 static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
+/*
+ * rodin 6.6-compat: fops objects created by 6.6-built vendor modules have no
+ * trailing fop_flags member, so reading it there would be out-of-bounds
+ * garbage.  Gate every read through here: 6.6-built modules see 0 (exactly
+ * the semantics they were compiled against), everything else reads the real
+ * flags.
+ */
+fop_flags_t rodin_fop_flags(const struct file_operations *fop)
+{
+	if (rodin_obj_is_legacy66(fop))
+		return (__force fop_flags_t)0;
+	return fop->fop_flags;
+}
+EXPORT_SYMBOL(rodin_fop_flags);
+
 /* Container for backing file with optional user path */
 struct backing_file {
 	struct file file;

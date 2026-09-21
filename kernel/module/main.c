@@ -3542,8 +3542,10 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	}
 
 #ifdef CONFIG_MODULE_FORCE_LOAD
-	if (info->mod_6_6)
+	if (info->mod_6_6) {
+		mod->rodin_66 = true;
 		mod->exit = NULL;
+	}
 #endif
 
 	module_allocated = true;
@@ -3979,6 +3981,29 @@ lookup:
 	}
 	return mod;
 }
+
+/**
+ * rodin_obj_is_legacy66() - is this object owned by a 6.6-built module?
+ * @obj: address of a static object (fops, attribute_group, ...).
+ *
+ * See include/linux/module.h.  Must be called with preemption or RCU read
+ * protection held if @obj may belong to a module that is being unloaded;
+ * the internal RCU section here covers the lookup itself.
+ */
+bool rodin_obj_is_legacy66(const void *obj)
+{
+	struct module *mod;
+	bool ret;
+
+	if (!obj)
+		return false;
+
+	guard(rcu)();
+	mod = __module_address((unsigned long)obj);
+	ret = mod && mod->rodin_66;
+	return ret;
+}
+EXPORT_SYMBOL(rodin_obj_is_legacy66);
 
 /**
  * is_module_text_address() - is this address inside module code?

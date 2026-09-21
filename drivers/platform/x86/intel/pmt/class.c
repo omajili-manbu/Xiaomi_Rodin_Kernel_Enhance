@@ -83,7 +83,7 @@ EXPORT_SYMBOL_NS_GPL(pmt_telem_read_mmio, "INTEL_PMT");
  */
 static ssize_t
 intel_pmt_read(struct file *filp, struct kobject *kobj,
-	       const struct bin_attribute *attr, char *buf, loff_t off,
+	       struct bin_attribute *attr, char *buf, loff_t off,
 	       size_t count)
 {
 	struct intel_pmt_entry *entry = container_of(attr,
@@ -107,7 +107,7 @@ intel_pmt_read(struct file *filp, struct kobject *kobj,
 
 static int
 intel_pmt_mmap(struct file *filp, struct kobject *kobj,
-		const struct bin_attribute *attr, struct vm_area_struct *vma)
+		struct bin_attribute *attr, struct vm_area_struct *vma)
 {
 	struct intel_pmt_entry *entry = container_of(attr,
 						     struct intel_pmt_entry,

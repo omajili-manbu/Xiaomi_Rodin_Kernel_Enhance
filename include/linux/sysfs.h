@@ -101,12 +101,17 @@ struct attribute_group {
 	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
 	umode_t			(*is_bin_visible)(struct kobject *,
-						  const struct bin_attribute *, int);
-	size_t			(*bin_size)(struct kobject *,
-					    const struct bin_attribute *,
-					    int);
+						  struct bin_attribute *, int);
 	struct attribute	**attrs;
-	const struct bin_attribute	*const *bin_attrs;
+	struct bin_attribute	**bin_attrs;
+	/*
+	 * rodin 6.6-compat: bin_size moved to the tail to keep 6.6 member
+	 * offsets.  Objects from 6.6-built modules do not have this member,
+	 * so kernel reads must be gated with rodin_obj_is_legacy66().
+	 */
+	size_t			(*bin_size)(struct kobject *,
+					    struct bin_attribute *,
+					    int);
 };
 
 #define SYSFS_PREALLOC		010000
@@ -201,7 +206,7 @@ struct attribute_group {
  */
 #define DEFINE_SYSFS_BIN_GROUP_VISIBLE(name)                                   \
 	static inline umode_t sysfs_group_visible_##name(                      \
-		struct kobject *kobj, const struct bin_attribute *attr, int n) \
+		struct kobject *kobj, struct bin_attribute *attr, int n) \
 	{                                                                      \
 		if (n == 0 && !name##_group_visible(kobj))                     \
 			return SYSFS_GROUP_INVISIBLE;                          \
@@ -210,7 +215,7 @@ struct attribute_group {
 
 #define DEFINE_SIMPLE_SYSFS_BIN_GROUP_VISIBLE(name)                         \
 	static inline umode_t sysfs_group_visible_##name(                   \
-		struct kobject *kobj, const struct bin_attribute *a, int n) \
+		struct kobject *kobj, struct bin_attribute *a, int n) \
 	{                                                                   \
 		if (n == 0 && !name##_group_visible(kobj))                  \
 			return SYSFS_GROUP_INVISIBLE;                       \
@@ -303,14 +308,19 @@ struct bin_attribute {
 	size_t			size;
 	void			*private;
 	struct address_space *(*f_mapping)(void);
-	ssize_t (*read)(struct file *, struct kobject *, const struct bin_attribute *,
+	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
 			char *, loff_t, size_t);
-	ssize_t (*write)(struct file *, struct kobject *, const struct bin_attribute *,
+	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
 			 char *, loff_t, size_t);
-	loff_t (*llseek)(struct file *, struct kobject *, const struct bin_attribute *,
-			 loff_t, int);
-	int (*mmap)(struct file *, struct kobject *, const struct bin_attribute *attr,
+	int (*mmap)(struct file *, struct kobject *, struct bin_attribute *attr,
 		    struct vm_area_struct *vma);
+	/*
+	 * rodin 6.6-compat: llseek moved to the tail to keep 6.6 member
+	 * offsets.  Objects from 6.6-built modules do not have this member,
+	 * so kernel reads must be gated with rodin_obj_is_legacy66().
+	 */
+	loff_t (*llseek)(struct file *, struct kobject *, struct bin_attribute *,
+			 loff_t, int);
 };
 
 /**
@@ -414,9 +424,9 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *attr);
 
 int __must_check sysfs_create_bin_file(struct kobject *kobj,
-				       const struct bin_attribute *attr);
+				       struct bin_attribute *attr);
 void sysfs_remove_bin_file(struct kobject *kobj,
-			   const struct bin_attribute *attr);
+			   struct bin_attribute *attr);
 
 int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
 				   const char *name);
@@ -487,7 +497,7 @@ __printf(3, 4)
 int sysfs_emit_at(char *buf, int at, const char *fmt, ...);
 
 ssize_t sysfs_bin_attr_simple_read(struct file *file, struct kobject *kobj,
-				   const struct bin_attribute *attr, char *buf,
+				   struct bin_attribute *attr, char *buf,
 				   loff_t off, size_t count);
 
 #else /* CONFIG_SYSFS */
@@ -573,13 +583,13 @@ static inline void sysfs_remove_files(struct kobject *kobj,
 }
 
 static inline int sysfs_create_bin_file(struct kobject *kobj,
-					const struct bin_attribute *attr)
+					struct bin_attribute *attr)
 {
 	return 0;
 }
 
 static inline void sysfs_remove_bin_file(struct kobject *kobj,
-					 const struct bin_attribute *attr)
+					 struct bin_attribute *attr)
 {
 }
 
@@ -750,7 +760,7 @@ static inline int sysfs_emit_at(char *buf, int at, const char *fmt, ...)
 
 static inline ssize_t sysfs_bin_attr_simple_read(struct file *file,
 						 struct kobject *kobj,
-						 const struct bin_attribute *attr,
+						 struct bin_attribute *attr,
 						 char *buf, loff_t off,
 						 size_t count)
 {

@@ -449,6 +449,13 @@ struct module {
 	bool using_gplonly_symbols;
 
 	/*
+	 * rodin 6.6-compat: module was built against the 6.6 kernel layout.
+	 * Objects owned by such modules (fops, attribute_groups, ...) must be
+	 * accessed with the old ABI, see rodin_obj_is_legacy66().
+	 */
+	bool rodin_66;
+
+	/*
 	 * Signature was verified. Unconditionally compiled in Android to
 	 * preserve ABI compatibility between kernels without module
 	 * signing enabled and signed modules.
@@ -641,6 +648,14 @@ bool __is_module_percpu_address(unsigned long addr, unsigned long *can_addr);
 bool is_module_percpu_address(unsigned long addr);
 bool is_module_text_address(unsigned long addr);
 
+/*
+ * rodin 6.6-compat: true when @obj is a static object owned by a module that
+ * was built against the 6.6 kernel layout.  Used to gate reads of
+ * tail-appended members (fop_flags, attribute_group::bin_size,
+ * bin_attribute::llseek, ...) that such objects do not have.
+ */
+bool rodin_obj_is_legacy66(const void *obj);
+
 static inline bool within_module_mem_type(unsigned long addr,
 					  const struct module *mod,
 					  enum mod_mem_type type)
@@ -799,6 +814,11 @@ void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data)
 static inline struct module *__module_address(unsigned long addr)
 {
 	return NULL;
+}
+
+static inline bool rodin_obj_is_legacy66(const void *obj)
+{
+	return false;
 }
 
 static inline struct module *__module_text_address(unsigned long addr)

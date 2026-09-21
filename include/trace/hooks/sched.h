@@ -108,6 +108,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_balance_find_src_group,
 	TP_PROTO(struct sched_group *busiest, struct rq *dst_rq, int *out_balance),
 		TP_ARGS(busiest, dst_rq, out_balance), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_group,
+	TP_PROTO(struct sched_group *busiest, struct rq *dst_rq, int *out_balance),
+		TP_ARGS(busiest, dst_rq, out_balance), 1);
+
 DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
 	TP_PROTO(int cpu, u64 clock, ktime_t rt_period, u64 rt_runtime,
 			s64 rt_period_timer_expires),
@@ -259,6 +263,12 @@ DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup_fair,
 			int wake_flags, struct sched_entity *se, struct sched_entity *pse),
 	TP_ARGS(rq, p, preempt, nopreempt, wake_flags, se, pse), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup,
+	TP_PROTO(struct rq *rq, struct task_struct *p, bool *preempt, bool *nopreempt,
+			int wake_flags, struct sched_entity *se, struct sched_entity *pse,
+			int next_buddy_marked),
+	TP_ARGS(rq, p, preempt, nopreempt, wake_flags, se, pse, next_buddy_marked), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_update_deadline,
 	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, bool *skip_preempt),
 	TP_ARGS(cfs_rq, se, skip_preempt), 1);
@@ -371,6 +381,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_util_cfs_boost,
 	TP_PROTO(int cpu, unsigned long *util),
 	TP_ARGS(cpu, util), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
+	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
+	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
 
 DECLARE_HOOK(android_vh_dup_task_struct,
 	TP_PROTO(struct task_struct *tsk, struct task_struct *orig),

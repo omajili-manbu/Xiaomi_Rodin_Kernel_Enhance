@@ -20,7 +20,7 @@
 
 #define WMI_BMOF_GUID "05901221-D566-11D1-B2F0-00A0C9062910"
 
-static ssize_t bmof_read(struct file *filp, struct kobject *kobj, const struct bin_attribute *attr,
+static ssize_t bmof_read(struct file *filp, struct kobject *kobj, struct bin_attribute *attr,
 			 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -29,14 +29,14 @@ static ssize_t bmof_read(struct file *filp, struct kobject *kobj, const struct b
 	return memory_read_from_buffer(buf, count, &off, obj->buffer.pointer, obj->buffer.length);
 }
 
-static const BIN_ATTR_ADMIN_RO(bmof, 0);
+static BIN_ATTR_ADMIN_RO(bmof, 0);
 
-static const struct bin_attribute * const bmof_attrs[] = {
+static struct bin_attribute * const bmof_attrs[] = {
 	&bin_attr_bmof,
 	NULL
 };
 
-static size_t bmof_bin_size(struct kobject *kobj, const struct bin_attribute *attr, int n)
+static size_t bmof_bin_size(struct kobject *kobj, struct bin_attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	union acpi_object *obj = dev_get_drvdata(dev);

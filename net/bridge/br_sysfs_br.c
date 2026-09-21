@@ -1002,7 +1002,7 @@ static const struct attribute_group bridge_group = {
  * Returns the number of bytes read.
  */
 static ssize_t brforward_read(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr,
+			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -1023,7 +1023,7 @@ static ssize_t brforward_read(struct file *filp, struct kobject *kobj,
 	return n;
 }
 
-static const struct bin_attribute bridge_forward = {
+static struct bin_attribute bridge_forward = {
 	.attr = { .name = SYSFS_BRIDGE_FDB,
 		  .mode = 0444, },
 	.read = brforward_read,

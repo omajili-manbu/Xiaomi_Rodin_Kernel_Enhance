@@ -29,7 +29,7 @@ const struct kobj_type of_node_ktype = {
 };
 
 static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *bin_attr, char *buf,
+				struct bin_attribute *bin_attr, char *buf,
 				loff_t offset, size_t count)
 {
 	struct property *pp = container_of(bin_attr, struct property, attr);
@@ -89,7 +89,7 @@ void __of_sysfs_remove_bin_file(struct device_node *np, const struct property *p
 	if (!IS_ENABLED(CONFIG_SYSFS))
 		return;
 
-	sysfs_remove_bin_file(&np->kobj, &prop->attr);
+	sysfs_remove_bin_file(&np->kobj, (struct bin_attribute *)&prop->attr);
 	kfree(prop->attr.attr.name);
 }
 

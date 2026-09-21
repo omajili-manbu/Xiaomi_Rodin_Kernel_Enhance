@@ -111,7 +111,7 @@ ATTRIBUTE_GROUPS(w1_slave);
 /* Default family */
 
 static ssize_t rw_write(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *bin_attr, char *buf, loff_t off,
+			struct bin_attribute *bin_attr, char *buf, loff_t off,
 			size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -130,7 +130,7 @@ out_up:
 }
 
 static ssize_t rw_read(struct file *filp, struct kobject *kobj,
-		       const struct bin_attribute *bin_attr, char *buf,
+		       struct bin_attribute *bin_attr, char *buf,
 		       loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -141,9 +141,9 @@ static ssize_t rw_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const BIN_ATTR_RW(rw, PAGE_SIZE);
+static BIN_ATTR_RW(rw, PAGE_SIZE);
 
-static const struct bin_attribute *const w1_slave_bin_attrs[] = {
+static struct bin_attribute *w1_slave_bin_attrs[] = {
 	&bin_attr_rw,
 	NULL,
 };

@@ -21,7 +21,7 @@ static void remove_files(struct kernfs_node *parent,
 			 const struct attribute_group *grp)
 {
 	struct attribute *const *attr;
-	const struct bin_attribute *const *bin_attr;
+	struct bin_attribute **bin_attr;
 
 	if (grp->attrs)
 		for (attr = grp->attrs; *attr; attr++)
@@ -47,7 +47,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 			const struct attribute_group *grp, int update)
 {
 	struct attribute *const *attr;
-	const struct bin_attribute *const *bin_attr;
+	struct bin_attribute **bin_attr;
 	int error = 0, i;
 
 	if (grp->attrs) {
@@ -98,7 +98,8 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 				if (!mode)
 					continue;
 			}
-			if (grp->bin_size)
+			/* rodin 6.6-compat: 6.6-built modules have no ->bin_size member */
+			if (!rodin_obj_is_legacy66(grp) && grp->bin_size)
 				size = grp->bin_size(kobj, *bin_attr, i);
 
 			WARN(mode & ~(SYSFS_PREALLOC | 0664),
@@ -530,7 +531,7 @@ static int sysfs_group_attrs_change_owner(struct kobject *kobj,
 	}
 
 	if (grp->bin_attrs) {
-		const struct bin_attribute *const *bin_attr;
+		struct bin_attribute **bin_attr;
 
 		for (i = 0, bin_attr = grp->bin_attrs; *bin_attr; i++, bin_attr++) {
 			if (grp->is_bin_visible) {

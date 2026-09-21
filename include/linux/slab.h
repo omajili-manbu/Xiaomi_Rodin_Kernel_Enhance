@@ -403,21 +403,13 @@ __kmem_cache_create(const char *name, unsigned int size, unsigned int align,
  *
  * Return: a pointer to the cache on success, NULL on failure.
  */
-static inline struct kmem_cache *
+/* rodin 6.6-compat: out-of-line in lib/compat-6.6-alloc.c (exported for
+ * 6.6-built modules; in-tree callers keep the same prototype). */
+struct kmem_cache *
 kmem_cache_create_usercopy(const char *name, unsigned int size,
 			   unsigned int align, slab_flags_t flags,
 			   unsigned int useroffset, unsigned int usersize,
-			   void (*ctor)(void *))
-{
-	struct kmem_cache_args kmem_args = {
-		.align		= align,
-		.ctor		= ctor,
-		.useroffset	= useroffset,
-		.usersize	= usersize,
-	};
-
-	return __kmem_cache_create_args(name, size, &kmem_args, flags);
-}
+			   void (*ctor)(void *));
 
 /* If NULL is passed for @args, use this variant with default arguments. */
 static inline struct kmem_cache *

@@ -16,7 +16,7 @@ extern char __start_BTF[];
 extern char __stop_BTF[];
 
 static int btf_sysfs_vmlinux_mmap(struct file *filp, struct kobject *kobj,
-				  const struct bin_attribute *attr,
+				  struct bin_attribute *attr,
 				  struct vm_area_struct *vma)
 {
 	unsigned long pages = PAGE_ALIGN(attr->size) >> PAGE_SHIFT;

@@ -2,6 +2,7 @@
 #ifndef _LINUX_WORKQUEUE_TYPES_H
 #define _LINUX_WORKQUEUE_TYPES_H
 
+#include <linux/android_kabi.h>
 #include <linux/atomic.h>
 #include <linux/lockdep_types.h>
 #include <linux/timer_types.h>
@@ -20,6 +21,8 @@ struct work_struct {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map lockdep_map;
 #endif
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #endif /* _LINUX_WORKQUEUE_TYPES_H */

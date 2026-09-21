@@ -129,7 +129,7 @@ out:
 static DEVICE_ATTR_WO(recover);
 
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *attr, char *buf,
+				struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -139,10 +139,10 @@ static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, zdev->util_str,
 				       sizeof(zdev->util_str));
 }
-static const BIN_ATTR_RO(util_string, CLP_UTIL_STR_LEN);
+static BIN_ATTR_RO(util_string, CLP_UTIL_STR_LEN);
 
 static ssize_t report_error_write(struct file *filp, struct kobject *kobj,
-				  const struct bin_attribute *attr, char *buf,
+				  struct bin_attribute *attr, char *buf,
 				  loff_t off, size_t count)
 {
 	struct zpci_report_error_header *report = (void *) buf;
@@ -158,7 +158,7 @@ static ssize_t report_error_write(struct file *filp, struct kobject *kobj,
 
 	return ret ? ret : count;
 }
-static const BIN_ATTR(report_error, S_IWUSR, NULL, report_error_write, PAGE_SIZE);
+static BIN_ATTR(report_error, S_IWUSR, NULL, report_error_write, PAGE_SIZE);
 
 static ssize_t uid_is_unique_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -204,7 +204,7 @@ const struct attribute_group zpci_ident_attr_group = {
 	.is_visible = zpci_index_is_visible,
 };
 
-static const struct bin_attribute *const zpci_bin_attrs[] = {
+static struct bin_attribute *zpci_bin_attrs[] = {
 	&bin_attr_util_string,
 	&bin_attr_report_error,
 	NULL,

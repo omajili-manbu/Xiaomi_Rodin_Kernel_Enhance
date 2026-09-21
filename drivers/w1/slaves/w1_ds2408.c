@@ -65,7 +65,7 @@ static int _read_reg(struct w1_slave *sl, u8 address, unsigned char *buf)
 }
 
 static ssize_t state_read(struct file *filp, struct kobject *kobj,
-			  const struct bin_attribute *bin_attr, char *buf,
+			  struct bin_attribute *bin_attr, char *buf,
 			  loff_t off, size_t count)
 {
 	dev_dbg(&kobj_to_w1_slave(kobj)->dev,
@@ -77,7 +77,7 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t output_read(struct file *filp, struct kobject *kobj,
-			   const struct bin_attribute *bin_attr, char *buf,
+			   struct bin_attribute *bin_attr, char *buf,
 			   loff_t off, size_t count)
 {
 	dev_dbg(&kobj_to_w1_slave(kobj)->dev,
@@ -90,7 +90,7 @@ static ssize_t output_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t activity_read(struct file *filp, struct kobject *kobj,
-			     const struct bin_attribute *bin_attr, char *buf,
+			     struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
 	dev_dbg(&kobj_to_w1_slave(kobj)->dev,
@@ -103,7 +103,7 @@ static ssize_t activity_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t cond_search_mask_read(struct file *filp, struct kobject *kobj,
-				     const struct bin_attribute *bin_attr,
+				     struct bin_attribute *bin_attr,
 				     char *buf, loff_t off, size_t count)
 {
 	dev_dbg(&kobj_to_w1_slave(kobj)->dev,
@@ -117,7 +117,7 @@ static ssize_t cond_search_mask_read(struct file *filp, struct kobject *kobj,
 
 static ssize_t cond_search_polarity_read(struct file *filp,
 					 struct kobject *kobj,
-					 const struct bin_attribute *bin_attr,
+					 struct bin_attribute *bin_attr,
 					 char *buf, loff_t off, size_t count)
 {
 	if (count != 1 || off != 0)
@@ -127,7 +127,7 @@ static ssize_t cond_search_polarity_read(struct file *filp,
 }
 
 static ssize_t status_control_read(struct file *filp, struct kobject *kobj,
-				   const struct bin_attribute *bin_attr,
+				   struct bin_attribute *bin_attr,
 				   char *buf, loff_t off, size_t count)
 {
 	if (count != 1 || off != 0)
@@ -160,7 +160,7 @@ static bool optional_read_back_valid(struct w1_slave *sl, u8 expected)
 #endif
 
 static ssize_t output_write(struct file *filp, struct kobject *kobj,
-			    const struct bin_attribute *bin_attr, char *buf,
+			    struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -210,7 +210,7 @@ out:
  * Writing to the activity file resets the activity latches.
  */
 static ssize_t activity_write(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr, char *buf,
+			      struct bin_attribute *bin_attr, char *buf,
 			      loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -240,7 +240,7 @@ error:
 }
 
 static ssize_t status_control_write(struct file *filp, struct kobject *kobj,
-				    const struct bin_attribute *bin_attr,
+				    struct bin_attribute *bin_attr,
 				    char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -310,14 +310,14 @@ out:
 	return res;
 }
 
-static const BIN_ATTR_RO(state, 1);
-static const BIN_ATTR_RW(output, 1);
-static const BIN_ATTR_RW(activity, 1);
-static const BIN_ATTR_RO(cond_search_mask, 1);
-static const BIN_ATTR_RO(cond_search_polarity, 1);
-static const BIN_ATTR_RW(status_control, 1);
+static BIN_ATTR_RO(state, 1);
+static BIN_ATTR_RW(output, 1);
+static BIN_ATTR_RW(activity, 1);
+static BIN_ATTR_RO(cond_search_mask, 1);
+static BIN_ATTR_RO(cond_search_polarity, 1);
+static BIN_ATTR_RW(status_control, 1);
 
-static const struct bin_attribute *const w1_f29_bin_attrs[] = {
+static struct bin_attribute *w1_f29_bin_attrs[] = {
 	&bin_attr_state,
 	&bin_attr_output,
 	&bin_attr_activity,

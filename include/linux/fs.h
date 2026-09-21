@@ -2278,7 +2278,6 @@ typedef unsigned int __bitwise fop_flags_t;
 
 struct file_operations {
 	struct module *owner;
-	fop_flags_t fop_flags;
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
@@ -2291,6 +2290,7 @@ struct file_operations {
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
+	unsigned long mmap_supported_flags;	/* rodin 6.6-compat: restored slot (MAP_SYNC et al) */
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
@@ -2320,7 +2320,16 @@ struct file_operations {
 	int (*uring_cmd_iopoll)(struct io_uring_cmd *, struct io_comp_batch *,
 				unsigned int poll_flags);
 	int (*mmap_prepare)(struct vm_area_desc *);
+	/*
+	 * rodin 6.6-compat: fop_flags moved to the tail so that fops objects
+	 * laid out by 6.6 keep their member offsets. Reads of this member must
+	 * go through rodin_fop_flags(), which returns 0 for objects owned by
+	 * 6.6-built vendor modules (they never had this member).
+	 */
+	fop_flags_t fop_flags;
 } __randomize_layout;
+
+fop_flags_t rodin_fop_flags(const struct file_operations *fop);
 
 /* Supports async buffered reads */
 #define FOP_BUFFER_RASYNC	((__force fop_flags_t)(1 << 0))

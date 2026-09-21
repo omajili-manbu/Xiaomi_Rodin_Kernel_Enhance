@@ -737,7 +737,7 @@ static ssize_t serial_number_show(struct device *dev,
 static DEVICE_ATTR_ADMIN_RO(serial_number);
 
 static ssize_t pci_read_config(struct file *filp, struct kobject *kobj,
-			       const struct bin_attribute *bin_attr, char *buf,
+			       struct bin_attribute *bin_attr, char *buf,
 			       loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
@@ -812,7 +812,7 @@ static ssize_t pci_read_config(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *bin_attr, char *buf,
+				struct bin_attribute *bin_attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
@@ -880,15 +880,15 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static const BIN_ATTR(config, 0644, pci_read_config, pci_write_config, 0);
+static BIN_ATTR(config, 0644, pci_read_config, pci_write_config, 0);
 
-static const struct bin_attribute *const pci_dev_config_attrs[] = {
+static struct bin_attribute *pci_dev_config_attrs[] = {
 	&bin_attr_config,
 	NULL,
 };
 
 static size_t pci_dev_config_attr_bin_size(struct kobject *kobj,
-					   const struct bin_attribute *a,
+					   struct bin_attribute *a,
 					   int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
@@ -910,7 +910,7 @@ static const struct attribute_group pci_dev_config_attr_group = {
 static __maybe_unused loff_t
 pci_llseek_resource(struct file *filep,
 		    struct kobject *kobj __always_unused,
-		    const struct bin_attribute *attr,
+		    struct bin_attribute *attr,
 		    loff_t offset, int whence)
 {
 	return fixed_size_llseek(filep, offset, whence, attr->size);
@@ -930,7 +930,7 @@ pci_llseek_resource(struct file *filep,
  * callback routine (pci_legacy_read).
  */
 static ssize_t pci_read_legacy_io(struct file *filp, struct kobject *kobj,
-				  const struct bin_attribute *bin_attr,
+				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
@@ -955,7 +955,7 @@ static ssize_t pci_read_legacy_io(struct file *filp, struct kobject *kobj,
  * callback routine (pci_legacy_write).
  */
 static ssize_t pci_write_legacy_io(struct file *filp, struct kobject *kobj,
-				   const struct bin_attribute *bin_attr,
+				   struct bin_attribute *bin_attr,
 				   char *buf, loff_t off, size_t count)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
@@ -979,7 +979,7 @@ static ssize_t pci_write_legacy_io(struct file *filp, struct kobject *kobj,
  * memory space.
  */
 static int pci_mmap_legacy_mem(struct file *filp, struct kobject *kobj,
-			       const struct bin_attribute *attr,
+			       struct bin_attribute *attr,
 			       struct vm_area_struct *vma)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
@@ -999,7 +999,7 @@ static int pci_mmap_legacy_mem(struct file *filp, struct kobject *kobj,
  * memory space. Returns -ENOSYS if the operation isn't supported
  */
 static int pci_mmap_legacy_io(struct file *filp, struct kobject *kobj,
-			      const struct bin_attribute *attr,
+			      struct bin_attribute *attr,
 			      struct vm_area_struct *vma)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
@@ -1103,7 +1103,7 @@ void pci_remove_legacy_files(struct pci_bus *b)
  *
  * Use the regular PCI mapping routines to map a PCI resource into userspace.
  */
-static int pci_mmap_resource(struct kobject *kobj, const struct bin_attribute *attr,
+static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 			     struct vm_area_struct *vma, int write_combine)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
@@ -1128,21 +1128,21 @@ static int pci_mmap_resource(struct kobject *kobj, const struct bin_attribute *a
 }
 
 static int pci_mmap_resource_uc(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *attr,
+				struct bin_attribute *attr,
 				struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 0);
 }
 
 static int pci_mmap_resource_wc(struct file *filp, struct kobject *kobj,
-				const struct bin_attribute *attr,
+				struct bin_attribute *attr,
 				struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 1);
 }
 
 static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
-			       const struct bin_attribute *attr, char *buf,
+			       struct bin_attribute *attr, char *buf,
 			       loff_t off, size_t count, bool write)
 {
 #ifdef CONFIG_HAS_IOPORT
@@ -1185,14 +1185,14 @@ static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t pci_read_resource_io(struct file *filp, struct kobject *kobj,
-				    const struct bin_attribute *attr, char *buf,
+				    struct bin_attribute *attr, char *buf,
 				    loff_t off, size_t count)
 {
 	return pci_resource_io(filp, kobj, attr, buf, off, count, false);
 }
 
 static ssize_t pci_write_resource_io(struct file *filp, struct kobject *kobj,
-				     const struct bin_attribute *attr, char *buf,
+				     struct bin_attribute *attr, char *buf,
 				     loff_t off, size_t count)
 {
 	int ret;
@@ -1339,7 +1339,7 @@ void __weak pci_remove_resource_files(struct pci_dev *dev) { return; }
  * writing anything except 0 enables it
  */
 static ssize_t pci_write_rom(struct file *filp, struct kobject *kobj,
-			     const struct bin_attribute *bin_attr, char *buf,
+			     struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
@@ -1365,7 +1365,7 @@ static ssize_t pci_write_rom(struct file *filp, struct kobject *kobj,
  * device corresponding to @kobj.
  */
 static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
-			    const struct bin_attribute *bin_attr, char *buf,
+			    struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
@@ -1391,15 +1391,15 @@ static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static const BIN_ATTR(rom, 0600, pci_read_rom, pci_write_rom, 0);
+static BIN_ATTR(rom, 0600, pci_read_rom, pci_write_rom, 0);
 
-static const struct bin_attribute *const pci_dev_rom_attrs[] = {
+static struct bin_attribute *pci_dev_rom_attrs[] = {
 	&bin_attr_rom,
 	NULL,
 };
 
 static umode_t pci_dev_rom_attr_is_visible(struct kobject *kobj,
-					   const struct bin_attribute *a, int n)
+					   struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
@@ -1411,7 +1411,7 @@ static umode_t pci_dev_rom_attr_is_visible(struct kobject *kobj,
 }
 
 static size_t pci_dev_rom_attr_bin_size(struct kobject *kobj,
-					const struct bin_attribute *a, int n)
+					struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 

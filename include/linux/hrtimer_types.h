@@ -2,6 +2,7 @@
 #ifndef _LINUX_HRTIMER_TYPES_H
 #define _LINUX_HRTIMER_TYPES_H
 
+#include <linux/android_kabi.h>
 #include <linux/types.h>
 #include <linux/timerqueue_types.h>
 
@@ -45,6 +46,8 @@ struct hrtimer {
 	u8				is_rel;
 	u8				is_soft;
 	u8				is_hard;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #endif /* _LINUX_HRTIMER_TYPES_H */

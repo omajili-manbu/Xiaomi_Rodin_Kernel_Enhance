@@ -40,7 +40,7 @@ static struct attribute *bgrt_attributes[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const bgrt_bin_attributes[] = {
+static struct bin_attribute *bgrt_bin_attributes[] = {
 	&bin_attr_image,
 	NULL,
 };
