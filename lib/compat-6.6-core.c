@@ -278,7 +278,9 @@ EXPORT_SYMBOL_GPL(__get_task_comm);
 void init_timer_key(struct timer_list *timer,
 		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key)
-	__alias(timer_init_key);
+{
+	timer_init_key(timer, func, flags, name, key);
+}
 EXPORT_SYMBOL(init_timer_key);
 
 static enum hrtimer_restart rodin_hrtimer_stub(struct hrtimer *h)
@@ -301,12 +303,28 @@ EXPORT_SYMBOL(hrtimer_init);
 
 struct workqueue_struct *alloc_workqueue(const char *fmt,
 					 unsigned int flags, int max_active, ...)
-	__alias(alloc_workqueue_noprof);
+{
+	struct workqueue_struct *wq;
+	va_list ap;
+
+	va_start(ap, max_active);
+	wq = alloc_workqueue_noprof(fmt, flags, max_active, ap);
+	va_end(ap);
+	return wq;
+}
 EXPORT_SYMBOL(alloc_workqueue);
 
 struct kthread_worker *kthread_create_worker(unsigned int flags,
 					     const char namefmt[], ...)
-	__alias(kthread_create_worker_noprof);
+{
+	struct kthread_worker *worker;
+	va_list ap;
+
+	va_start(ap, namefmt);
+	worker = kthread_create_worker_noprof(flags, namefmt, ap);
+	va_end(ap);
+	return worker;
+}
 EXPORT_SYMBOL(kthread_create_worker);
 
 /* ---- debugfs ---- */
