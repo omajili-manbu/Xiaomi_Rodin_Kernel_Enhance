@@ -4,6 +4,7 @@
 /* Simple interface for creating and stopping kernel threads without mess. */
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/stdarg.h>
 
 struct mm_struct;
 
@@ -205,6 +206,11 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
 	} while (0)
 
 int kthread_worker_fn(void *worker_ptr);
+
+__printf(3, 0)
+struct kthread_worker *
+__kthread_create_worker_on_node(unsigned int flags, int node,
+				 const char namefmt[], va_list args);
 
 __printf(3, 4)
 struct kthread_worker *kthread_create_worker_on_node(unsigned int flags,

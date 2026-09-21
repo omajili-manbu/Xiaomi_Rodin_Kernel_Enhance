@@ -189,7 +189,6 @@ int iommu_dev_disable_feature(struct device *dev, unsigned int feat);
 struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, unsigned int size, irq_hw_number_t hwirq_max, int direct_max, const struct irq_domain_ops *ops, void *host_data);
 struct rodin_fd66 __fdget(unsigned int fd);
 struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry, struct dentry *new_dir, const char *new_name);
-struct dentry *lookup_one_len(const char *name, struct dentry *base, int len);
 struct dentry *debugfs_create_file(const char *name, umode_t mode, struct dentry *parent, void *data, const void *fops);
 void hrtimer_init(struct hrtimer *timer, clockid_t clockid, enum hrtimer_mode mode);
 void init_timer_key(struct timer_list *timer, void (*func)(struct timer_list *), unsigned int flags, const char *name, struct lock_class_key *key);
@@ -321,7 +320,7 @@ struct kthread_worker *kthread_create_worker(unsigned int flags,
 	va_list ap;
 
 	va_start(ap, namefmt);
-	worker = kthread_create_worker_noprof(flags, namefmt, ap);
+	worker = __kthread_create_worker_on_node(flags, NUMA_NO_NODE, namefmt, ap);
 	va_end(ap);
 	return worker;
 }
@@ -789,7 +788,9 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	if (d_really_is_negative(old_dentry) || old_dentry == trap ||
 	    d_mountpoint(old_dentry))
 		goto exit;
-	dentry = lookup_one_len(new_name, new_dir, strlen(new_name));
+	dentry = lookup_one_unlocked(&nop_mnt_idmap,
+			      &(struct qstr)QSTR_INIT(new_name, strlen(new_name)),
+			      new_dir);
 	if (IS_ERR(dentry) || dentry == trap || d_really_is_positive(dentry))
 		goto exit;
 
