@@ -427,6 +427,11 @@ struct module {
 	const u32 *crcs;
 	const u8 *flagstab;
 	unsigned int num_syms;
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	const struct kernel_symbol *gpl_syms;
+	const u32 *gpl_crcs;
+	unsigned int num_gpl_syms;
+#endif
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
 	s32 *kcfi_traps;
