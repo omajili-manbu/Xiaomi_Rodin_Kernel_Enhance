@@ -239,6 +239,9 @@ extern void platform_device_put(struct platform_device *pdev);
 struct platform_driver {
 	int (*probe)(struct platform_device *);
 	void (*remove)(struct platform_device *);
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	void (*remove_new)(struct platform_device *);
+#endif
 	void (*shutdown)(struct platform_device *);
 	int (*suspend)(struct platform_device *, pm_message_t state);
 	int (*resume)(struct platform_device *);
