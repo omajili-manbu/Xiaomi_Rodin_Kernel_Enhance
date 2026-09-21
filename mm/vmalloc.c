@@ -5347,3 +5347,9 @@ void __init vmalloc_init(void)
 	vmap_node_shrinker->scan_objects = vmap_node_shrink_scan;
 	shrinker_register(vmap_node_shrinker);
 }
+
+#ifdef CONFIG_MODULE_FORCE_LOAD
+#undef vzalloc
+void *vzalloc(unsigned long size) __alias(vzalloc_noprof);
+EXPORT_SYMBOL(vzalloc);
+#endif

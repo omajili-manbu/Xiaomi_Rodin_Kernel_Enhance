@@ -5744,6 +5744,11 @@ void *__kmalloc_noprof(size_t size, gfp_t flags)
 }
 EXPORT_SYMBOL(__kmalloc_noprof);
 
+#ifdef CONFIG_MODULE_FORCE_LOAD
+void *__kmalloc(size_t size, gfp_t flags) __alias(__kmalloc_noprof);
+EXPORT_SYMBOL(__kmalloc);
+#endif
+
 /**
  * kmalloc_nolock - Allocate an object of given size from any context.
  * @size: size to allocate
@@ -5860,6 +5865,12 @@ void *__kmalloc_cache_noprof(struct kmem_cache *s, gfp_t gfpflags, size_t size)
 	return ret;
 }
 EXPORT_SYMBOL(__kmalloc_cache_noprof);
+
+#ifdef CONFIG_MODULE_FORCE_LOAD
+void *kmalloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+					__alias(__kmalloc_cache_noprof);
+EXPORT_SYMBOL(kmalloc_trace);
+#endif
 
 void *__kmalloc_cache_node_noprof(struct kmem_cache *s, gfp_t gfpflags,
 				  int node, size_t size)
