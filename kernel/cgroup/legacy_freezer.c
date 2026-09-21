@@ -470,6 +470,7 @@ static struct cftype files[] = {
 	{ }	/* terminate */
 };
 
+EXPORT_SYMBOL_GPL(freezer_cgrp_subsys);
 struct cgroup_subsys freezer_cgrp_subsys = {
 	.css_alloc	= freezer_css_alloc,
 	.css_online	= freezer_css_online,

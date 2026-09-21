@@ -24,7 +24,7 @@ static ssize_t name##_show(struct device *dev,				\
 
 #define define_siblings_read_func(name, mask)					\
 static ssize_t name##_read(struct file *file, struct kobject *kobj,		\
-			   const struct bin_attribute *attr, char *buf,		\
+			   struct bin_attribute *attr, char *buf,		\
 			   loff_t off, size_t count)				\
 {										\
 	struct device *dev = kobj_to_dev(kobj);                                 \
@@ -42,7 +42,7 @@ static ssize_t name##_read(struct file *file, struct kobject *kobj,		\
 }										\
 										\
 static ssize_t name##_list_read(struct file *file, struct kobject *kobj,	\
-				const struct bin_attribute *attr, char *buf,	\
+				struct bin_attribute *attr, char *buf,	\
 				loff_t off, size_t count)			\
 {										\
 	struct device *dev = kobj_to_dev(kobj);					\
@@ -79,50 +79,50 @@ define_id_show_func(ppin, "0x%llx");
 static DEVICE_ATTR_ADMIN_RO(ppin);
 
 define_siblings_read_func(thread_siblings, sibling_cpumask);
-static const BIN_ATTR_RO(thread_siblings, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(thread_siblings_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(thread_siblings, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(thread_siblings_list, CPULIST_FILE_MAX_BYTES);
 
 define_siblings_read_func(core_cpus, sibling_cpumask);
-static const BIN_ATTR_RO(core_cpus, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(core_cpus_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(core_cpus, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(core_cpus_list, CPULIST_FILE_MAX_BYTES);
 
 define_siblings_read_func(core_siblings, core_cpumask);
-static const BIN_ATTR_RO(core_siblings, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(core_siblings_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(core_siblings, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(core_siblings_list, CPULIST_FILE_MAX_BYTES);
 
 #ifdef TOPOLOGY_CLUSTER_SYSFS
 define_siblings_read_func(cluster_cpus, cluster_cpumask);
-static const BIN_ATTR_RO(cluster_cpus, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(cluster_cpus_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(cluster_cpus, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(cluster_cpus_list, CPULIST_FILE_MAX_BYTES);
 #endif
 
 #ifdef TOPOLOGY_DIE_SYSFS
 define_siblings_read_func(die_cpus, die_cpumask);
-static const BIN_ATTR_RO(die_cpus, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(die_cpus_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(die_cpus, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(die_cpus_list, CPULIST_FILE_MAX_BYTES);
 #endif
 
 define_siblings_read_func(package_cpus, core_cpumask);
-static const BIN_ATTR_RO(package_cpus, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(package_cpus_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(package_cpus, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(package_cpus_list, CPULIST_FILE_MAX_BYTES);
 
 #ifdef TOPOLOGY_BOOK_SYSFS
 define_id_show_func(book_id, "%d");
 static DEVICE_ATTR_RO(book_id);
 define_siblings_read_func(book_siblings, book_cpumask);
-static const BIN_ATTR_RO(book_siblings, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(book_siblings_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(book_siblings, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(book_siblings_list, CPULIST_FILE_MAX_BYTES);
 #endif
 
 #ifdef TOPOLOGY_DRAWER_SYSFS
 define_id_show_func(drawer_id, "%d");
 static DEVICE_ATTR_RO(drawer_id);
 define_siblings_read_func(drawer_siblings, drawer_cpumask);
-static const BIN_ATTR_RO(drawer_siblings, CPUMAP_FILE_MAX_BYTES);
-static const BIN_ATTR_RO(drawer_siblings_list, CPULIST_FILE_MAX_BYTES);
+static BIN_ATTR_RO(drawer_siblings, CPUMAP_FILE_MAX_BYTES);
+static BIN_ATTR_RO(drawer_siblings_list, CPULIST_FILE_MAX_BYTES);
 #endif
 
-static const struct bin_attribute *const bin_attrs[] = {
+static struct bin_attribute *bin_attrs[] = {
 	&bin_attr_core_cpus,
 	&bin_attr_core_cpus_list,
 	&bin_attr_thread_siblings,

@@ -210,7 +210,7 @@ static struct attribute *nvmem_attrs[] = {
 };
 
 static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
-				   const struct bin_attribute *attr, char *buf,
+				   struct bin_attribute *attr, char *buf,
 				   loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -243,7 +243,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
-				    const struct bin_attribute *attr, char *buf,
+				    struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -295,7 +295,7 @@ static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 }
 
 static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
-					 const struct bin_attribute *attr,
+					 struct bin_attribute *attr,
 					 int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -305,7 +305,7 @@ static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
 }
 
 static size_t nvmem_bin_attr_size(struct kobject *kobj,
-				  const struct bin_attribute *attr,
+				  struct bin_attribute *attr,
 				  int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -337,7 +337,7 @@ static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
 					    const char *id, int index);
 
 static ssize_t nvmem_cell_attr_read(struct file *filp, struct kobject *kobj,
-				    const struct bin_attribute *attr, char *buf,
+				    struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct nvmem_cell_entry *entry;
@@ -371,7 +371,7 @@ destroy_cell:
 }
 
 /* default read/write permissions */
-static const struct bin_attribute bin_attr_rw_nvmem = {
+static struct bin_attribute bin_attr_rw_nvmem = {
 	.attr	= {
 		.name	= "nvmem",
 		.mode	= 0644,
@@ -380,7 +380,7 @@ static const struct bin_attribute bin_attr_rw_nvmem = {
 	.write	= bin_attr_nvmem_write,
 };
 
-static const struct bin_attribute *const nvmem_bin_attributes[] = {
+static struct bin_attribute *nvmem_bin_attributes[] = {
 	&bin_attr_rw_nvmem,
 	NULL,
 };
@@ -398,7 +398,7 @@ static const struct attribute_group *nvmem_dev_groups[] = {
 	NULL,
 };
 
-static const struct bin_attribute bin_attr_nvmem_eeprom_compat = {
+static struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
 		.name	= "eeprom",
 	},
@@ -458,7 +458,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 		.name	= "cells",
 	};
 	struct nvmem_cell_entry *entry;
-	const struct bin_attribute **pattrs;
+	struct bin_attribute **pattrs;
 	struct bin_attribute *attrs;
 	unsigned int ncells = 0, i = 0;
 	int ret = 0;

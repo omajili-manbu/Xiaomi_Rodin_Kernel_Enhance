@@ -8675,6 +8675,11 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 	struct sched_domain *sd;
 	struct perf_domain *pd;
 	struct energy_env eenv;
+	int new_cpu = INT_MAX;
+
+	trace_android_rvh_find_energy_efficient_cpu(p, prev_cpu, sync, &new_cpu);
+	if (new_cpu != INT_MAX)
+		return new_cpu;
 
 	sync_entity_load_avg(&p->se);
 
@@ -9113,6 +9118,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	struct sched_entity *nse, *se = &donor->se, *pse = &p->se;
 	struct cfs_rq *cfs_rq = task_cfs_rq(donor);
 	int cse_is_idle, pse_is_idle;
+	int next_buddy_marked = 0;
 	bool ignore = false;
 	bool preempt = false;
 
@@ -9174,8 +9180,15 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 
 	cfs_rq = cfs_rq_of(se);
 	update_curr(cfs_rq);
+
+	/* recompute the 6.6-era next-buddy mark for android_rvh_check_preempt_wakeup */
+	if (sched_feat(NEXT_BUDDY) && !(wake_flags & WF_FORK))
+		next_buddy_marked = 1;
+
 	trace_android_rvh_check_preempt_wakeup_fair(rq, p, &preempt, &ignore,
 						wake_flags, se, pse);
+	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt, &ignore,
+				wake_flags, se, pse, next_buddy_marked);
 	if (preempt)
 		goto preempt;
 	if (ignore)
@@ -11728,6 +11741,8 @@ static struct sched_group *sched_balance_find_src_group(struct lb_env *env)
 		goto force_balance;
 
 	trace_android_rvh_sched_balance_find_src_group(sds.busiest, env->dst_rq, &out_balance);
+	trace_android_rvh_find_busiest_group(sds.busiest, env->dst_rq,
+					&out_balance);
 	if (!is_rd_overutilized(env->dst_rq->rd) &&
 	    rcu_dereference(env->dst_rq->rd->pd) && out_balance)
 		goto out_balanced;

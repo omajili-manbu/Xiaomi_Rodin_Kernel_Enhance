@@ -52,7 +52,7 @@ struct mutex {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	ANDROID_OEM_DATA(1);
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
 
 #else /* !CONFIG_PREEMPT_RT */
@@ -66,7 +66,7 @@ struct mutex {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	ANDROID_OEM_DATA(1);
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
 
 #endif /* CONFIG_PREEMPT_RT */

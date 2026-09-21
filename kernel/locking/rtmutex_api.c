@@ -47,10 +47,12 @@ static __always_inline int __rt_mutex_lock_common(struct rt_mutex *lock,
 	might_sleep();
 	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, _RET_IP_);
 	ret = __rt_mutex_lock(&lock->rtmutex, state);
-	if (ret)
+	if (ret) {
 		mutex_release(&lock->dep_map, _RET_IP_);
-	else
+	} else {
 		trace_android_vh_rtmutex_lock_acquired(lock);
+		trace_android_vh_record_rtmutex_lock_starttime(lock, jiffies);
+	}
 	return ret;
 }
 
@@ -145,6 +147,7 @@ int __sched rt_mutex_trylock(struct rt_mutex *lock)
 	ret = __rt_mutex_trylock(&lock->rtmutex);
 	if (ret) {
 		trace_android_vh_rtmutex_lock_acquired(lock);
+		trace_android_vh_record_rtmutex_lock_starttime(lock, jiffies);
 		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);
 	}
 
@@ -160,6 +163,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_trylock);
 void __sched rt_mutex_unlock(struct rt_mutex *lock)
 {
 	trace_android_vh_rtmutex_lock_released(lock);
+	trace_android_vh_record_rtmutex_lock_starttime(lock, 0);
 	mutex_release(&lock->dep_map, _RET_IP_);
 	__rt_mutex_unlock(&lock->rtmutex);
 }

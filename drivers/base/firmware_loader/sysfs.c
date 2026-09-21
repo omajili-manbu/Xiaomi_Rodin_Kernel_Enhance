@@ -259,7 +259,7 @@ static void firmware_rw(struct fw_priv *fw_priv, char *buffer,
 }
 
 static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
-				  const struct bin_attribute *bin_attr,
+				  struct bin_attribute *bin_attr,
 				  char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -316,7 +316,7 @@ static int fw_realloc_pages(struct fw_sysfs *fw_sysfs, int min_size)
  *	the driver as a firmware image.
  **/
 static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
-				   const struct bin_attribute *bin_attr,
+				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -356,7 +356,7 @@ out:
 	return retval;
 }
 
-static const struct bin_attribute firmware_attr_data = {
+static struct bin_attribute firmware_attr_data = {
 	.attr = { .name = "data", .mode = 0644 },
 	.size = 0,
 	.read = firmware_data_read,
@@ -374,7 +374,7 @@ static struct attribute *fw_dev_attrs[] = {
 	NULL
 };
 
-static const struct bin_attribute *const fw_dev_bin_attrs[] = {
+static struct bin_attribute *fw_dev_bin_attrs[] = {
 	&firmware_attr_data,
 	NULL
 };

@@ -823,7 +823,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 	 * support callback based unlocks
 	 */
 	if (io_file_can_poll(req) ||
-	    !(req->file->f_op->fop_flags & FOP_BUFFER_RASYNC))
+	    !(rodin_fop_flags(req->file->f_op) & FOP_BUFFER_RASYNC))
 		return false;
 
 	wait->wait.func = io_async_buf_func;
@@ -1160,7 +1160,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 
 		/* Check if we can support NOWAIT. */
 		if (!(kiocb->ki_flags & IOCB_DIRECT) &&
-		    !(req->file->f_op->fop_flags & FOP_BUFFER_WASYNC) &&
+		    !(rodin_fop_flags(req->file->f_op) & FOP_BUFFER_WASYNC) &&
 		    (req->flags & REQ_F_ISREG))
 			goto ret_eagain;
 

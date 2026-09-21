@@ -884,7 +884,7 @@ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 
 static int mem_open(struct inode *inode, struct file *file)
 {
-	if (WARN_ON_ONCE(!(file->f_op->fop_flags & FOP_UNSIGNED_OFFSET)))
+	if (WARN_ON_ONCE(!(rodin_fop_flags(file->f_op) & FOP_UNSIGNED_OFFSET)))
 		return -EINVAL;
 	return __mem_open(inode, file, PTRACE_MODE_ATTACH);
 }

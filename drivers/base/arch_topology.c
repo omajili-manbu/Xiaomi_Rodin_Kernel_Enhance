@@ -183,6 +183,10 @@ EXPORT_PER_CPU_SYMBOL_GPL(hw_pressure);
  * pressure value should simply be removed, since this is an indication that
  * there is no HW throttling. The @capped_freq must be provided in kHz.
  */
+/* rodin 6.6-compat: 6.6 modules read per-CPU thermal_pressure directly */
+DEFINE_PER_CPU(unsigned long, thermal_pressure);
+EXPORT_SYMBOL_GPL(thermal_pressure);
+
 void topology_update_hw_pressure(const struct cpumask *cpus,
 				      unsigned long capped_freq)
 {
@@ -209,6 +213,7 @@ void topology_update_hw_pressure(const struct cpumask *cpus,
 
 	for_each_cpu(cpu, cpus) {
 		WRITE_ONCE(per_cpu(hw_pressure, cpu), pressure);
+		WRITE_ONCE(per_cpu(thermal_pressure, cpu), pressure);
 		trace_android_rvh_update_thermal_stats(cpu);
 	}
 }

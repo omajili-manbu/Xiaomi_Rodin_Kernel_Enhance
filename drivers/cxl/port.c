@@ -105,7 +105,7 @@ static int cxl_port_probe(struct device *dev)
 }
 
 static ssize_t CDAT_read(struct file *filp, struct kobject *kobj,
-			 const struct bin_attribute *bin_attr, char *buf,
+			 struct bin_attribute *bin_attr, char *buf,
 			 loff_t offset, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -122,10 +122,10 @@ static ssize_t CDAT_read(struct file *filp, struct kobject *kobj,
 				       port->cdat.length);
 }
 
-static const BIN_ATTR_ADMIN_RO(CDAT, 0);
+static BIN_ATTR_ADMIN_RO(CDAT, 0);
 
 static umode_t cxl_port_bin_attr_is_visible(struct kobject *kobj,
-					    const struct bin_attribute *attr, int i)
+					    struct bin_attribute *attr, int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_port *port = to_cxl_port(dev);
@@ -136,7 +136,7 @@ static umode_t cxl_port_bin_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static const struct bin_attribute *const cxl_cdat_bin_attributes[] = {
+static struct bin_attribute *cxl_cdat_bin_attributes[] = {
 	&bin_attr_CDAT,
 	NULL,
 };

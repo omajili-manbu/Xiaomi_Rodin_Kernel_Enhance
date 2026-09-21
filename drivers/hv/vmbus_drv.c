@@ -1893,7 +1893,7 @@ static ssize_t subchannel_id_show(struct vmbus_channel *channel,
 static VMBUS_CHAN_ATTR_RO(subchannel_id);
 
 static int hv_mmap_ring_buffer_wrapper(struct file *filp, struct kobject *kobj,
-				       const struct bin_attribute *attr,
+				       struct bin_attribute *attr,
 				       struct vm_area_struct *vma)
 {
 	struct vmbus_channel *channel = container_of(kobj, struct vmbus_channel, kobj);
@@ -1931,7 +1931,7 @@ static struct attribute *vmbus_chan_attrs[] = {
 	NULL
 };
 
-static const struct bin_attribute *vmbus_chan_bin_attrs[] = {
+static struct bin_attribute *vmbus_chan_bin_attrs[] = {
 	&chan_attr_ring_buffer,
 	NULL
 };
@@ -1957,7 +1957,7 @@ static umode_t vmbus_chan_attr_is_visible(struct kobject *kobj,
 }
 
 static umode_t vmbus_chan_bin_attr_is_visible(struct kobject *kobj,
-					      const struct bin_attribute *attr, int idx)
+					      struct bin_attribute *attr, int idx)
 {
 	const struct vmbus_channel *channel =
 		container_of(kobj, struct vmbus_channel, kobj);
@@ -1970,7 +1970,7 @@ static umode_t vmbus_chan_bin_attr_is_visible(struct kobject *kobj,
 }
 
 static size_t vmbus_chan_bin_size(struct kobject *kobj,
-				  const struct bin_attribute *bin_attr, int a)
+				  struct bin_attribute *bin_attr, int a)
 {
 	const struct vmbus_channel *channel =
 		container_of(kobj, struct vmbus_channel, kobj);

@@ -813,7 +813,7 @@ out_unlock:
 }
 
 static ssize_t otp_read(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *bin_attr,
+			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(kobj_to_dev(kobj));
@@ -829,7 +829,7 @@ static ssize_t otp_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const BIN_ATTR_RO(otp, IMX208_OTP_SIZE);
+static BIN_ATTR_RO(otp, IMX208_OTP_SIZE);
 
 /* Initialize control handlers */
 static int imx208_init_controls(struct imx208 *imx208)

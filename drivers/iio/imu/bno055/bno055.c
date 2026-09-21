@@ -1201,7 +1201,7 @@ static ssize_t serialnumber_show(struct device *dev,
 }
 
 static ssize_t calibration_data_read(struct file *filp, struct kobject *kobj,
-				     const struct bin_attribute *bin_attr, char *buf,
+				     struct bin_attribute *bin_attr, char *buf,
 				     loff_t pos, size_t count)
 {
 	struct bno055_priv *priv = iio_priv(dev_to_iio_dev(kobj_to_dev(kobj)));
@@ -1356,9 +1356,9 @@ static struct attribute *bno055_attrs[] = {
 	NULL
 };
 
-static const BIN_ATTR_RO(calibration_data, BNO055_CALDATA_LEN);
+static BIN_ATTR_RO(calibration_data, BNO055_CALDATA_LEN);
 
-static const struct bin_attribute *const bno055_bin_attrs[] = {
+static struct bin_attribute *bno055_bin_attrs[] = {
 	&bin_attr_calibration_data,
 	NULL
 };

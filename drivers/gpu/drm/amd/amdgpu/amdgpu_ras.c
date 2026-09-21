@@ -1803,7 +1803,7 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
  */
 
 static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
-		struct kobject *kobj, const struct bin_attribute *attr,
+		struct kobject *kobj, struct bin_attribute *attr,
 		char *buf, loff_t ppos, size_t count)
 {
 	struct amdgpu_ras *con =
@@ -2138,7 +2138,7 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 /* debugfs end */
 
 /* ras fs */
-static const BIN_ATTR(gpu_vram_bad_pages, S_IRUGO,
+static BIN_ATTR(gpu_vram_bad_pages, S_IRUGO,
 		      amdgpu_ras_sysfs_badpages_read, NULL, 0);
 static DEVICE_ATTR(features, S_IRUGO,
 		amdgpu_ras_sysfs_features_read, NULL);
@@ -2161,7 +2161,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		&con->event_state_attr.attr,
 		NULL
 	};
-	const struct bin_attribute *bin_attrs[] = {
+	struct bin_attribute *bin_attrs[] = {
 		NULL,
 		NULL,
 	};

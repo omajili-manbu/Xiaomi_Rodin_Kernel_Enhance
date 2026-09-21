@@ -128,7 +128,7 @@ out:
 }
 
 static ssize_t sysfs_ofb_data_write(struct file *filp, struct kobject *kobj,
-				    const struct bin_attribute *bin_attr,
+				    struct bin_attribute *bin_attr,
 				    char *buf, loff_t off, size_t count)
 {
 	int rc;
@@ -137,7 +137,7 @@ static ssize_t sysfs_ofb_data_write(struct file *filp, struct kobject *kobj,
 	return rc ?: count;
 }
 
-static const struct bin_attribute ofb_bin_attr = {
+static struct bin_attribute ofb_bin_attr = {
 	.attr = {
 		.name = "event_data",
 		.mode = S_IWUSR,

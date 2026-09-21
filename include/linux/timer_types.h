@@ -2,6 +2,7 @@
 #ifndef _LINUX_TIMER_TYPES_H
 #define _LINUX_TIMER_TYPES_H
 
+#include <linux/android_kabi.h>
 #include <linux/lockdep_types.h>
 #include <linux/types.h>
 
@@ -18,6 +19,9 @@ struct timer_list {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map	lockdep_map;
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #endif /* _LINUX_TIMER_TYPES_H */

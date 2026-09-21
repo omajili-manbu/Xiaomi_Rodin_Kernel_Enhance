@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 
 #include <trace/events/geniezone.h>
+#include <trace/hooks/gzvm.h>
 #include <linux/soc/mediatek/gzvm_drv.h>
 
 /* maximum size needed for holding an integer */
@@ -189,6 +190,8 @@ static long gzvm_vcpu_run(struct gzvm_vcpu *vcpu, void __user *argp)
 				"vcpu unknown exit\n");
 			need_userspace = true;
 		}
+
+		trace_android_vh_gzvm_vcpu_exit_reason(vcpu, &need_userspace);
 	}
 
 	if (copy_to_user(argp, vcpu->run, sizeof(struct gzvm_vcpu_run)))

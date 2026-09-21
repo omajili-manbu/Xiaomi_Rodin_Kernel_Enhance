@@ -104,7 +104,7 @@ exit_up:
 }
 
 static ssize_t max6875_read(struct file *filp, struct kobject *kobj,
-			    const struct bin_attribute *bin_attr,
+			    struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = kobj_to_i2c_client(kobj);
@@ -121,7 +121,7 @@ static ssize_t max6875_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute user_eeprom_attr = {
+static struct bin_attribute user_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,

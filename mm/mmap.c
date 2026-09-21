@@ -260,7 +260,7 @@ static inline u64 file_mmap_size_max(struct file *file, struct inode *inode)
 		return MAX_LFS_FILESIZE;
 
 	/* Special "we do even unsigned file positions" case */
-	if (file->f_op->fop_flags & FOP_UNSIGNED_OFFSET)
+	if (rodin_fop_flags(file->f_op) & FOP_UNSIGNED_OFFSET)
 		return 0;
 
 	/* Yes, random drivers might want more. But I'm tired of buggy drivers */
@@ -434,9 +434,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 		if (!file_mmap_ok(file, inode, pgoff, len))
 			return -EOVERFLOW;
 
-		flags_mask = LEGACY_MAP_MASK;
-		if (file->f_op->fop_flags & FOP_MMAP_SYNC)
-			flags_mask |= MAP_SYNC;
+		flags_mask = LEGACY_MAP_MASK | file->f_op->mmap_supported_flags;
 
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:

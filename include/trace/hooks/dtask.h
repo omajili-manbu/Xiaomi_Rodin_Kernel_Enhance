@@ -178,6 +178,18 @@ DECLARE_HOOK(android_vh_pcpu_rwsem_lock_acquired,
 DECLARE_HOOK(android_vh_pcpu_rwsem_lock_released,
 	TP_PROTO(struct percpu_rw_semaphore *sem),
 	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_record_mutex_lock_starttime,
+	TP_PROTO(struct mutex *lock, unsigned long settime_jiffies),
+	TP_ARGS(lock, settime_jiffies));
+DECLARE_HOOK(android_vh_record_rtmutex_lock_starttime,
+	TP_PROTO(struct rt_mutex *lock, unsigned long settime_jiffies),
+	TP_ARGS(lock, settime_jiffies));
+DECLARE_HOOK(android_vh_record_rwsem_lock_starttime,
+	TP_PROTO(struct rw_semaphore *sem, unsigned long settime_jiffies),
+	TP_ARGS(sem, settime_jiffies));
+DECLARE_HOOK(android_vh_record_pcpu_rwsem_starttime,
+	TP_PROTO(struct percpu_rw_semaphore *sem, unsigned long settime_jiffies),
+	TP_ARGS(sem, settime_jiffies));
 DECLARE_HOOK(android_vh_lock_delay_schedule,
 	TP_PROTO(struct task_struct *prev, int sched_mode, bool *ext_slice),
 	TP_ARGS(prev, sched_mode, ext_slice));

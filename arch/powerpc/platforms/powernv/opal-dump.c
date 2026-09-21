@@ -286,7 +286,7 @@ out:
 }
 
 static ssize_t dump_attr_read(struct file *filep, struct kobject *kobj,
-			      const struct bin_attribute *bin_attr,
+			      struct bin_attribute *bin_attr,
 			      char *buffer, loff_t pos, size_t count)
 {
 	ssize_t rc;

@@ -160,6 +160,7 @@ static __always_inline bool __mutex_trylock_fast(struct mutex *lock)
 
 	if (atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr)) {
 		trace_android_vh_mutex_lock_acquired(lock);
+		trace_android_vh_record_mutex_lock_starttime(lock, jiffies);
 		return true;
 	}
 
@@ -551,11 +552,13 @@ void __sched mutex_unlock(struct mutex *lock)
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 	if (__mutex_unlock_fast(lock)) {
 		trace_android_vh_mutex_lock_released(lock);
+		trace_android_vh_record_mutex_lock_starttime(lock, 0);
 		return;
 	}
 #endif
 	__mutex_unlock_slowpath(lock, _RET_IP_);
 	trace_android_vh_mutex_lock_released(lock);
+	trace_android_vh_record_mutex_lock_starttime(lock, 0);
 }
 EXPORT_SYMBOL(mutex_unlock);
 
@@ -775,6 +778,7 @@ skip_wait:
 
 	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 	trace_android_vh_mutex_lock_acquired(lock);
+	trace_android_vh_record_mutex_lock_starttime(lock, jiffies);
 	preempt_enable();
 	return 0;
 
@@ -1178,8 +1182,10 @@ int __sched mutex_trylock(struct mutex *lock)
 	MUTEX_WARN_ON(lock->magic != lock);
 
 	locked = __mutex_trylock(lock);
-	if (locked)
+	if (locked) {
 		trace_android_vh_mutex_lock_acquired(lock);
+		trace_android_vh_record_mutex_lock_starttime(lock, jiffies);
+	}
 
 	return locked;
 }

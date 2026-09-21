@@ -128,12 +128,13 @@ struct phy_ops {
 	int	(*reset)(struct phy *phy);
 	int	(*calibrate)(struct phy *phy);
 
+	void	(*release)(struct phy *phy);
+	struct module *owner;
+
+	/* rodin 6.6-compat: moved to the tail to keep 6.6 member offsets */
 	/* notify phy connect status change */
 	int	(*connect)(struct phy *phy, int port);
 	int	(*disconnect)(struct phy *phy, int port);
-
-	void	(*release)(struct phy *phy);
-	struct module *owner;
 };
 
 /**

@@ -83,7 +83,12 @@ static DEFINE_IDA(wakeup_ida);
  * wakeup_source_create - Create a struct wakeup_source object.
  * @name: Name of the new wakeup source.
  */
-static struct wakeup_source *wakeup_source_create(const char *name)
+struct wakeup_source *wakeup_source_create(const char *name);
+void wakeup_source_destroy(struct wakeup_source *ws);
+void wakeup_source_add(struct wakeup_source *ws);
+void wakeup_source_remove(struct wakeup_source *ws);
+
+struct wakeup_source *wakeup_source_create(const char *name)
 {
 	struct wakeup_source *ws;
 	const char *ws_name;
@@ -154,7 +159,7 @@ static void wakeup_source_free(struct wakeup_source *ws)
  *
  * Use only for wakeup source objects created with wakeup_source_create().
  */
-static void wakeup_source_destroy(struct wakeup_source *ws)
+void wakeup_source_destroy(struct wakeup_source *ws)
 {
 	if (!ws)
 		return;
@@ -168,7 +173,7 @@ static void wakeup_source_destroy(struct wakeup_source *ws)
  * wakeup_source_add - Add given object to the list of wakeup sources.
  * @ws: Wakeup source object to add to the list.
  */
-static void wakeup_source_add(struct wakeup_source *ws)
+void wakeup_source_add(struct wakeup_source *ws)
 {
 	unsigned long flags;
 
@@ -188,7 +193,7 @@ static void wakeup_source_add(struct wakeup_source *ws)
  * wakeup_source_remove - Remove given object from the wakeup sources list.
  * @ws: Wakeup source object to remove from the list.
  */
-static void wakeup_source_remove(struct wakeup_source *ws)
+void wakeup_source_remove(struct wakeup_source *ws)
 {
 	unsigned long flags;
 
@@ -1342,3 +1347,8 @@ static int __init wakeup_sources_init(void)
 }
 
 postcore_initcall(wakeup_sources_init);
+
+EXPORT_SYMBOL_GPL(wakeup_source_create);
+EXPORT_SYMBOL_GPL(wakeup_source_destroy);
+EXPORT_SYMBOL_GPL(wakeup_source_add);
+EXPORT_SYMBOL_GPL(wakeup_source_remove);

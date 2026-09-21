@@ -3753,7 +3753,7 @@ DEVICE_FREQ_GROUP(freq4, 3);
 
 static ssize_t
 disciplining_config_read(struct file *filp, struct kobject *kobj,
-			 const struct bin_attribute *bin_attr, char *buf,
+			 struct bin_attribute *bin_attr, char *buf,
 			 loff_t off, size_t count)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(kobj_to_dev(kobj));
@@ -3788,7 +3788,7 @@ out:
 
 static ssize_t
 disciplining_config_write(struct file *filp, struct kobject *kobj,
-			  const struct bin_attribute *bin_attr, char *buf,
+			  struct bin_attribute *bin_attr, char *buf,
 			  loff_t off, size_t count)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(kobj_to_dev(kobj));
@@ -3811,11 +3811,11 @@ disciplining_config_write(struct file *filp, struct kobject *kobj,
 
 	return err;
 }
-static const BIN_ATTR_RW(disciplining_config, OCP_ART_CONFIG_SIZE);
+static BIN_ATTR_RW(disciplining_config, OCP_ART_CONFIG_SIZE);
 
 static ssize_t
 temperature_table_read(struct file *filp, struct kobject *kobj,
-		       const struct bin_attribute *bin_attr, char *buf,
+		       struct bin_attribute *bin_attr, char *buf,
 		       loff_t off, size_t count)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(kobj_to_dev(kobj));
@@ -3850,7 +3850,7 @@ out:
 
 static ssize_t
 temperature_table_write(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *bin_attr, char *buf,
+			struct bin_attribute *bin_attr, char *buf,
 			loff_t off, size_t count)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(kobj_to_dev(kobj));
@@ -3873,7 +3873,7 @@ temperature_table_write(struct file *filp, struct kobject *kobj,
 
 	return err;
 }
-static const BIN_ATTR_RW(temperature_table, OCP_ART_TEMP_TABLE_SIZE);
+static BIN_ATTR_RW(temperature_table, OCP_ART_TEMP_TABLE_SIZE);
 
 static struct attribute *fb_timecard_attrs[] = {
 	&dev_attr_serialnum.attr,
@@ -3928,7 +3928,7 @@ static struct attribute *art_timecard_attrs[] = {
 	NULL,
 };
 
-static const struct bin_attribute *const bin_art_timecard_attrs[] = {
+static struct bin_attribute *bin_art_timecard_attrs[] = {
 	&bin_attr_disciplining_config,
 	&bin_attr_temperature_table,
 	NULL,

@@ -89,17 +89,6 @@ struct shrinker {
 	int seeks;	/* seeks to recreate an obj */
 	unsigned flags;
 
-	/*
-	 * The reference count of this shrinker. Registered shrinker have an
-	 * initial refcount of 1, then the lookup operations are now allowed
-	 * to use it via shrinker_try_get(). Later in the unregistration step,
-	 * the initial refcount will be discarded, and will free the shrinker
-	 * asynchronously via RCU after its refcount reaches 0.
-	 */
-	refcount_t refcount;
-	struct completion done;	/* use to wait for refcount to reach 0 */
-	struct rcu_head rcu;
-
 	void *private_data;
 
 	/* These are for internal use */
@@ -115,6 +104,19 @@ struct shrinker {
 #endif
 	/* objs pending delete, per node */
 	atomic_long_t *nr_deferred;
+
+	/*
+	 * The reference count of this shrinker. Registered shrinker have an
+	 * initial refcount of 1, then the lookup operations are now allowed
+	 * to use it via shrinker_try_get(). Later in the unregistration step,
+	 * the initial refcount will be discarded, and will free the shrinker
+	 * asynchronously via RCU after its refcount reaches 0.
+	 *
+	 * rodin 6.6-compat: moved to the tail to keep 6.6 member offsets.
+	 */
+	refcount_t refcount;
+	struct completion done;	/* use to wait for refcount to reach 0 */
+	struct rcu_head rcu;
 };
 #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
 

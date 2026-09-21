@@ -60,7 +60,7 @@
 
 static ssize_t arcmsr_sysfs_iop_message_read(struct file *filp,
 					     struct kobject *kobj,
-					     const struct bin_attribute *bin,
+					     struct bin_attribute *bin,
 					     char *buf, loff_t off,
 					     size_t count)
 {
@@ -107,7 +107,7 @@ static ssize_t arcmsr_sysfs_iop_message_read(struct file *filp,
 
 static ssize_t arcmsr_sysfs_iop_message_write(struct file *filp,
 					      struct kobject *kobj,
-					      const struct bin_attribute *bin,
+					      struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)
 {
@@ -155,7 +155,7 @@ static ssize_t arcmsr_sysfs_iop_message_write(struct file *filp,
 
 static ssize_t arcmsr_sysfs_iop_message_clear(struct file *filp,
 					      struct kobject *kobj,
-					      const struct bin_attribute *bin,
+					      struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)
 {
@@ -188,7 +188,7 @@ static ssize_t arcmsr_sysfs_iop_message_clear(struct file *filp,
 	return 1;
 }
 
-static const struct bin_attribute arcmsr_sysfs_message_read_attr = {
+static struct bin_attribute arcmsr_sysfs_message_read_attr = {
 	.attr = {
 		.name = "mu_read",
 		.mode = S_IRUSR ,
@@ -197,7 +197,7 @@ static const struct bin_attribute arcmsr_sysfs_message_read_attr = {
 	.read = arcmsr_sysfs_iop_message_read,
 };
 
-static const struct bin_attribute arcmsr_sysfs_message_write_attr = {
+static struct bin_attribute arcmsr_sysfs_message_write_attr = {
 	.attr = {
 		.name = "mu_write",
 		.mode = S_IWUSR,
@@ -206,7 +206,7 @@ static const struct bin_attribute arcmsr_sysfs_message_write_attr = {
 	.write = arcmsr_sysfs_iop_message_write,
 };
 
-static const struct bin_attribute arcmsr_sysfs_message_clear_attr = {
+static struct bin_attribute arcmsr_sysfs_message_clear_attr = {
 	.attr = {
 		.name = "mu_clear",
 		.mode = S_IWUSR,

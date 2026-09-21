@@ -1106,7 +1106,7 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	case NFSD_IO_BUFFERED:
 		break;
 	case NFSD_IO_DONTCACHE:
-		if (file->f_op->fop_flags & FOP_DONTCACHE)
+		if (rodin_fop_flags(file->f_op) & FOP_DONTCACHE)
 			kiocb.ki_flags = IOCB_DONTCACHE;
 		break;
 	}
@@ -1251,7 +1251,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	case NFSD_IO_BUFFERED:
 		break;
 	case NFSD_IO_DONTCACHE:
-		if (file->f_op->fop_flags & FOP_DONTCACHE)
+		if (rodin_fop_flags(file->f_op) & FOP_DONTCACHE)
 			kiocb.ki_flags |= IOCB_DONTCACHE;
 		break;
 	}

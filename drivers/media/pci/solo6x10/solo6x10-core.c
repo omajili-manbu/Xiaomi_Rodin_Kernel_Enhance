@@ -362,7 +362,7 @@ static ssize_t sdram_offsets_show(struct device *dev,
 }
 
 static ssize_t sdram_show(struct file *file, struct kobject *kobj,
-			  const struct bin_attribute *a, char *buf,
+			  struct bin_attribute *a, char *buf,
 			  loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);

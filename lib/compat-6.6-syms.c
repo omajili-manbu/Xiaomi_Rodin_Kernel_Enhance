@@ -3,6 +3,13 @@
 #include <linux/export.h>
 #include <linux/printk.h>
 #include <net/dropreason-core.h>
+#include <linux/io.h>
+#include <asm/io.h>
+
+/* 6.18 turned fortify_panic into a macro; our 6.6-shaped one comes below */
+#ifdef fortify_panic
+#undef fortify_panic
+#endif
 
 #ifdef CONFIG_MODULE_FORCE_LOAD
 
@@ -39,3 +46,28 @@ void fortify_panic(const char *name)
 EXPORT_SYMBOL(fortify_panic);
 
 #endif
+
+/* ---- arm64 io-memory primitives renamed in 6.18 (lib/iomem_copy.c) ---- */
+
+void __memset_io(volatile void __iomem *dst, int c, size_t count);
+void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count);
+void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count);
+
+
+void __memset_io(volatile void __iomem *dst, int c, size_t count)
+{
+	memset_io(dst, c, count);
+}
+EXPORT_SYMBOL(__memset_io);
+
+void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
+{
+	memcpy_toio(to, from, count);
+}
+EXPORT_SYMBOL(__memcpy_toio);
+
+void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
+{
+	memcpy_fromio(to, from, count);
+}
+EXPORT_SYMBOL(__memcpy_fromio);

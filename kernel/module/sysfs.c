@@ -26,7 +26,7 @@ struct module_sect_attrs {
 
 #define MODULE_SECT_READ_SIZE (3 /* "0x", "\n" */ + (BITS_PER_LONG / 4))
 static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
-				const struct bin_attribute *battr,
+				struct bin_attribute *battr,
 				char *buf, loff_t pos, size_t count)
 {
 	char bounce[MODULE_SECT_READ_SIZE + 1];
@@ -54,7 +54,7 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 
 static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 {
-	const struct bin_attribute *const *bin_attr;
+	struct bin_attribute **bin_attr;
 
 	for (bin_attr = sect_attrs->grp.bin_attrs; *bin_attr; bin_attr++)
 		kfree((*bin_attr)->attr.name);
@@ -65,7 +65,7 @@ static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 static int add_sect_attrs(struct module *mod, const struct load_info *info)
 {
 	struct module_sect_attrs *sect_attrs;
-	const struct bin_attribute **gattr;
+	struct bin_attribute **gattr;
 	struct bin_attribute *sattr;
 	unsigned int nloaded = 0, i;
 	int ret;
@@ -152,7 +152,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 {
 	unsigned int notes, loaded, i;
 	struct module_notes_attrs *notes_attrs;
-	const struct bin_attribute **gattr;
+	struct bin_attribute **gattr;
 	struct bin_attribute *nattr;
 	int ret;
 

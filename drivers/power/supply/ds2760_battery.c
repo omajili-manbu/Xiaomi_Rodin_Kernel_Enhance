@@ -194,16 +194,16 @@ static int w1_ds2760_recall_eeprom(struct device *dev, int addr)
 }
 
 static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
-			     const struct bin_attribute *bin_attr, char *buf,
+			     struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	return w1_ds2760_read(dev, buf, off, count);
 }
 
-static const BIN_ATTR_RO(w1_slave, DS2760_DATA_SIZE);
+static BIN_ATTR_RO(w1_slave, DS2760_DATA_SIZE);
 
-static const struct bin_attribute *const w1_ds2760_bin_attrs[] = {
+static struct bin_attribute *w1_ds2760_bin_attrs[] = {
 	&bin_attr_w1_slave,
 	NULL,
 };

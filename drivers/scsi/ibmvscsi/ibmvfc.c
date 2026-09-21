@@ -3641,7 +3641,7 @@ static DEVICE_ATTR(nr_scsi_channels, S_IRUGO | S_IWUSR,
  *	number of bytes printed to buffer
  **/
 static ssize_t ibmvfc_read_trace(struct file *filp, struct kobject *kobj,
-				 const struct bin_attribute *bin_attr,
+				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -3664,7 +3664,7 @@ static ssize_t ibmvfc_read_trace(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute ibmvfc_trace_attr = {
+static struct bin_attribute ibmvfc_trace_attr = {
 	.attr =	{
 		.name = "trace",
 		.mode = S_IRUGO,
