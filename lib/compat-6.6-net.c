@@ -3,6 +3,9 @@
  * rodin 6.6-compat: netdev/skb symbols 6.18 inlined, renamed or removed,
  * needed by prebuilt 6.6 vendor modules (wlan/ccci/r8152/tipc/mac80211...).
  */
+#define rhashtable_init		rhashtable_init_618
+#define rhltable_init		rhltable_init_618
+#define sock_i_uid		sock_i_uid_618
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define __netif_napi_del		__netif_napi_del_618
@@ -11,8 +14,6 @@
 #define sock_i_ino			sock_i_ino_618
 #define sock_i_uid			sock_i_uid_618
 #define dev_nit_active			dev_nit_active_618
-#define rhashtable_init			rhashtable_init_618
-#define rhltable_init			rhltable_init_618
 #define snd_soc_set_runtime_hwparams	snd_soc_set_runtime_hwparams_618
 #define napi_gro_flush			napi_gro_flush_618
 
