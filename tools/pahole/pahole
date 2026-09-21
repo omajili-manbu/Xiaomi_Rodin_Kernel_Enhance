@@ -1,0 +1,27 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+#
+# In-tree pahole for BTF generation (v1.32, built from the dwarves repository).
+#
+# Kernel 6.18 requires pahole >= 1.26 to generate BTF. Several distributions
+# still ship an older one (Ubuntu 24.04 ships v1.25), which makes the build
+# fail with:
+#
+#   BTFIDS  vmlinux.unstripped
+#   FAILED: load BTF from vmlinux.unstripped: Invalid argument
+#
+# The top-level Makefile points PAHOLE at this wrapper, so a plain build always
+# uses the bundled copy and no PATH surgery or PAHOLE= override is needed.
+# The ELF binary sits next to this script as pahole-v1.32 together with the
+# libdwarves*.so.1 libraries it links against, hence LD_LIBRARY_PATH below.
+# If the bundled binary is missing, fall back to a system pahole.
+
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+if [ ! -x "$dir/pahole-v1.32" ]; then
+	exec pahole "$@"
+fi
+
+LD_LIBRARY_PATH="$dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
+exec "$dir/pahole-v1.32" "$@"
