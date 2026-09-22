@@ -12,6 +12,8 @@ struct resource;
 struct reserved_mem {
 	const char			*name;
 	unsigned long			fdt_node;
+	/* Kept for the 6.6 layout that prebuilt vendor modules were built with. */
+	unsigned long			phandle;
 	const struct reserved_mem_ops	*ops;
 	phys_addr_t			base;
 	phys_addr_t			size;

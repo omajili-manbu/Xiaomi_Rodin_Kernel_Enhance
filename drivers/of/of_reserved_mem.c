@@ -584,10 +584,18 @@ static void __init __rmem_check_for_overlap(void)
 static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem)
 {
 	unsigned long node = rmem->fdt_node;
+	int len;
+	const __be32 *prop;
 	int err = 0;
 	bool nomap;
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
+
+	prop = of_get_flat_dt_prop(node, "phandle", &len);
+	if (!prop)
+		prop = of_get_flat_dt_prop(node, "linux,phandle", &len);
+	if (prop)
+		rmem->phandle = of_read_number(prop, len / 4);
 
 	err = __reserved_mem_init_node(rmem);
 	if (err != 0 && err != -ENOENT) {
