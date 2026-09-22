@@ -1505,7 +1505,7 @@ out_free_disk:
 	return NULL;
 }
 
-struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
+struct gendisk *__blk_alloc_disk_k618(struct queue_limits *lim, int node,
 		struct lock_class_key *lkclass)
 {
 	struct queue_limits default_lim = { };
@@ -1524,7 +1524,6 @@ struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
 	set_bit(GD_OWNS_QUEUE, &disk->state);
 	return disk;
 }
-EXPORT_SYMBOL(__blk_alloc_disk);
 
 /**
  * put_disk - decrements the gendisk refcount

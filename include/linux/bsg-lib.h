@@ -64,9 +64,12 @@ struct bsg_job {
 
 void bsg_job_done(struct bsg_job *job, int result,
 		  unsigned int reply_payload_rcv_len);
-struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+struct request_queue *bsg_setup_queue_k618(struct device *dev, const char *name,
 		struct queue_limits *lim, bsg_job_fn *job_fn,
 		bsg_timeout_fn *timeout, int dd_job_size);
+/* 树内调用点走 6.18 原型；6.6 原型（无 lim）在 compat-6.6-block.c 导出 */
+#define bsg_setup_queue(dev, name, lim, job_fn, timeout, dd_job_size)	\
+	bsg_setup_queue_k618(dev, name, lim, job_fn, timeout, dd_job_size)
 void bsg_remove_queue(struct request_queue *q);
 void bsg_job_put(struct bsg_job *job);
 int __must_check bsg_job_get(struct bsg_job *job);

@@ -1245,7 +1245,7 @@ static void devm_reset_control_release_deasserted(struct device *dev, void *res)
 }
 
 struct reset_control *
-__devm_reset_control_get(struct device *dev, const char *id, int index,
+__devm_reset_control_get_k618(struct device *dev, const char *id, int index,
 			 enum reset_control_flags flags)
 {
 	struct reset_control **ptr, *rstc;
@@ -1281,7 +1281,6 @@ __devm_reset_control_get(struct device *dev, const char *id, int index,
 
 	return rstc;
 }
-EXPORT_SYMBOL_GPL(__devm_reset_control_get);
 
 struct reset_control_bulk_devres {
 	int num_rstcs;

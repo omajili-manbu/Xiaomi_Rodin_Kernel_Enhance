@@ -106,7 +106,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 const void *__v4l2_find_nearest_size(const void *array, size_t array_size,
 				     size_t entry_size, size_t width_offset,
 				     size_t height_offset, int width, int height);
-void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
+/* 6.6 首参是 struct _ddebug *（描述符），实现不读它 —— 用不透明指针承接 */
+void ___drm_dbg(const void *desc, enum drm_debug_category category,
 		const char *format, ...);
 int sdio_register_driver(struct sdio_driver *drv);
 int register_virtio_driver(struct virtio_driver *driver);
@@ -202,7 +203,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 const void *__v4l2_find_nearest_size(const void *array, size_t array_size,
 				     size_t entry_size, size_t width_offset,
 				     size_t height_offset, int width, int height);
-void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
+/* 6.6 首参是 struct _ddebug *（描述符），实现不读它 —— 用不透明指针承接 */
+void ___drm_dbg(const void *desc, enum drm_debug_category category,
 		const char *format, ...);
 int sdio_register_driver(struct sdio_driver *drv);
 int register_virtio_driver(struct virtio_driver *driver);
@@ -382,7 +384,14 @@ EXPORT_SYMBOL_GPL(__v4l2_find_nearest_size);
 
 /* ---- drm: 6.6 print entry points ---- */
 
-void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
+/*
+ * 6.6: ___drm_dbg(struct _ddebug *desc, category, fmt, ...) —— 首参是调用点的
+ * dynamic-debug 描述符（在模块 .data 内），6.6 实现只做 __drm_debug_enabled()
+ * 过滤后 printk，从不读 desc。6.18 改成以 drm_device* 为首参，所以这里必须把
+ * 首参当不透明指针：既不解引用（否则 6.6 模块把描述符传进来会被当 drm_device
+ * 解引用成野指针），也不用于设备名前缀（6.6 的输出本来就没有设备名前缀）。
+ */
+void ___drm_dbg(const void *desc, enum drm_debug_category category,
 		const char *format, ...)
 {
 	struct va_format vaf;
@@ -391,7 +400,7 @@ void ___drm_dbg(const struct drm_device *dev, enum drm_debug_category category,
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
-	__drm_dev_dbg(NULL, dev ? dev->dev : NULL, category, "%pV", &vaf);
+	__drm_dev_dbg(NULL, NULL, category, "%pV", &vaf);
 	va_end(args);
 }
 EXPORT_SYMBOL(___drm_dbg);

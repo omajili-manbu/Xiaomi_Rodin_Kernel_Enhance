@@ -23,15 +23,22 @@ struct gpio_chip;
 struct pinctrl;
 struct pinctrl_state;
 
+/* 树内调用点走 6.18 原型 *_k618；6.6 原型（全局 GPIO 编号）的同名符号
+ * 在 drivers/pinctrl/core.c 导出，供预编译 6.6 厂商模块解析 */
+#define pinctrl_gpio_direction_input(gc, offset) \
+	pinctrl_gpio_direction_input_k618(gc, offset)
+#define pinctrl_gpio_direction_output(gc, offset) \
+	pinctrl_gpio_direction_output_k618(gc, offset)
+
 #ifdef CONFIG_PINCTRL
 
 /* External interface to pin control */
 bool pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset);
 int pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset);
 void pinctrl_gpio_free(struct gpio_chip *gc, unsigned int offset);
-int pinctrl_gpio_direction_input(struct gpio_chip *gc,
+int pinctrl_gpio_direction_input_k618(struct gpio_chip *gc,
 				 unsigned int offset);
-int pinctrl_gpio_direction_output(struct gpio_chip *gc,
+int pinctrl_gpio_direction_output_k618(struct gpio_chip *gc,
 				  unsigned int offset);
 int pinctrl_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 				unsigned long config);
@@ -90,13 +97,13 @@ pinctrl_gpio_free(struct gpio_chip *gc, unsigned int offset)
 }
 
 static inline int
-pinctrl_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
+pinctrl_gpio_direction_input_k618(struct gpio_chip *gc, unsigned int offset)
 {
 	return 0;
 }
 
 static inline int
-pinctrl_gpio_direction_output(struct gpio_chip *gc, unsigned int offset)
+pinctrl_gpio_direction_output_k618(struct gpio_chip *gc, unsigned int offset)
 {
 	return 0;
 }

@@ -359,7 +359,7 @@ static const struct blk_mq_ops bsg_mq_ops = {
  * @timeout: timeout handler function pointer
  * @dd_job_size: size of LLD data needed for each job
  */
-struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+struct request_queue *bsg_setup_queue_k618(struct device *dev, const char *name,
 		struct queue_limits *lim, bsg_job_fn *job_fn,
 		bsg_timeout_fn *timeout, int dd_job_size)
 {
@@ -409,4 +409,3 @@ out_tag_set:
 	kfree(bset);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(bsg_setup_queue);

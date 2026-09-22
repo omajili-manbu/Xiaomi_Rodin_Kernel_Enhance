@@ -6906,7 +6906,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
 	return sc.nr_reclaimed;
 }
 
-unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+unsigned long try_to_free_mem_cgroup_pages_k618(struct mem_cgroup *memcg,
 					   unsigned long nr_pages,
 					   gfp_t gfp_mask,
 					   unsigned int reclaim_options,
@@ -6947,7 +6947,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 	return nr_reclaimed;
 }
 #else
-unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+unsigned long try_to_free_mem_cgroup_pages_k618(struct mem_cgroup *memcg,
 					   unsigned long nr_pages,
 					   gfp_t gfp_mask,
 					   unsigned int reclaim_options,
@@ -6956,7 +6956,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 	return 0;
 }
 #endif
-EXPORT_SYMBOL_GPL(try_to_free_mem_cgroup_pages);
 
 static void kswapd_age_node(struct pglist_data *pgdat, struct scan_control *sc)
 {

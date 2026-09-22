@@ -885,11 +885,10 @@ static int pinctrl_gpio_direction(struct gpio_chip *gc, unsigned int offset,
  * as part of their gpio_direction_input() semantics, platforms and individual
  * drivers shall *NOT* touch pin control GPIO calls.
  */
-int pinctrl_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
+int pinctrl_gpio_direction_input_k618(struct gpio_chip *gc, unsigned int offset)
 {
 	return pinctrl_gpio_direction(gc, offset, true);
 }
-EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
 
 /**
  * pinctrl_gpio_direction_output() - request a GPIO pin to go into output mode
@@ -900,11 +899,10 @@ EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
  * as part of their gpio_direction_output() semantics, platforms and individual
  * drivers shall *NOT* touch pin control GPIO calls.
  */
-int pinctrl_gpio_direction_output(struct gpio_chip *gc, unsigned int offset)
+int pinctrl_gpio_direction_output_k618(struct gpio_chip *gc, unsigned int offset)
 {
 	return pinctrl_gpio_direction(gc, offset, false);
 }
-EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
 
 /**
  * pinctrl_gpio_set_config() - Apply config to given GPIO pin
@@ -2423,3 +2421,87 @@ static int __init pinctrl_init(void)
 
 /* init early since many drivers really need to initialized pinmux early */
 core_initcall(pinctrl_init);
+
+/* ---------------------------------------------------------------- *
+ * 第五轮：6.6 的 pinctrl_gpio_direction_input()/output() 收的是 GPIO 子系统
+ * 的**全局编号**，并按 GPIO range 反查 pin controller（6.6 core.c 的
+ * pinctrl_match_gpio_range/gpio_to_pin 都是 gpio 号版本）；6.18 改成
+ * (gpio_chip*, offset)（6.18 版本已改名 *_k618，树内调用点经 consumer.h 宏走）。
+ * 预编译的 6.6 厂商模块（pinctrl-mtk-v2）仍传全局编号 —— 若按 6.18 解析会把
+ * 小整数当 gpio_chip 指针解引用。这里把 6.6 的查找路径原样恢复。
+ * ---------------------------------------------------------------- */
+#undef pinctrl_gpio_direction_input
+#undef pinctrl_gpio_direction_output
+
+/* rodin-sig-protos: 6.6 原型（consumer.h 里已改为 6.18 原型 + 重定向宏） */
+int pinctrl_gpio_direction_input(unsigned int gpio);
+int pinctrl_gpio_direction_output(unsigned int gpio);
+
+static struct pinctrl_gpio_range *
+rodin66_match_gpio_range(struct pinctrl_dev *pctldev, unsigned int gpio)
+{
+	struct pinctrl_gpio_range *range;
+
+	mutex_lock(&pctldev->mutex);
+	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+		if (gpio >= range->base && gpio < range->base + range->npins) {
+			mutex_unlock(&pctldev->mutex);
+			return range;
+		}
+	}
+	mutex_unlock(&pctldev->mutex);
+	return NULL;
+}
+
+static int rodin66_get_device_gpio_range(unsigned int gpio,
+					 struct pinctrl_dev **outdev,
+					 struct pinctrl_gpio_range **outrange)
+{
+	struct pinctrl_dev *pctldev;
+
+	mutex_lock(&pinctrldev_list_mutex);
+	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+		struct pinctrl_gpio_range *range;
+
+		range = rodin66_match_gpio_range(pctldev, gpio);
+		if (range) {
+			*outdev = pctldev;
+			*outrange = range;
+			mutex_unlock(&pinctrldev_list_mutex);
+			return 0;
+		}
+	}
+	mutex_unlock(&pinctrldev_list_mutex);
+	return -EPROBE_DEFER;
+}
+
+static int rodin66_pinctrl_gpio_direction(unsigned int gpio, bool input)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	int ret, pin;
+
+	ret = rodin66_get_device_gpio_range(gpio, &pctldev, &range);
+	if (ret)
+		return ret;
+
+	mutex_lock(&pctldev->mutex);
+	/* 6.6 gpio_to_pin(): 偏移按 range->base 计算 */
+	pin = gpio - range->base;
+	pin = range->pins ? range->pins[pin] : range->pin_base + pin;
+	ret = pinmux_gpio_direction(pctldev, range, pin, input);
+	mutex_unlock(&pctldev->mutex);
+	return ret;
+}
+
+int pinctrl_gpio_direction_input(unsigned int gpio)
+{
+	return rodin66_pinctrl_gpio_direction(gpio, true);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
+
+int pinctrl_gpio_direction_output(unsigned int gpio)
+{
+	return rodin66_pinctrl_gpio_direction(gpio, false);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);

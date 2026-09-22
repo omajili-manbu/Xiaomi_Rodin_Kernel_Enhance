@@ -412,3 +412,76 @@ void virtqueue_disable_dma_api_for_buffers(struct virtqueue *vq)
 	}
 }
 EXPORT_SYMBOL_GPL(virtqueue_disable_dma_api_for_buffers);
+
+/* ------------------------------------------------------------------ *
+ * 第五轮：原型变了但厂商模块仍在按 6.6 调用（真机 zram panic 的根因）。
+ * 6.18 的实现已改名为 *_k618，这里导出 6.6 原型。
+ * ------------------------------------------------------------------ */
+#include <linux/bsg-lib.h>
+
+/* 6.18 头里为树内调用点加了重定向宏；这里要定义 6.6 原型的同名函数 */
+#undef blk_rq_map_kern
+#undef bsg_setup_queue
+
+/* rodin-sig-protos: 6.6 原型（6.18 头文件里已改名，补声明避免
+ * -Wmissing-prototypes；参数与 6.6 完全一致） */
+struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass);
+struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
+				    struct lock_class_key *lkclass);
+int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
+		    unsigned int len, gfp_t gfp_mask);
+int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
+		    struct scatterlist *sglist, struct scatterlist **last_sg);
+struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+				      bsg_job_fn *job_fn, bsg_timeout_fn *timeout,
+				      int dd_job_size);
+
+/* 6.6 include/linux/blkdev.h: __blk_alloc_disk(int node, lkclass)
+ * 6.18: __blk_alloc_disk(lim, node, lkclass) —— 多出的 lim 传 NULL 即 6.6 默认
+ * （6.6 的 gendisk 没有 queue_limits 入参，默认限制由 blk_set_default_limits 给）。 */
+struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass)
+{
+	return __blk_alloc_disk_k618(NULL, node, lkclass);
+}
+EXPORT_SYMBOL(__blk_alloc_disk);
+
+/* 6.6 blk-mq.h: __blk_mq_alloc_disk(set, queuedata, lkclass)
+ * 6.18: __blk_mq_alloc_disk(set, lim, queuedata, lkclass) */
+struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
+				    struct lock_class_key *lkclass)
+{
+	return __blk_mq_alloc_disk_k618(set, NULL, queuedata, lkclass);
+}
+EXPORT_SYMBOL(__blk_mq_alloc_disk);
+
+/* 6.6 blk-mq.h: blk_rq_map_kern(q, rq, kbuf, len, gfp)
+ * 6.18 用 rq->q，去掉首个 queue 参数。6.6 的 q 只是在 6.6 实现里做对齐检查用
+ * （6.18 内部同样用 rq->q 做），所以直接转发。 */
+int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
+		    unsigned int len, gfp_t gfp_mask)
+{
+	/* 6.6 用 q 的 limits 做校验；6.18 用 rq->q。二者在厂商调用点上同一个队列，
+	 * 只是留个诊断：真不一致时按 6.18 的 rq->q 继续跑（不打断 I/O）。 */
+	WARN_ON_ONCE(q && rq->q && q != rq->q);
+	return blk_rq_map_kern_k618(rq, kbuf, len, gfp_mask);
+}
+EXPORT_SYMBOL(blk_rq_map_kern);
+
+/* 6.6: __blk_rq_map_sg(q, rq, sglist, last_sg)；6.18 去掉首个 queue 参数 */
+int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
+		    struct scatterlist *sglist, struct scatterlist **last_sg)
+{
+	WARN_ON_ONCE(q && rq->q && q != rq->q);
+	return __blk_rq_map_sg_k618(rq, sglist, last_sg);
+}
+EXPORT_SYMBOL(__blk_rq_map_sg);
+
+/* 6.6 bsg-lib.h: bsg_setup_queue(dev, name, job_fn, timeout, dd_job_size)
+ * 6.18 在 name 后插入 queue_limits —— 传 NULL 表示用驱动自身的默认限制。 */
+struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+				      bsg_job_fn *job_fn, bsg_timeout_fn *timeout,
+				      int dd_job_size)
+{
+	return bsg_setup_queue_k618(dev, name, NULL, job_fn, timeout, dd_job_size);
+}
+EXPORT_SYMBOL_GPL(bsg_setup_queue);

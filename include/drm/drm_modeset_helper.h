@@ -32,10 +32,13 @@ struct drm_mode_fb_cmd2;
 
 void drm_helper_move_panel_connectors_to_head(struct drm_device *);
 
-void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+void drm_helper_mode_fill_fb_struct_k618(struct drm_device *dev,
 				    struct drm_framebuffer *fb,
 				    const struct drm_format_info *info,
 				    const struct drm_mode_fb_cmd2 *mode_cmd);
+/* 树内调用点走 6.18 原型；6.6 原型（自行取 format_info）在 compat-6.6-core.c 导出 */
+#define drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd)	\
+	drm_helper_mode_fill_fb_struct_k618(dev, fb, info, mode_cmd)
 
 int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		  const struct drm_crtc_funcs *funcs);

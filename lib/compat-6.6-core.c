@@ -898,3 +898,120 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
 	printk(KERN_DEBUG "%s %pV", p66->prefix, vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_debug);
+
+/* ------------------------------------------------------------------ *
+ * 第五轮：原型变了但厂商模块仍在按 6.6 调用。6.18 的实现已改名为 *_k618，
+ * 这里导出 6.6 原型（真实实现，非空桩）。
+ * ------------------------------------------------------------------ */
+#include <linux/swap.h>
+#include <linux/memcontrol.h>
+#include <linux/interrupt.h>
+#include <linux/reset.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_fourcc.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-dev.h>
+
+#undef try_to_free_mem_cgroup_pages
+#undef v4l2_fh_add
+#undef v4l2_fh_del
+#undef drm_helper_mode_fill_fb_struct
+#undef pinctrl_gpio_direction_input
+#undef pinctrl_gpio_direction_output
+
+/* rodin-sig-protos: 6.6 原型（6.18 头文件已改名，补声明避免
+ * -Wmissing-prototypes） */
+unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+					   unsigned long nr_pages, gfp_t gfp_mask,
+					   unsigned int reclaim_options);
+int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
+			 unsigned long flags, const char *devname,
+			 void __percpu *percpu_dev_id);
+void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+				    struct drm_framebuffer *fb,
+				    const struct drm_mode_fb_cmd2 *mode_cmd);
+void v4l2_fh_add(struct v4l2_fh *fh);
+void v4l2_fh_del(struct v4l2_fh *fh);
+struct reset_control *__devm_reset_control_get(struct device *dev,
+					       const char *id, int index,
+					       bool shared, bool optional,
+					       bool acquired);
+
+/* 6.6 mm/vmscan.c: 无 swappiness 参数；6.17 起由调用者显式传入。
+ * 6.6 的实现即 swappiness==NULL（沿用 memcg 默认），此处等价转发。 */
+unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+					   unsigned long nr_pages, gfp_t gfp_mask,
+					   unsigned int reclaim_options)
+{
+	return try_to_free_mem_cgroup_pages_k618(memcg, nr_pages, gfp_mask,
+						 reclaim_options, NULL);
+}
+EXPORT_SYMBOL_GPL(try_to_free_mem_cgroup_pages);
+
+/* 6.6 kernel/irq/manage.c: __request_percpu_irq(irq, handler, flags, devname, dev_id)
+ * 6.18 在 devname 后插入 affinity —— NULL 即 6.6 语义（不限制亲和性）。 */
+int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
+			 unsigned long flags, const char *devname,
+			 void __percpu *percpu_dev_id)
+{
+	return __request_percpu_irq_k618(irq, handler, flags, devname, NULL,
+					 percpu_dev_id);
+}
+EXPORT_SYMBOL_GPL(__request_percpu_irq);
+
+/* 6.6 drm_modeset_helper.c: 内部自行 drm_get_format_info()；
+ * 6.18 把 format_info 变成入参。这里按 6.6 语义补回。 */
+void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+				    struct drm_framebuffer *fb,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	drm_helper_mode_fill_fb_struct_k618(dev, fb,
+					    drm_get_format_info(dev, mode_cmd->pixel_format,
+								mode_cmd->modifier[0]),
+					    mode_cmd);
+}
+EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
+
+/* 6.6 v4l2-fh.c: 只登记 fh；6.18 额外代管 filp->private_data（6.6 由调用者
+ * 自己设）。6.6 模块用它就必须保留 6.6 行为，故按 6.6 原样实现。 */
+void v4l2_fh_add(struct v4l2_fh *fh)
+{
+	unsigned long flags;
+
+	v4l2_prio_open(fh->vdev->prio, &fh->prio);
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	list_add(&fh->list, &fh->vdev->fh_list);
+	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+}
+EXPORT_SYMBOL_GPL(v4l2_fh_add);
+
+void v4l2_fh_del(struct v4l2_fh *fh)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	list_del_init(&fh->list);
+	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	v4l2_prio_close(fh->vdev->prio, fh->prio);
+}
+EXPORT_SYMBOL_GPL(v4l2_fh_del);
+
+/* 6.6 reset/core.c: __devm_reset_control_get(dev, id, index, shared, optional,
+ * acquired)；6.18 合并成 enum reset_control_flags。逐位映射，语义等价。 */
+struct reset_control *__devm_reset_control_get(struct device *dev,
+					       const char *id, int index,
+					       bool shared, bool optional,
+					       bool acquired)
+{
+	enum reset_control_flags flags = 0;
+
+	if (optional)
+		flags |= RESET_CONTROL_FLAGS_BIT_OPTIONAL;
+	if (shared)
+		flags |= RESET_CONTROL_FLAGS_BIT_SHARED;
+	else if (acquired)
+		flags |= RESET_CONTROL_FLAGS_BIT_ACQUIRED;
+
+	return __devm_reset_control_get_k618(dev, id, index, flags);
+}
+EXPORT_SYMBOL_GPL(__devm_reset_control_get);

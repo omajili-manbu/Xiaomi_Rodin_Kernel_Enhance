@@ -393,11 +393,14 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 /* Just reclaim from anon folios in proactive memory reclaim */
 #define SWAPPINESS_ANON_ONLY (MAX_SWAPPINESS + 1)
 
-extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+extern unsigned long try_to_free_mem_cgroup_pages_k618(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
 						  unsigned int reclaim_options,
 						  int *swappiness);
+/* 树内调用点走 6.18 原型；6.6 原型（无 swappiness）在 compat-6.6-core.c 导出 */
+#define try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, reclaim_options, swappiness) \
+	try_to_free_mem_cgroup_pages_k618(memcg, nr_pages, gfp_mask, reclaim_options, swappiness)
 extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
 						gfp_t gfp_mask, bool noswap,
 						pg_data_t *pgdat,

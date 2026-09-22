@@ -55,7 +55,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags);
 struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 			   nodemask_t *nodemask);
 unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid, const nodemask_t *nodemask,
-				 int nr_pages, struct page **page_array, struct list_head *page_list);
+				 int nr_pages, struct list_head *page_list, struct page **page_array);
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 unsigned long get_zeroed_page(gfp_t gfp_mask);
 void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
@@ -157,8 +157,8 @@ EXPORT_SYMBOL(__alloc_pages);
 
 unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 				 const nodemask_t *nodemask, int nr_pages,
-				 struct page **page_array,
-				 struct list_head *page_list)
+				 struct list_head *page_list,
+				 struct page **page_array)
 {
 	struct page **array = page_array;
 	struct page *stack[16];
