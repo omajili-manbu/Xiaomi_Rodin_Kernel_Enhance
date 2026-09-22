@@ -198,6 +198,7 @@ struct backlight_properties {
 	 * @power is set to BACKLIGHT_POWER_OFF.
 	 */
 	int power;
+	int fb_blank;	/* rodin: 6.6 ABI anchor (upstream 6.18 dropped it); kernel never reads */
 
 #define BACKLIGHT_POWER_ON		(0)
 #define BACKLIGHT_POWER_OFF		(4)
@@ -237,6 +238,18 @@ struct backlight_properties {
 	 */
 	enum backlight_scale scale;
 };
+
+/* rodin: vendor modules build backlight_properties with the 6.6 layout. */
+_Static_assert(__builtin_offsetof(struct backlight_properties, fb_blank) == 12,
+	       "rodin backlight_properties 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct backlight_properties, type) == 16,
+	       "rodin backlight_properties 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct backlight_properties, state) == 20,
+	       "rodin backlight_properties 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct backlight_properties, scale) == 24,
+	       "rodin backlight_properties 6.6 ABI");
+_Static_assert(sizeof(struct backlight_properties) == 28,
+	       "rodin backlight_properties 6.6 ABI");
 
 /**
  * struct backlight_device - backlight device data

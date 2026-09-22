@@ -116,8 +116,6 @@ struct nvmem_config {
 	const struct nvmem_cell_info	*cells;
 	int			ncells;
 	bool			add_legacy_fixed_of_cells;
-	void (*fixup_dt_cell_info)(struct nvmem_device *nvmem,
-				   struct nvmem_cell_info *cell);
 	const struct nvmem_keepout *keepout;
 	unsigned int		nkeepout;
 	enum nvmem_type		type;
@@ -126,6 +124,7 @@ struct nvmem_config {
 	bool			ignore_wp;
 	struct nvmem_layout	*layout;
 	struct device_node	*of_node;
+	bool			no_of_node;	/* rodin: 6.6 ABI anchor, kernel never reads */
 	nvmem_reg_read_t	reg_read;
 	nvmem_reg_write_t	reg_write;
 	int	size;
@@ -135,7 +134,40 @@ struct nvmem_config {
 	/* To be only used by old driver/misc/eeprom drivers */
 	bool			compat;
 	struct device		*base_dev;
+	/* rodin: 6.18 upstream inserted this mid-struct (6.6 ABI break);
+	 * moved to tail so module-built 6.6 layouts stay valid. */
+	void (*fixup_dt_cell_info)(struct nvmem_device *nvmem,
+				   struct nvmem_cell_info *cell);
 };
+
+/* rodin: vendor modules build nvmem_config with the 6.6 layout; offsets frozen. */
+_Static_assert(__builtin_offsetof(struct nvmem_config, dev) == 0, "rodin nvmem_config 6.6 ABI: dev");
+_Static_assert(__builtin_offsetof(struct nvmem_config, name) == 8, "rodin nvmem_config 6.6 ABI: name");
+_Static_assert(__builtin_offsetof(struct nvmem_config, id) == 16, "rodin nvmem_config 6.6 ABI: id");
+_Static_assert(__builtin_offsetof(struct nvmem_config, owner) == 24, "rodin nvmem_config 6.6 ABI: owner");
+_Static_assert(__builtin_offsetof(struct nvmem_config, cells) == 32, "rodin nvmem_config 6.6 ABI: cells");
+_Static_assert(__builtin_offsetof(struct nvmem_config, ncells) == 40, "rodin nvmem_config 6.6 ABI: ncells");
+_Static_assert(__builtin_offsetof(struct nvmem_config, add_legacy_fixed_of_cells) == 44, "rodin nvmem_config 6.6 ABI: add_legacy_fixed_of_cells");
+_Static_assert(__builtin_offsetof(struct nvmem_config, keepout) == 48, "rodin nvmem_config 6.6 ABI: keepout");
+_Static_assert(__builtin_offsetof(struct nvmem_config, nkeepout) == 56, "rodin nvmem_config 6.6 ABI: nkeepout");
+_Static_assert(__builtin_offsetof(struct nvmem_config, type) == 60, "rodin nvmem_config 6.6 ABI: type");
+_Static_assert(__builtin_offsetof(struct nvmem_config, read_only) == 64, "rodin nvmem_config 6.6 ABI: read_only");
+_Static_assert(__builtin_offsetof(struct nvmem_config, root_only) == 65, "rodin nvmem_config 6.6 ABI: root_only");
+_Static_assert(__builtin_offsetof(struct nvmem_config, ignore_wp) == 66, "rodin nvmem_config 6.6 ABI: ignore_wp");
+_Static_assert(__builtin_offsetof(struct nvmem_config, layout) == 72, "rodin nvmem_config 6.6 ABI: layout");
+_Static_assert(__builtin_offsetof(struct nvmem_config, of_node) == 80, "rodin nvmem_config 6.6 ABI: of_node");
+_Static_assert(__builtin_offsetof(struct nvmem_config, no_of_node) == 88, "rodin nvmem_config 6.6 ABI: no_of_node");
+_Static_assert(__builtin_offsetof(struct nvmem_config, reg_read) == 96, "rodin nvmem_config 6.6 ABI: reg_read");
+_Static_assert(__builtin_offsetof(struct nvmem_config, reg_write) == 104, "rodin nvmem_config 6.6 ABI: reg_write");
+_Static_assert(__builtin_offsetof(struct nvmem_config, size) == 112, "rodin nvmem_config 6.6 ABI: size");
+_Static_assert(__builtin_offsetof(struct nvmem_config, word_size) == 116, "rodin nvmem_config 6.6 ABI: word_size");
+_Static_assert(__builtin_offsetof(struct nvmem_config, stride) == 120, "rodin nvmem_config 6.6 ABI: stride");
+_Static_assert(__builtin_offsetof(struct nvmem_config, priv) == 128, "rodin nvmem_config 6.6 ABI: priv");
+_Static_assert(__builtin_offsetof(struct nvmem_config, compat) == 136, "rodin nvmem_config 6.6 ABI: compat");
+_Static_assert(__builtin_offsetof(struct nvmem_config, base_dev) == 144, "rodin nvmem_config 6.6 ABI: base_dev");
+_Static_assert(__builtin_offsetof(struct nvmem_config, fixup_dt_cell_info) == 152, "rodin nvmem_config 6.6 ABI: fixup_dt_cell_info");
+_Static_assert(sizeof(struct nvmem_config) == 160, "rodin nvmem_config: 152 (6.6) + 8 tail");
+
 
 /**
  * struct nvmem_layout - NVMEM layout definitions
