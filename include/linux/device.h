@@ -478,6 +478,13 @@ struct device_physical_location {
 	bool lid;
 };
 
+/*
+ * rodin 6.6-compat: size of the frozen 6.6 prefix of `struct device'.  Members
+ * 6.6 had keep their 6.6 offsets; members 6.18 added are declared below it.
+ * Pinned by static_assert() in drivers/base/core.c.
+ */
+#define RODIN_DEVICE_6_6_SIZE	936
+
 /**
  * struct device - The basic device structure
  * @parent:	The device's "parent" device, the device to which it is attached.
@@ -598,10 +605,6 @@ struct device {
 					   core doesn't touch it */
 	void		*driver_data;	/* Driver data, set and get with
 					   dev_set_drvdata/dev_get_drvdata */
-	struct {
-		const char	*name;
-		spinlock_t	lock;
-	} driver_override;
 	struct mutex		mutex;	/* mutex to synchronize calls to
 					 * its driver.
 					 */
@@ -701,8 +704,27 @@ struct device {
 	ANDROID_KABI_RESERVE(4);
 	ANDROID_KABI_RESERVE(5);
 	ANDROID_KABI_RESERVE(6);
-	ANDROID_KABI_RESERVE(7);
-	ANDROID_KABI_RESERVE(8);
+	/*
+	 * rodin 6.6-compat: 6.18 moved driver_override here from platform_device.
+	 * Declared where upstream puts it (right after driver_data) it pushed
+	 * every 6.6 member below it up by 16 bytes and grew struct device from
+	 * 6.6's 936 to 952, which moved device.of_node from 0x300 to 0x318
+	 * (prebuilt vendor modules load it from [dev, #0x300]) and dragged
+	 * i2c_client.irq, platform_device.resource, ... along with it.
+	 * Park it in the last two KABI reserve slots instead, so struct device
+	 * keeps 6.6's size and everything that embeds a device keeps its 6.6
+	 * offsets.  Only the driver core touches driver_override, always by name.
+	 */
+	union {
+		struct {
+			const char	*name;
+			spinlock_t	lock;
+		} driver_override;
+		struct {
+			u64	__kabi_reserved7;
+			u64	__kabi_reserved8;
+		};
+	};
 };
 
 /**
