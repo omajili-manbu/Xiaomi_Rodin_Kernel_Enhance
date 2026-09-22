@@ -47,8 +47,15 @@
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
 #define MODULES_VADDR		(_PAGE_END(VA_BITS_MIN))
 #define MODULES_VSIZE		(SZ_2G)
-#define VMEMMAP_START		(VMEMMAP_END - VMEMMAP_SIZE)
-#define VMEMMAP_END		(-UL(SZ_1G))
+/*
+ * The vmemmap has to stay anchored where 6.6 put it: prebuilt vendor modules
+ * have this VMEMMAP_START baked into their inlined pfn_to_page()/page_to_pfn().
+ * Anchoring the region at VMEMMAP_END (-1G) instead moves it 0xc0000000
+ * higher, so those modules build struct page pointers for the wrong pfn.
+ */
+#define VMEMMAP_SHIFT		(PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT)
+#define VMEMMAP_START		(-(UL(1) << (VA_BITS - VMEMMAP_SHIFT)))
+#define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
 #define PCI_IO_START		(VMEMMAP_END + SZ_8M)
 #define PCI_IO_END		(PCI_IO_START + PCI_IO_SIZE)
 #define FIXADDR_TOP		(-UL(SZ_8M))
