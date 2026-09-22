@@ -37,6 +37,64 @@
 #include "physical_location.h"
 #include "power/power.h"
 
+/*
+ * rodin 6.6-compat: `struct device' (and the dev_pm_info embedded in it) must
+ * keep 6.6's member offsets, because prebuilt 6.6 vendor modules read those
+ * members directly with hardcoded offsets -- fts_ts_probe() loads
+ * dev->of_node from [dev, #0x300], and ~40 modules do the same.  If one of
+ * these stops holding, move the offending 6.18 member below the frozen block
+ * (RODIN_DEVICE_6_6_SIZE) in include/linux/device.h instead of relaxing it.
+ * Offsets come from the 6.6 kernel's BTF.
+ */
+#define RODIN_DEV_OFF(member, off)					\
+	static_assert(offsetof(struct device, member) == (off),			\
+		      "rodin: struct device::" #member " no longer matches 6.6")
+
+RODIN_DEV_OFF(kobj, 0x000);
+RODIN_DEV_OFF(parent, 0x060);
+RODIN_DEV_OFF(init_name, 0x070);
+RODIN_DEV_OFF(type, 0x078);
+RODIN_DEV_OFF(bus, 0x080);
+RODIN_DEV_OFF(driver, 0x088);
+RODIN_DEV_OFF(platform_data, 0x090);
+RODIN_DEV_OFF(driver_data, 0x098);
+RODIN_DEV_OFF(mutex, 0x0a0);
+RODIN_DEV_OFF(links, 0x0d0);
+RODIN_DEV_OFF(power, 0x108);
+#ifdef CONFIG_ARCH_HAS_DMA_OPS
+RODIN_DEV_OFF(dma_ops, 0x290);
+#endif
+RODIN_DEV_OFF(dma_mask, 0x298);
+RODIN_DEV_OFF(coherent_dma_mask, 0x2a0);
+RODIN_DEV_OFF(of_node, 0x300);
+RODIN_DEV_OFF(fwnode, 0x308);
+RODIN_DEV_OFF(devt, 0x310);
+RODIN_DEV_OFF(id, 0x314);
+RODIN_DEV_OFF(devres_lock, 0x318);
+RODIN_DEV_OFF(devres_head, 0x320);
+RODIN_DEV_OFF(class, 0x330);
+RODIN_DEV_OFF(groups, 0x338);
+RODIN_DEV_OFF(release, 0x340);
+/*
+ * struct device must stay 6.6-sized: anything that embeds one (i2c_client,
+ * platform_device, spi_device, usb_device, ...) computes its own members from
+ * this size, and prebuilt vendor modules read fields of those too.
+ */
+static_assert(sizeof(struct device) == RODIN_DEVICE_6_6_SIZE,
+	      "rodin: struct device must stay 6.6-sized (936)");
+RODIN_DEV_OFF(driver_override, 0x398);
+
+/* dev_pm_info is embedded in struct device: its size is part of 6.6's ABI. */
+#if defined(CONFIG_PM) && defined(CONFIG_PM_SLEEP)
+static_assert(sizeof(struct dev_pm_info) == 352,
+	      "rodin: dev_pm_info must stay 6.6-sized (352)");
+/* absolute offsets: device.power sits at 0x108 in 6.6 */
+RODIN_DEV_OFF(power.wakeup, 0x148);
+RODIN_DEV_OFF(power.suspend_timer, 0x158);
+RODIN_DEV_OFF(power.work, 0x1a8);
+RODIN_DEV_OFF(power.qos, 0x250);
+#endif
+
 /* Device links support. */
 static LIST_HEAD(deferred_sync);
 static unsigned int defer_sync_state_count = 1;

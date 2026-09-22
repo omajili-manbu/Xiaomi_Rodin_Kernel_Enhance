@@ -680,15 +680,17 @@ struct dev_pm_info {
 	struct list_head	entry;
 	struct completion	completion;
 	struct wakeup_source	*wakeup;
-	bool			work_in_progress;	/* Owned by the PM core */
+	/*
+	 * rodin 6.6-compat: 6.6's declaration order.  work_in_progress and the
+	 * 6.18-only bits are parked further down (see the KABI slot below) so that
+	 * wakeup_path..may_skip_resume stay in byte 72 -- dev_pm_info is embedded
+	 * in struct device, so moving them would move device.of_node.
+	 */
 	bool			wakeup_path:1;
 	bool			syscore:1;
 	bool			no_pm_callbacks:1;	/* Owned by the PM core */
-	bool			smart_suspend:1;	/* Owned by the PM core */
 	bool			must_resume:1;		/* Owned by the PM core */
 	bool			may_skip_resume:1;	/* Set by subsystems */
-	bool			out_band_wakeup:1;
-	bool			strict_midlayer:1;
 #else
 	bool			should_wakeup:1;
 #endif
@@ -726,9 +728,21 @@ struct dev_pm_info {
 	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
 	void (*set_latency_tolerance)(struct device *, s32);
 	struct dev_pm_qos	*qos;
-	bool			detach_power_off:1;	/* Owned by the driver core */
 
-	ANDROID_KABI_RESERVE(1);
+	/*
+	 * rodin 6.6-compat: 6.18's five added members live in the first KABI
+	 * reserve slot (this is exactly what the slots exist for).  Declared at
+	 * their upstream positions they grew dev_pm_info from 6.6's 352 bytes to
+	 * 360 and shifted the wakeup_path..may_skip_resume bits from byte 72 to
+	 * byte 73, which in turn moved device.of_node from 0x300 to 0x318.  Both
+	 * are 6.6 ABI for the prebuilt vendor modules; dev->power.<name> is
+	 * unaffected.
+	 */
+	ANDROID_KABI_USE(1, bool	work_in_progress; /* Owned by the PM core */
+			    bool	smart_suspend:1;  /* Owned by the PM core */
+			    bool	out_band_wakeup:1;
+			    bool	strict_midlayer:1;
+			    bool	detach_power_off:1); /* Owned by the driver core */
 	ANDROID_KABI_RESERVE(2);
 };
 
