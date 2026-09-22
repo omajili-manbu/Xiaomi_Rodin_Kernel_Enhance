@@ -55,3 +55,25 @@ bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
 
 	return pfn_is_map_memory(pfn);
 }
+
+/*
+ * 6.6 exported this from the arch code; 6.18 replaced it with an inline that
+ * demands a PTE_USER prot (not what prebuilt 6.6 vendor modules pass) and no
+ * longer exported the symbol (see the guard in mm/ioremap.c).  Keep the 6.6
+ * implementation, guards included.
+ */
+void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size, pgprot_t prot)
+{
+	unsigned long last_addr = phys_addr + size - 1;
+
+	/* Don't allow outside PHYS_MASK */
+	if (last_addr & ~PHYS_MASK)
+		return NULL;
+
+	/* Don't allow RAM to be mapped. */
+	if (WARN_ON(pfn_is_map_memory(__phys_to_pfn(phys_addr))))
+		return NULL;
+
+	return generic_ioremap_prot(phys_addr, size, prot);
+}
+EXPORT_SYMBOL(ioremap_prot);
