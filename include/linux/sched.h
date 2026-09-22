@@ -579,14 +579,10 @@ struct sched_entity {
 	struct rb_node			run_node;
 	u64				deadline;
 	u64				min_vruntime;
-	u64				min_slice;
-	u64				max_slice;
 
 	struct list_head		group_node;
-	unsigned char			on_rq;
-	unsigned char			sched_delayed;
-	unsigned char			rel_deadline;
-	unsigned char			custom_slice;
+	unsigned int			on_rq;
+
 					/* hole */
 
 	u64				exec_start;
@@ -623,7 +619,24 @@ struct sched_entity {
 	 * Put into separate cache line so it does not
 	 * collide with read-mostly values above.
 	 */
-	struct sched_avg		avg;
+	struct sched_avg		avg __attribute__((__aligned__(64)));
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
+
+	/*
+	 * rodin 6.6-compat: 6.18 新增成员后置。
+	 * sizeof(struct sched_entity) 在 6.6 是 320B（本结构体被 task_struct 以
+	 * 64 字节对齐内嵌，avg 之后还有 4 个 KABI 保留槽），6.18 只有 256B；
+	 * 内嵌尺寸变化会把 task_struct 里 rt/dl/sched_class/uclamp 等的偏移顶走。
+	 */
+	u64				min_slice;
+	u64				max_slice;
+	unsigned char			sched_delayed;
+	unsigned char			rel_deadline;
+	unsigned char			custom_slice;
 };
 
 struct sched_rt_entity {
@@ -869,10 +882,6 @@ struct task_struct {
 	unsigned int			flags;
 	unsigned int			ptrace;
 
-#ifdef CONFIG_MEM_ALLOC_PROFILING
-	struct alloc_tag		*alloc_tag;
-#endif
-
 	int				on_cpu;
 	struct __call_single_node	wake_entry;
 	unsigned int			wakee_flips;
@@ -889,7 +898,6 @@ struct task_struct {
 	int				recent_used_cpu;
 	int				wake_cpu;
 	int				on_rq;
-	int				is_blocked;
 
 	int				prio;
 	int				static_prio;
@@ -898,11 +906,7 @@ struct task_struct {
 
 	struct sched_entity		se;
 	struct sched_rt_entity		rt;
-	struct sched_dl_entity		dl;
-	struct sched_dl_entity		*dl_server;
-#ifdef CONFIG_SCHED_CLASS_EXT
-	struct sched_ext_entity		scx;
-#endif
+	u64				__rodin_66_slot_dl[30];	/* 6.6: struct sched_dl_entity (240B), 6.18 长到 288B */
 	const struct sched_class	*sched_class;
 
 #ifdef CONFIG_SCHED_CORE
@@ -913,11 +917,6 @@ struct task_struct {
 
 #ifdef CONFIG_CGROUP_SCHED
 	struct task_group		*sched_task_group;
-#ifdef CONFIG_CFS_BANDWIDTH
-	struct callback_head		sched_throttle_work;
-	struct list_head		throttle_node;
-	bool				throttled;
-#endif
 #endif
 
 
@@ -946,7 +945,6 @@ struct task_struct {
 #endif
 
 	unsigned int			policy;
-	unsigned long			max_allowed_capacity;
 	int				nr_cpus_allowed;
 	const cpumask_t			*cpus_ptr;
 	cpumask_t			*user_cpus_ptr;
@@ -968,8 +966,6 @@ struct task_struct {
 	u8				rcu_tasks_idx;
 	int				rcu_tasks_idle_cpu;
 	struct list_head		rcu_tasks_holdout_list;
-	int				rcu_tasks_exit_cpu;
-	struct list_head		rcu_tasks_exit_list;
 #endif /* #ifdef CONFIG_TASKS_RCU */
 
 #ifdef CONFIG_TASKS_TRACE_RCU
@@ -981,7 +977,7 @@ struct task_struct {
 	int				trc_blkd_cpu;
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 
-	struct sched_info		sched_info;
+	u64				__rodin_66_slot_sched_info[4];	/* 6.6: struct sched_info (32B) */
 
 	struct list_head		tasks;
 	struct plist_node		pushable_tasks;
@@ -989,7 +985,6 @@ struct task_struct {
 
 	struct mm_struct		*mm;
 	struct mm_struct		*active_mm;
-	struct address_space		*faults_disabled_mapping;
 
 	int				exit_state;
 	int				exit_code;
@@ -1006,7 +1001,6 @@ struct task_struct {
 	unsigned			sched_reset_on_fork:1;
 	unsigned			sched_contributes_to_load:1;
 	unsigned			sched_migrated:1;
-	unsigned			sched_task_hot:1;
 
 	/* Force alignment to the next boundary: */
 	unsigned			:0;
@@ -1027,9 +1021,6 @@ struct task_struct {
 	 * ->sched_remote_wakeup gets used, so it can be in this word.
 	 */
 	unsigned			sched_remote_wakeup:1;
-#ifdef CONFIG_RT_MUTEXES
-	unsigned			sched_rt_mutex:1;
-#endif
 
 	/* Bit to tell TOMOYO we're in execve(): */
 	unsigned			in_execve:1;
@@ -1037,7 +1028,7 @@ struct task_struct {
 #ifndef TIF_RESTORE_SIGMASK
 	unsigned			restore_sigmask:1;
 #endif
-#ifdef CONFIG_MEMCG_V1
+#ifdef CONFIG_MEMCG
 	unsigned			in_user_fault:1;
 #endif
 #ifdef CONFIG_LRU_GEN
@@ -1078,7 +1069,6 @@ struct task_struct {
 	/* delay due to memory thrashing */
 	unsigned                        in_thrashing:1;
 #endif
-	unsigned			in_nf_duplicate:1;
 #ifdef CONFIG_PREEMPT_RT
 	struct netdev_xmit		net_xmit;
 #endif
@@ -1124,6 +1114,7 @@ struct task_struct {
 	/* PID/PID hash table linkage. */
 	struct pid			*thread_pid;
 	struct hlist_node		pid_links[PIDTYPE_MAX];
+	u64				__rodin_66_slot_thread_group[2];	/* 6.6: struct list_head thread_group */
 	struct list_head		thread_node;
 
 	struct completion		*vfork_done;
@@ -1274,26 +1265,6 @@ struct task_struct {
 	struct rt_mutex_waiter		*pi_blocked_on;
 #endif
 
-	struct task_struct		*blocked_donor;	/* task that is boosting this task */
-	struct blocked_on_lock		blocked_on;	/* lock we're blocked on */
-	raw_spinlock_t			blocked_lock;
-#ifdef CONFIG_SCHED_PROXY_EXEC
-	struct list_head		migration_node;
-	struct list_head		blocked_head;  /* tasks blocked on this task */
-	struct list_head		blocked_node;  /* our entry on someone elses blocked_head */
-	/* Node for list of tasks to process blocked_head list for blocked entitiy activations */
-	struct list_head		blocked_activation_node;
-	struct task_struct		*sleeping_owner; /* task our blocked_node is enqueued on */
-#endif
-
-#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
-	/*
-	 * Encoded lock address causing task block (lower 2 bits = type from
-	 * <linux/hung_task.h>). Accessed via hung_task_*() helpers.
-	 */
-	unsigned long			blocker;
-#endif
-
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	int				non_block_count;
 #endif
@@ -1343,7 +1314,7 @@ struct task_struct {
 	unsigned long			ptrace_message;
 	kernel_siginfo_t		*last_siginfo;
 
-	struct task_io_accounting	ioac;
+	u64				__rodin_66_slot_ioac[8];	/* 6.6: struct task_io_accounting (64B) */
 #ifdef CONFIG_PSI
 	/* Pressure stall state */
 	unsigned int			psi_flags;
@@ -1362,6 +1333,7 @@ struct task_struct {
 	/* Sequence number to catch updates: */
 	seqcount_spinlock_t		mems_allowed_seq;
 	int				cpuset_mem_spread_rotor;
+	int				__rodin_66_slot_cpuset_slab_spread_rotor;
 #endif
 #ifdef CONFIG_CGROUPS
 	/* Control Group info protected by css_set_lock: */
@@ -1384,11 +1356,9 @@ struct task_struct {
 	unsigned int			futex_state;
 #endif
 #ifdef CONFIG_PERF_EVENTS
-	u8				perf_recursion[PERF_NR_CONTEXTS];
 	struct perf_event_context	*perf_event_ctxp;
 	struct mutex			perf_event_mutex;
 	struct list_head		perf_event_list;
-	struct perf_ctx_data __rcu	*perf_ctx_data;
 #endif
 #ifdef CONFIG_DEBUG_PREEMPT
 	unsigned long			preempt_disable_ip;
@@ -1478,7 +1448,7 @@ struct task_struct {
 	struct callback_head		cid_work;
 #endif
 
-	struct tlbflush_unmap_batch	tlb_ubc;
+	u16				__rodin_66_slot_tlb_ubc;	/* 6.6: struct tlbflush_unmap_batch (2B) */
 
 	/* Cache last used pipe for splice(): */
 	struct pipe_inode_info		*splice_pipe;
@@ -1593,13 +1563,15 @@ struct task_struct {
 
 #ifdef CONFIG_MEMCG
 	/* Number of pages to reclaim on returning to userland: */
+	u64				__rodin_66_slot_memcg_in_oom;	/* 6.6: struct mem_cgroup *memcg_in_oom */
+	unsigned int			__rodin_66_slot_memcg_oom_gfp_mask;
+	int				__rodin_66_slot_memcg_oom_order;
 	unsigned int			memcg_nr_pages_over_high;
 
 	/* Used by memcontrol for targeted memcg charge: */
 	struct mem_cgroup		*active_memcg;
 
 	/* Cache for current->cgroups->memcg->objcg lookups: */
-	struct obj_cgroup		*objcg;
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
@@ -1648,7 +1620,6 @@ struct task_struct {
 	struct bpf_run_ctx		*bpf_ctx;
 #endif
 	/* Used by BPF for per-TASK xdp storage */
-	struct bpf_net_context		*bpf_net_context;
 
 #ifdef CONFIG_KSTACK_ERASE
 	unsigned long			lowest_stack;
@@ -1667,7 +1638,7 @@ struct task_struct {
 	struct callback_head		mce_kill_me;
 	int				mce_count;
 #endif
-	ANDROID_VENDOR_DATA_ARRAY(1, 6);
+	ANDROID_VENDOR_DATA_ARRAY(1, 64);
 	ANDROID_OEM_DATA_ARRAY(1, 6);
 
 #ifdef CONFIG_KRETPROBES
@@ -1686,12 +1657,11 @@ struct task_struct {
 	 */
 	struct callback_head		l1d_flush_kill;
 #endif
-	ANDROID_KABI_USE(1, struct {
+	ANDROID_KABI_USE(1, struct task_dma_buf_info *dmabuf_info);
+	ANDROID_KABI_USE(2, struct {
 		/* Save user-dumpable when mm goes away */
 		unsigned	user_dumpable:1;
 		});
-
-	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 	ANDROID_KABI_RESERVE(5);
@@ -1715,8 +1685,6 @@ struct task_struct {
 	struct unwind_task_info		unwind_info;
 #endif
 
-	struct task_dma_buf_info *dmabuf_info;
-
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
 
@@ -1724,6 +1692,54 @@ struct task_struct {
 	 * New fields for task_struct should be added above here, so that
 	 * they are included in the randomized portion of task_struct.
 	 */
+
+	/* ==== rodin 6.6-compat: 6.18 新增成员（后置）=============================
+	 *
+	 * 这些成员在 6.6 里不存在。若留在原位置会把厂商预编译模块硬编码的 6.6
+	 * 偏移整体顶掉（pid 0x618 / stack_canary 0x620 / mm 0x5a0 / cred 0x820 …），
+	 * 已实测导致 mkp.ko 的 cred 校验读到野 pid 并触发防御性 panic。
+	 * 内核自身全部按名字访问这些成员，后置不改变语义，仅轻微影响缓存局部性。
+	 * 偏移由 kernel/rodin_task_abi.c 的 static_assert 钉死。
+	 */
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+	struct alloc_tag		*alloc_tag;
+#endif
+	unsigned			sched_task_hot:1;
+#ifdef CONFIG_RT_MUTEXES
+	unsigned			sched_rt_mutex:1;
+#endif
+	unsigned			in_nf_duplicate:1;
+	unsigned long			max_allowed_capacity;
+	unsigned long			blocker;
+	struct address_space		*faults_disabled_mapping;
+	int				is_blocked;
+	struct sched_dl_entity		*dl_server;
+	struct task_struct		*blocked_donor;	/* task that is boosting this task */
+	raw_spinlock_t			blocked_lock;
+	struct obj_cgroup		*objcg;
+	struct bpf_net_context		*bpf_net_context;
+	struct perf_ctx_data __rcu	*perf_ctx_data;
+	int				rcu_tasks_exit_cpu;
+	u8				perf_recursion[PERF_NR_CONTEXTS];
+	struct blocked_on_lock		blocked_on;	/* lock we're blocked on */
+	struct callback_head		sched_throttle_work;
+	struct list_head		throttle_node;
+	struct list_head		rcu_tasks_exit_list;
+	struct list_head		migration_node;
+	struct list_head		blocked_head;	/* tasks blocked on this task */
+	struct list_head		blocked_node;	/* our entry on someone elses blocked_head */
+	struct list_head		blocked_activation_node;
+	struct task_struct		*sleeping_owner; /* task our blocked_node is enqueued on */
+	bool				throttled;
+#ifdef CONFIG_SCHED_CLASS_EXT
+	struct sched_ext_entity		scx;
+#endif
+
+	/* ---- 尺寸与 6.6 不同、整体后置的内嵌成员（原位置已留 6.6 尺寸占位）---- */
+	struct sched_dl_entity		dl;
+	struct sched_info		sched_info;
+	struct task_io_accounting	ioac;
+	struct tlbflush_unmap_batch	tlb_ubc;
 	randomized_struct_fields_end
 } __attribute__ ((aligned (64)));
 
