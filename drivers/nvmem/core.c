@@ -906,6 +906,16 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	struct nvmem_device *nvmem;
 	int rval;
 
+	/* rodin: module callers build nvmem_config with the 6.6 layout whose
+	 * tail has no fixup_dt_cell_info; never let slab/stack tail garbage
+	 * become a callback. */
+	if (is_module_text_address(_RET_IP_)) {
+		struct nvmem_config rodin_cfg = *config;
+
+		rodin_cfg.fixup_dt_cell_info = NULL;
+		config = &rodin_cfg;
+	}
+
 	if (!config->dev)
 		return ERR_PTR(-EINVAL);
 
@@ -1099,6 +1109,15 @@ struct nvmem_device *devm_nvmem_register(struct device *dev,
 {
 	struct nvmem_device *nvmem;
 	int ret;
+
+	/* rodin: module -> devm -> nvmem_register hides the module caller
+	 * behind kernel text, so guard here too. */
+	if (is_module_text_address(_RET_IP_)) {
+		struct nvmem_config rodin_cfg = *config;
+
+		rodin_cfg.fixup_dt_cell_info = NULL;
+		config = &rodin_cfg;
+	}
 
 	nvmem = nvmem_register(config);
 	if (IS_ERR(nvmem))

@@ -331,8 +331,8 @@ struct input_handler {
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
-	bool passive_observer;
 	bool legacy_minors;
+	bool passive_observer;	/* rodin: 6.6 hole @65; module padding reads 0, must not shadow legacy_minors */
 	int minor;
 	const char *name;
 
@@ -343,6 +343,22 @@ struct input_handler {
 
 	ANDROID_KABI_RESERVE(1);
 };
+
+/* rodin: vendor modules build input_handler with the 6.6 layout. */
+_Static_assert(__builtin_offsetof(struct input_handler, legacy_minors) == 64,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct input_handler, passive_observer) == 65,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct input_handler, minor) == 68,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct input_handler, name) == 72,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct input_handler, id_table) == 80,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct input_handler, h_list) == 88,
+	       "rodin input_handler 6.6 ABI");
+_Static_assert(sizeof(struct input_handler) == 128,
+	       "rodin input_handler 6.6 ABI");
 
 /**
  * struct input_handle - links input device with an input handler
