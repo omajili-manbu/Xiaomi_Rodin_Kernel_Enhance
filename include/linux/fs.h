@@ -2330,6 +2330,7 @@ struct file_operations {
 } __randomize_layout;
 
 fop_flags_t rodin_fop_flags(const struct file_operations *fop);
+bool rodin_fops_has_mmap_prepare(const struct file_operations *fop);
 
 /* Supports async buffered reads */
 #define FOP_BUFFER_RASYNC	((__force fop_flags_t)(1 << 0))

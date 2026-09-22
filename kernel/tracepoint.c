@@ -425,12 +425,22 @@ static int tracepoint_remove_func(struct tracepoint *tp,
  * Same as tracepoint_probe_register_prio() except that it will not warn
  * if the tracepoint is already registered.
  */
+/*
+ * rodin: 6.6 厂商模块探针 ABI 兼容层（kernel/rodin_tp_compat.c）。对 6.18 改动过
+ * TP_PROTO 的 tracepoint/vendor hook，把模块侧探针注册改道到 6.6 原型 thunk。
+ * 返回 true 表示该注册已被兼容层消费，调用方直接返回 0。
+ */
+bool rodin_tp66_reroute(struct tracepoint *tp, void *probe, void *data);
+bool rodin_tp66_unreroute(struct tracepoint *tp, void *probe, void *data);
+
 int tracepoint_probe_register_prio_may_exist(struct tracepoint *tp, void *probe,
 					     void *data, int prio)
 {
 	struct tracepoint_func tp_func;
 	int ret;
 
+	if (rodin_tp66_reroute(tp, probe, data))
+		return 0;
 	mutex_lock(&tracepoints_mutex);
 	tp_func.func = probe;
 	tp_func.data = data;
@@ -460,6 +470,8 @@ int tracepoint_probe_register_prio(struct tracepoint *tp, void *probe,
 	struct tracepoint_func tp_func;
 	int ret;
 
+	if (rodin_tp66_reroute(tp, probe, data))
+		return 0;
 	mutex_lock(&tracepoints_mutex);
 	tp_func.func = probe;
 	tp_func.data = data;
@@ -501,6 +513,8 @@ int tracepoint_probe_unregister(struct tracepoint *tp, void *probe, void *data)
 	struct tracepoint_func tp_func;
 	int ret;
 
+	if (rodin_tp66_unreroute(tp, probe, data))
+		return 0;
 	mutex_lock(&tracepoints_mutex);
 	tp_func.func = probe;
 	tp_func.data = data;
@@ -839,6 +853,9 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data)
 {
 	struct tracepoint_func tp_func;
 	int ret;
+
+	if (rodin_tp66_reroute(tp, probe, data))
+		return 0;
 
 	/*
 	 * Once the static key has been flipped, the array may be read
