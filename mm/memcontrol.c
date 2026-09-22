@@ -3736,6 +3736,9 @@ static bool alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
 
 	lruvec_init(&pn->lruvec);
 	pn->memcg = memcg;
+	/* rodin: 6.6 厂商 ABI 的 lruvec pgdat 回指针（0x638），供
+	 * zram xswapd 按 6.6 偏移读写 */
+	pn->rodin_lruvec_pgdat = NODE_DATA(node);
 
 	memcg->nodeinfo[node] = pn;
 	return true;

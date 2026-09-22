@@ -123,6 +123,17 @@ struct mem_cgroup_per_node {
 #endif
 
 	ANDROID_KABI_RESERVE(1);
+
+	/*
+	 * rodin: 6.6 厂商 ABI 兼容尾区。zram xswapd 按 6.6 布局解引用
+	 * per-node 对象：0x638 是 lruvec 的 pgdat 回指针（读写同步），
+	 * 0x648/0x650 是 6.6 lruvec_stats.state[0..1]（聚合回收统计，
+	 * 这里以零填充降级）。6.18 该结构体只有 0x600，这三个偏移原本
+	 * 全部越界。
+	 */
+	u8 __rodin_pad66[0x638 - 0x5d0];
+	struct pglist_data *rodin_lruvec_pgdat;
+	u8 __rodin_pad66_b[0x658 - 0x640];
 };
 
 struct mem_cgroup_threshold {
@@ -326,9 +337,16 @@ struct mem_cgroup {
 	spinlock_t event_list_lock;
 #endif /* CONFIG_MEMCG_V1 */
 
-	ANDROID_OEM_DATA_ARRAY(1, 2);
+	/*
+	 * rodin: 6.6 厂商 ABI 兼容尾区。zram xswapd 按 6.6 布局直接解引用
+	 * mem_cgroup 的 GKI 厂商预留字段：android_oem_data1[1]（0x8f8）
+	 * 存放其 per-memcg 控制块指针（模块自行分配），nodeinfo[] 须在
+	 * 0x900。6.18 上游把这两处前移到了 0x6f0/0x6b8，在此恢复。
+	 */
 	ANDROID_VENDOR_DATA(1);
 	ANDROID_KABI_RESERVE(1);
+	u8 __rodin_pad66[0x8f0 - 0x6a8];
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 
 	struct mem_cgroup_per_node *nodeinfo[];
 };

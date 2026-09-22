@@ -212,6 +212,12 @@ enum node_stat_item {
 	NR_FILE_PAGES,
 	NR_FILE_DIRTY,
 	NR_WRITEBACK,
+	/*
+	 * rodin: 上游已删除 writeback-temp 特性，但 6.6 厂商模块
+	 * （blocktag/mpbe）按 6.6 枚举序用编译期下标读 vm_node_stat。
+	 * 保留此占位成员使 NR_SHMEM 起的下标与 6.6 一致。
+	 */
+	NR_WRITEBACK_TEMP,
 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
 	NR_SHMEM_THPS,
 	NR_SHMEM_PMDMAPPED,
@@ -1389,6 +1395,19 @@ struct memory_failure_stats {
 #endif
 
 /*
+ * rodin: 6.6 形状的 lruvec 影子，钉在 pglist_data.__lruvec66（6.6 的
+ * &__lruvec 偏移 0x2260）。仅当 memcg 被禁用时，厂商模块内联的
+ * mem_cgroup_lruvec() 回退路径才会把它当 6.6 布局的 lruvec 解引用
+ * （pgdat 回指针在 0x638）；常规路径不触碰，其余字段保持零值。
+ */
+struct rodin_lruvec66 {
+	u8 __opaque66[0x638];
+	struct pglist_data *pgdat;
+};
+
+static_assert(sizeof(struct rodin_lruvec66) == 0x640);
+
+/*
  * On NUMA machines, each NUMA node would have a pg_data_t to describe
  * it's memory layout. On UMA machines there is a single pglist_data which
  * describes the whole memory.
@@ -1539,7 +1558,21 @@ typedef struct pglist_data {
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_VENDOR_DATA(1);
+	/*
+	 * rodin: 6.6 厂商 ABI 兼容尾区。zram xswapd 按 6.6 布局直接解引用
+	 * pg_data_t 的 GKI 厂商预留字段：
+	 *   0x2100 node_id（32 位读）、0x21f0 android_oem_data1
+	 *   （模块自己 kzalloc 控制块后写入）、0x2260 &__lruvec（仅 memcg
+	 *   禁用分支解引用，6.6 lruvec 的 pgdat 回指针在其 0x638 处）。
+	 * 6.18 上游结构体整体缩小，原 android_oem_data1 落在 0x1d98，
+	 * 模块按 0x21f0 读写会越过结构体末尾。断言见 kernel/rodin_mm_abi.c。
+	 */
+	u8 __rodin_pad66_a[0x2100 - 0x1da0];
+	u32 rodin_node_id66;			/* node_id 的 6.6 偏移镜像 */
+	u8 __rodin_pad66_b[0x21f0 - 0x2104];
 	ANDROID_OEM_DATA(1);
+	u8 __rodin_pad66_c[0x2260 - 0x21f8];
+	struct rodin_lruvec66 __lruvec66;
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
