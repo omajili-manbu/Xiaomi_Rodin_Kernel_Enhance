@@ -1182,6 +1182,7 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 extern struct mutex usb_dynids_lock;
 struct usb_dynids {
 	struct list_head list;
+	void			*rodin_66_pad;	/* 6.6 ABI: 24 bytes */
 };
 
 struct usb_dynid {
@@ -1281,23 +1282,33 @@ struct usb_driver {
 	int (*pre_reset)(struct usb_interface *intf);
 	int (*post_reset)(struct usb_interface *intf);
 
-	void (*shutdown)(struct usb_interface *intf);
-
 	const struct usb_device_id *id_table;
 	const struct attribute_group **dev_groups;
 
 	struct usb_dynids dynids;
 	struct device_driver driver;
+	/* rodin: occupies 6.6 usbdrv_wrap.for_devices footprint */
+	void			*rodin_66_for_devices_pad;
 	unsigned int no_dynamic_id:1;
 	unsigned int supports_autosuspend:1;
 	unsigned int disable_hub_initiated_lpm:1;
 	unsigned int soft_unbind:1;
+
+	void (*shutdown)(struct usb_interface *intf);
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 };
+
+_Static_assert(__builtin_offsetof(struct usb_driver, id_table) == 72,
+	       "rodin usb_driver 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_driver, dev_groups) == 80,
+	       "rodin usb_driver 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_driver, shutdown) == 304,
+	       "rodin usb_driver 6.6 ABI");
+
 #define	to_usb_driver(d) container_of_const(d, struct usb_driver, driver)
 
 /**

@@ -97,8 +97,6 @@ enum nf_hook_ops_type {
 };
 
 struct nf_hook_ops {
-	struct list_head	list;
-	struct rcu_head		rcu;
 
 	/* User fills in from here down. */
 	nf_hookfn		*hook;
@@ -109,7 +107,37 @@ struct nf_hook_ops {
 	unsigned int		hooknum;
 	/* Hooks are ordered in ascending priority. */
 	int			priority;
+	struct list_head	list;
+	struct rcu_head		rcu;
 };
+
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, hook) == 0,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, dev) == 8,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, priv) == 16,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, pf) == 24,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, hooknum) == 28,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, priority) == 32,
+	       "rodin nf_hook_ops 6.6 ABI");
+
+
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, hook) == 0,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, dev) == 8,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, priv) == 16,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, pf) == 24,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, hooknum) == 28,
+	       "rodin nf_hook_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct nf_hook_ops, priority) == 32,
+	       "rodin nf_hook_ops 6.6 ABI");
+
 
 struct nf_hook_entry {
 	nf_hookfn			*hook;
