@@ -6,6 +6,25 @@
  */
 #define bitmap_find_free_region bitmap_find_free_region_618
 #define bitmap_release_region bitmap_release_region_618
+
+/*
+ * 6.18 turned these into static inlines, so the symbols that prebuilt 6.6
+ * vendor modules import no longer exist.  Include each header with its inline
+ * names redirected, then provide real functions further down.
+ */
+#define device_find_child_by_name	device_find_child_by_name_618
+#define device_find_any_child		device_find_any_child_618
+#include <linux/device.h>
+#undef device_find_child_by_name
+#undef device_find_any_child
+
+#define blk_mq_freeze_queue		blk_mq_freeze_queue_618
+#define blk_mq_unfreeze_queue		blk_mq_unfreeze_queue_618
+#include <linux/sched/mm.h>
+#include <linux/blk-mq.h>
+#undef blk_mq_freeze_queue
+#undef blk_mq_unfreeze_queue
+
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/string.h>
@@ -29,6 +48,7 @@
 #include <crypto/acompress.h>
 #include <crypto/internal/acompress.h>
 #include <linux/iommu.h>
+#include <linux/io.h>
 #include <linux/irqdomain.h>
 #define crypto_shash_update	crypto_shash_update_618
 #define crypto_shash_final	crypto_shash_final_618
@@ -77,6 +97,8 @@
 #ifdef __fdget
 #undef __fdget
 #endif
+
+
 #ifdef follow_pfn
 #undef follow_pfn
 #endif
@@ -145,7 +167,12 @@
 #endif
 #ifdef fortify_panic
 #undef fortify_panic
-/* rodin-self-protos
+/*
+ * rodin-self-protos: 6.18 no longer declares these.
+ * crypto_shash_update()/crypto_shash_final() became static inlines in 6.18
+ * (their names are redirected at the top of this file), but prebuilt 6.6
+ * modules import them as symbols - so rebuild them on top of the inline.
+ */
 int crypto_shash_update(struct shash_desc *desc, const u8 *data, unsigned int len);
 int crypto_shash_final(struct shash_desc *desc, u8 *out);
 
@@ -161,16 +188,11 @@ int crypto_shash_final(struct shash_desc *desc, u8 *out)
 }
 EXPORT_SYMBOL(crypto_shash_final);
 
-// 6.6 ioremap_prot(): the generic layer takes the pgprot as opaque words;
-// arm64 device mappings have fixed attributes, so the value is forwarded as-is.
-void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size, pgprot_t prot);
+struct device *device_find_child_by_name(struct device *parent, const char *name);
+struct device *device_find_any_child(struct device *parent);
+void blk_mq_freeze_queue(struct request_queue *q);
+void blk_mq_unfreeze_queue(struct request_queue *q);
 
-void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size, pgprot_t prot)
-{
-	return ioremap(phys_addr, size);
-}
-EXPORT_SYMBOL(ioremap_prot);
-: 6.18 no longer declares these */
 ssize_t strscpy(char *dst, const char *src, size_t size);
 ssize_t strscpy_pad(char *dst, const char *src, size_t size);
 size_t strlcpy(char *dst, const char *src, size_t size);
@@ -818,3 +840,61 @@ exit:
 	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(debugfs_rename);
+
+/*
+ * 6.18 turned these two into static inlines (see the rename block at the top
+ * of this file); prebuilt 6.6 modules import them as symbols.
+ */
+struct device *device_find_child_by_name(struct device *parent, const char *name)
+{
+	return device_find_child(parent, name, device_match_name);
+}
+EXPORT_SYMBOL_GPL(device_find_child_by_name);
+
+struct device *device_find_any_child(struct device *parent)
+{
+	return device_find_child(parent, NULL, device_match_any);
+}
+EXPORT_SYMBOL_GPL(device_find_any_child);
+
+/*
+ * 6.18 moved the memalloc_noio save/restore out into the callers and renamed
+ * the bodies; 6.6's blk_mq_freeze_queue()/blk_mq_unfreeze_queue() were the
+ * plain start+wait / unfreeze pair, so the nomem* variants are the exact
+ * 6.6 behaviour these modules were compiled against.
+ */
+void blk_mq_freeze_queue(struct request_queue *q)
+{
+	blk_mq_freeze_queue_nomemsave(q);
+}
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue);
+
+void blk_mq_unfreeze_queue(struct request_queue *q)
+{
+	blk_mq_unfreeze_queue_nomemrestore(q);
+}
+EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
+
+/*
+ * 6.18 renamed this printfn to __drm_printfn_dbg() and inserted fields into
+ * struct drm_printer, so the prefix of the printer handed over by a module
+ * built against 6.6 has to be read with the 6.6 layout.
+ */
+struct drm_printer;
+struct drm_printer_6_6 {
+	void (*printfn)(struct drm_printer_6_6 *p, struct va_format *vaf);
+	void (*puts)(struct drm_printer_6_6 *p, const char *str);
+	void *arg;
+	const char *prefix;
+};
+
+void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
+
+void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
+{
+	const struct drm_printer_6_6 *p66 = (const struct drm_printer_6_6 *)p;
+
+	/* pr_debug callsite decorations are unhelpful here */
+	printk(KERN_DEBUG "%s %pV", p66->prefix, vaf);
+}
+EXPORT_SYMBOL(__drm_printfn_debug);
