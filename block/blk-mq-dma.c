@@ -281,7 +281,7 @@ blk_next_sg(struct scatterlist **sg, struct scatterlist *sglist)
  * Map a request to scatterlist, return number of sg entries setup. Caller
  * must make sure sg can hold rq->nr_phys_segments entries.
  */
-int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
+int __blk_rq_map_sg_k618(struct request *rq, struct scatterlist *sglist,
 		    struct scatterlist **last_sg)
 {
 	struct blk_map_iter iter;
@@ -307,7 +307,6 @@ int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
 
 	return nsegs;
 }
-EXPORT_SYMBOL(__blk_rq_map_sg);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 /**

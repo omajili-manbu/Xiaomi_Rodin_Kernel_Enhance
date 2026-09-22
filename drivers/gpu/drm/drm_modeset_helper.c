@@ -80,7 +80,7 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
  * This helper can be used in a drivers fb_create callback to pre-fill the fb's
  * metadata fields.
  */
-void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+void drm_helper_mode_fill_fb_struct_k618(struct drm_device *dev,
 				    struct drm_framebuffer *fb,
 				    const struct drm_format_info *info,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -98,7 +98,6 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 	fb->modifier = mode_cmd->modifier[0];
 	fb->flags = mode_cmd->flags;
 }
-EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 
 /*
  * This is the minimal list of formats that seem to be safe for modeset use

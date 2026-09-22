@@ -94,7 +94,7 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
  * .. note::
  *    The @fh file handle must be initialised first.
  */
-void v4l2_fh_add(struct v4l2_fh *fh, struct file *filp);
+void v4l2_fh_add_k618(struct v4l2_fh *fh, struct file *filp);
 
 /**
  * v4l2_fh_open - Ancillary routine that can be used as the open\(\) op
@@ -122,7 +122,10 @@ int v4l2_fh_open(struct file *filp);
  *    Must be called in v4l2_file_operations->release\(\) handler if the driver
  *    uses &struct v4l2_fh.
  */
-void v4l2_fh_del(struct v4l2_fh *fh, struct file *filp);
+void v4l2_fh_del_k618(struct v4l2_fh *fh, struct file *filp);
+/* 树内调用点走 6.18 原型；6.6 原型（无 file）在 compat-6.6-core.c 导出 */
+#define v4l2_fh_add(fh, filp)	v4l2_fh_add_k618(fh, filp)
+#define v4l2_fh_del(fh, filp)	v4l2_fh_del_k618(fh, filp)
 
 /**
  * v4l2_fh_exit - Release resources related to a file handle.

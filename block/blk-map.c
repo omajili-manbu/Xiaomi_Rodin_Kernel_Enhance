@@ -663,7 +663,7 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *    buffer is used. Can be called multiple times to append multiple
  *    buffers.
  */
-int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
+int blk_rq_map_kern_k618(struct request *rq, void *kbuf, unsigned int len,
 		gfp_t gfp_mask)
 {
 	unsigned long addr = (unsigned long) kbuf;
@@ -690,4 +690,3 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(blk_rq_map_kern);

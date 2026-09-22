@@ -4560,7 +4560,7 @@ void blk_mq_destroy_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_mq_destroy_queue);
 
-struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
+struct gendisk *__blk_mq_alloc_disk_k618(struct blk_mq_tag_set *set,
 		struct queue_limits *lim, void *queuedata,
 		struct lock_class_key *lkclass)
 {
@@ -4580,7 +4580,6 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
 	set_bit(GD_OWNS_QUEUE, &disk->state);
 	return disk;
 }
-EXPORT_SYMBOL(__blk_mq_alloc_disk);
 
 struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
 		struct lock_class_key *lkclass)

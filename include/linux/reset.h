@@ -95,7 +95,7 @@ int __reset_control_bulk_get(struct device *dev, int num_rstcs,
 void reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs);
 
 int __device_reset(struct device *dev, bool optional);
-struct reset_control *__devm_reset_control_get(struct device *dev,
+struct reset_control *__devm_reset_control_get_k618(struct device *dev,
 				     const char *id, int index, enum reset_control_flags flags);
 int __devm_reset_control_bulk_get(struct device *dev, int num_rstcs,
 				  struct reset_control_bulk_data *rstcs,
@@ -214,7 +214,7 @@ reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs)
 {
 }
 
-static inline struct reset_control *__devm_reset_control_get(
+static inline struct reset_control *__devm_reset_control_get_k618(
 					struct device *dev, const char *id,
 					int index, enum reset_control_flags flags)
 {
@@ -609,7 +609,7 @@ static inline struct reset_control *
 __must_check devm_reset_control_get_exclusive(struct device *dev,
 					      const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_EXCLUSIVE);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_EXCLUSIVE);
 }
 
 /**
@@ -628,7 +628,7 @@ __must_check devm_reset_control_get_exclusive(struct device *dev,
 static inline struct reset_control * __must_check
 devm_reset_control_get_exclusive_deasserted(struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_EXCLUSIVE_DEASSERTED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_EXCLUSIVE_DEASSERTED);
 }
 
 /**
@@ -668,7 +668,7 @@ static inline struct reset_control *
 __must_check devm_reset_control_get_exclusive_released(struct device *dev,
 						       const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_EXCLUSIVE_RELEASED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_EXCLUSIVE_RELEASED);
 }
 
 /**
@@ -708,7 +708,7 @@ static inline struct reset_control *
 __must_check devm_reset_control_get_optional_exclusive_released(struct device *dev,
 								const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE_RELEASED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE_RELEASED);
 }
 
 /**
@@ -744,7 +744,7 @@ devm_reset_control_bulk_get_optional_exclusive_released(struct device *dev, int 
 static inline struct reset_control *devm_reset_control_get_shared(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_SHARED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_SHARED);
 }
 
 /**
@@ -763,7 +763,7 @@ static inline struct reset_control *devm_reset_control_get_shared(
 static inline struct reset_control * __must_check
 devm_reset_control_get_shared_deasserted(struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_SHARED_DEASSERTED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_SHARED_DEASSERTED);
 }
 
 /**
@@ -823,7 +823,7 @@ devm_reset_control_bulk_get_shared_deasserted(struct device *dev, int num_rstcs,
 static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE);
 }
 
 /**
@@ -842,7 +842,7 @@ static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 static inline struct reset_control *
 devm_reset_control_get_optional_exclusive_deasserted(struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE_DEASSERTED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE_DEASSERTED);
 }
 
 /**
@@ -881,7 +881,7 @@ devm_reset_control_bulk_get_optional_exclusive(struct device *dev, int num_rstcs
 static inline struct reset_control *devm_reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED);
 }
 
 /**
@@ -900,7 +900,7 @@ static inline struct reset_control *devm_reset_control_get_optional_shared(
 static inline struct reset_control *
 devm_reset_control_get_optional_shared_deasserted(struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED_DEASSERTED);
+	return __devm_reset_control_get_k618(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED_DEASSERTED);
 }
 
 /**
@@ -938,7 +938,7 @@ devm_reset_control_bulk_get_optional_shared(struct device *dev, int num_rstcs,
 static inline struct reset_control *
 devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
 {
-	return __devm_reset_control_get(dev, NULL, index, RESET_CONTROL_EXCLUSIVE);
+	return __devm_reset_control_get_k618(dev, NULL, index, RESET_CONTROL_EXCLUSIVE);
 }
 
 /**
@@ -954,7 +954,7 @@ devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
 static inline struct reset_control *
 devm_reset_control_get_shared_by_index(struct device *dev, int index)
 {
-	return __devm_reset_control_get(dev, NULL, index, RESET_CONTROL_SHARED);
+	return __devm_reset_control_get_k618(dev, NULL, index, RESET_CONTROL_SHARED);
 }
 
 /*

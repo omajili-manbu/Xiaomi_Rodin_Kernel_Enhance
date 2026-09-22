@@ -716,14 +716,14 @@ enum {
 	BLK_MQ_S_MAX
 };
 
-struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
+struct gendisk *__blk_mq_alloc_disk_k618(struct blk_mq_tag_set *set,
 		struct queue_limits *lim, void *queuedata,
 		struct lock_class_key *lkclass);
 #define blk_mq_alloc_disk(set, lim, queuedata)				\
 ({									\
 	static struct lock_class_key __key;				\
 									\
-	__blk_mq_alloc_disk(set, lim, queuedata, &__key);		\
+	__blk_mq_alloc_disk_k618(set, lim, queuedata, &__key);		\
 })
 struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
 		struct lock_class_key *lkclass);
@@ -1054,8 +1054,11 @@ int blk_rq_map_user_io(struct request *, struct rq_map_data *,
 int blk_rq_map_user_iov(struct request_queue *, struct request *,
 		struct rq_map_data *, const struct iov_iter *, gfp_t);
 int blk_rq_unmap_user(struct bio *);
-int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
+int blk_rq_map_kern_k618(struct request *rq, void *kbuf, unsigned int len,
 		gfp_t gfp);
+/* 树内调用点走 6.18 原型；6.6 原型（带 queue）在 compat-6.6-block.c 导出 */
+#define blk_rq_map_kern(rq, kbuf, len, gfp)	\
+	blk_rq_map_kern_k618(rq, kbuf, len, gfp)
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
 void blk_execute_rq_nowait(struct request *rq, bool at_head);
 blk_status_t blk_execute_rq(struct request *rq, bool at_head);
@@ -1196,13 +1199,13 @@ static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
 	return max_t(unsigned short, rq->nr_phys_segments, 1);
 }
 
-int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
+int __blk_rq_map_sg_k618(struct request *rq, struct scatterlist *sglist,
 		struct scatterlist **last_sg);
 static inline int blk_rq_map_sg(struct request *rq, struct scatterlist *sglist)
 {
 	struct scatterlist *last_sg = NULL;
 
-	return __blk_rq_map_sg(rq, sglist, &last_sg);
+	return __blk_rq_map_sg_k618(rq, sglist, &last_sg);
 }
 void blk_dump_rq_flags(struct request *, char *);
 

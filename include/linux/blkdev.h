@@ -1003,7 +1003,7 @@ static inline unsigned int bdev_nr_zones(struct block_device *bdev)
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
 
 void put_disk(struct gendisk *disk);
-struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
+struct gendisk *__blk_alloc_disk_k618(struct queue_limits *lim, int node,
 		struct lock_class_key *lkclass);
 
 /**
@@ -1022,7 +1022,7 @@ struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
 ({									\
 	static struct lock_class_key __key;				\
 									\
-	__blk_alloc_disk(lim, node_id, &__key);				\
+	__blk_alloc_disk_k618(lim, node_id, &__key);				\
 })
 
 int __register_blkdev(unsigned int major, const char *name,
