@@ -95,8 +95,6 @@ struct genl_family {
 	void			(*post_doit)(const struct genl_split_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
-	int			(*bind)(int mcgrp);
-	void			(*unbind)(int mcgrp);
 	const struct genl_ops *	ops;
 	const struct genl_small_ops *small_ops;
 	const struct genl_split_ops *split_ops;
@@ -114,9 +112,47 @@ struct genl_family {
 	unsigned int		mcgrp_offset;
 	/* list of per-socket privs */
 	struct xarray		*sock_privs;
+	int			(*bind)(int mcgrp);
+	void			(*unbind)(int mcgrp);
 
 	ANDROID_KABI_RESERVE(1);
 };
+
+_Static_assert(__builtin_offsetof(struct genl_family, policy) == 40,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, pre_doit) == 48,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, post_doit) == 56,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, ops) == 64,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, small_ops) == 72,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, split_ops) == 80,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, mcgrps) == 88,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, module) == 96,
+	       "rodin genl_family 6.6 ABI");
+
+
+_Static_assert(__builtin_offsetof(struct genl_family, policy) == 40,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, pre_doit) == 48,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, post_doit) == 56,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, ops) == 64,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, small_ops) == 72,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, split_ops) == 80,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, mcgrps) == 88,
+	       "rodin genl_family 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct genl_family, module) == 96,
+	       "rodin genl_family 6.6 ABI");
+
 
 /**
  * struct genl_info - receiving information

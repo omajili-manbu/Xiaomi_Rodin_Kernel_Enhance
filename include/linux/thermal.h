@@ -94,25 +94,43 @@ struct cooling_spec {
 };
 
 struct thermal_zone_device_ops {
-	bool (*should_bind) (struct thermal_zone_device *,
-			     const struct thermal_trip *,
-			     struct thermal_cooling_device *,
-			     struct cooling_spec *);
+	/* rodin: 6.6 ABI anchor (6.18 removed bind/unbind; kernel never reads) */
+	int (*bind) (struct thermal_zone_device *,
+		     struct thermal_cooling_device *);
+	int (*unbind) (struct thermal_zone_device *,
+		       struct thermal_cooling_device *);
 	int (*get_temp) (struct thermal_zone_device *, int *);
 	int (*set_trips) (struct thermal_zone_device *, int, int);
 	int (*change_mode) (struct thermal_zone_device *,
 		enum thermal_device_mode);
 	int (*set_trip_temp) (struct thermal_zone_device *,
 			      const struct thermal_trip *, int);
+	int (*set_trip_hyst) (struct thermal_zone_device *, int, int);
 	int (*get_crit_temp) (struct thermal_zone_device *, int *);
 	int (*set_emul_temp) (struct thermal_zone_device *, int);
 	int (*get_trend) (struct thermal_zone_device *,
 			  const struct thermal_trip *, enum thermal_trend *);
 	void (*hot)(struct thermal_zone_device *);
 	void (*critical)(struct thermal_zone_device *);
+	bool (*should_bind) (struct thermal_zone_device *,
+			     const struct thermal_trip *,
+			     struct thermal_cooling_device *,
+			     struct cooling_spec *);
 
 	ANDROID_KABI_RESERVE(1);
 };
+
+_Static_assert(__builtin_offsetof(struct thermal_zone_device_ops, bind) == 0,
+	       "rodin thermal_zone_device_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct thermal_zone_device_ops, unbind) == 8,
+	       "rodin thermal_zone_device_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct thermal_zone_device_ops, get_temp) == 16,
+	       "rodin thermal_zone_device_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct thermal_zone_device_ops, set_trip_hyst) == 48,
+	       "rodin thermal_zone_device_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct thermal_zone_device_ops, critical) == 88,
+	       "rodin thermal_zone_device_ops 6.6 ABI");
+
 
 struct thermal_cooling_device_ops {
 	int (*get_max_state) (struct thermal_cooling_device *, unsigned long *);

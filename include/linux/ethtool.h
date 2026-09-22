@@ -1119,18 +1119,13 @@ struct kernel_ethtool_ts_info {
  * of the generic netdev features interface.
  */
 struct ethtool_ops {
-	u32     supported_input_xfrm:8;
 	u32     cap_link_lanes_supported:1;
+	u32     supported_input_xfrm:8;
 	u32	rxfh_per_ctx_fields:1;
 	u32	rxfh_per_ctx_key:1;
 	u32	cap_rss_rxnfc_adds:1;
-	u32	rxfh_indir_space;
-	u16	rxfh_key_space;
-	u16	rxfh_priv_size;
-	u32	rxfh_max_num_contexts;
 	u32	supported_coalesce_params;
 	u32	supported_ring_params;
-	u32	supported_hwtstamp_qualifiers;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -1186,29 +1181,17 @@ struct ethtool_ops {
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int	(*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);
-	u32	(*get_rx_ring_count)(struct net_device *dev);
 	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32	(*get_rxfh_indir_size)(struct net_device *);
 	int	(*get_rxfh)(struct net_device *, struct ethtool_rxfh_param *);
 	int	(*set_rxfh)(struct net_device *, struct ethtool_rxfh_param *,
 			    struct netlink_ext_ack *extack);
-	int	(*get_rxfh_fields)(struct net_device *,
-				   struct ethtool_rxfh_fields *);
-	int	(*set_rxfh_fields)(struct net_device *,
-				   const struct ethtool_rxfh_fields *,
-				   struct netlink_ext_ack *extack);
-	int	(*create_rxfh_context)(struct net_device *,
-				       struct ethtool_rxfh_context *ctx,
-				       const struct ethtool_rxfh_param *rxfh,
-				       struct netlink_ext_ack *extack);
-	int	(*modify_rxfh_context)(struct net_device *,
-				       struct ethtool_rxfh_context *ctx,
-				       const struct ethtool_rxfh_param *rxfh,
-				       struct netlink_ext_ack *extack);
-	int	(*remove_rxfh_context)(struct net_device *,
-				       struct ethtool_rxfh_context *ctx,
-				       u32 rss_context,
-				       struct netlink_ext_ack *extack);
+	/* rodin: 6.6 ABI anchor (6.18 split into create/modify/remove) */
+	int	(*get_rxfh_context)(struct net_device *, u32 *indir, u8 *key,
+					u8 *hfunc, u32 rss_context);
+	int	(*set_rxfh_context)(struct net_device *, const u32 *indir,
+					const u8 *key, const u8 hfunc,
+					u32 *rss_context, bool delete);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
@@ -1216,8 +1199,6 @@ struct ethtool_ops {
 				 struct ethtool_dump *, void *);
 	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
 	int	(*get_ts_info)(struct net_device *, struct kernel_ethtool_ts_info *);
-	void	(*get_ts_stats)(struct net_device *dev,
-				struct ethtool_ts_stats *ts_stats);
 	int     (*get_module_info)(struct net_device *,
 				   struct ethtool_modinfo *);
 	int     (*get_module_eeprom)(struct net_device *,
@@ -1252,9 +1233,6 @@ struct ethtool_ops {
 	int	(*get_module_eeprom_by_page)(struct net_device *dev,
 					     const struct ethtool_module_eeprom *page,
 					     struct netlink_ext_ack *extack);
-	int	(*set_module_eeprom_by_page)(struct net_device *dev,
-					     const struct ethtool_module_eeprom *page,
-					     struct netlink_ext_ack *extack);
 	void	(*get_eth_phy_stats)(struct net_device *dev,
 				     struct ethtool_eth_phy_stats *phy_stats);
 	void	(*get_eth_mac_stats)(struct net_device *dev,
@@ -1274,12 +1252,58 @@ struct ethtool_ops {
 	int	(*set_mm)(struct net_device *dev, struct ethtool_mm_cfg *cfg,
 			  struct netlink_ext_ack *extack);
 	void	(*get_mm_stats)(struct net_device *dev, struct ethtool_mm_stats *stats);
+	u32	rxfh_indir_space;
+	u16	rxfh_key_space;
+	u16	rxfh_priv_size;
+	u32	rxfh_max_num_contexts;
+	u32	supported_hwtstamp_qualifiers;
+	u32	(*get_rx_ring_count)(struct net_device *dev);
+	int	(*get_rxfh_fields)(struct net_device *,
+				   struct ethtool_rxfh_fields *);
+	int	(*set_rxfh_fields)(struct net_device *,
+				   const struct ethtool_rxfh_fields *,
+				   struct netlink_ext_ack *extack);
+	int	(*create_rxfh_context)(struct net_device *,
+				       struct ethtool_rxfh_context *ctx,
+				       const struct ethtool_rxfh_param *rxfh,
+				       struct netlink_ext_ack *extack);
+	int	(*modify_rxfh_context)(struct net_device *,
+				       struct ethtool_rxfh_context *ctx,
+				       const struct ethtool_rxfh_param *rxfh,
+				       struct netlink_ext_ack *extack);
+	int	(*remove_rxfh_context)(struct net_device *,
+				       struct ethtool_rxfh_context *ctx,
+				       u32 rss_context,
+				       struct netlink_ext_ack *extack);
+	void	(*get_ts_stats)(struct net_device *dev,
+				struct ethtool_ts_stats *ts_stats);
+	int	(*set_module_eeprom_by_page)(struct net_device *dev,
+					     const struct ethtool_module_eeprom *page,
+					     struct netlink_ext_ack *extack);
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 };
+
+_Static_assert(__builtin_offsetof(struct ethtool_ops, supported_coalesce_params) == 4,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, supported_ring_params) == 8,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, get_drvinfo) == 16,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, get_rxfh) == 304,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, set_rxfh) == 312,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, get_channels) == 336,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, get_link_ksettings) == 448,
+	       "rodin ethtool_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct ethtool_ops, get_mm) == 568,
+	       "rodin ethtool_ops 6.6 ABI");
+
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
 
