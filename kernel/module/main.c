@@ -2115,35 +2115,158 @@ static int elf_validity_cache_index_info(struct load_info *info)
 #define MODULE_6_6_OFF_INIT	392
 #define MODULE_6_6_OFF_EXIT	1464
 
+/*
+ * rodin 6.6-compat: the frozen prefix of `struct module' must reproduce 6.6's
+ * member offsets exactly, or the 596 prebuilt 6.6 vendor modules read the
+ * wrong fields (aee_aed's slog_module_callback() once read bug_list.next's
+ * high half as num_tracepoints).  Offsets taken from the 6.6 kernel's BTF.
+ * If any of these stop holding, the fix is to move the offending 6.18 member
+ * after `flagstab' in include/linux/module.h -- not to relax the assert.
+ */
+#define RODIN_MOD_OFF(member, off)					\
+	static_assert(offsetof(struct module, member) == (off),			\
+		      "rodin: struct module::" #member " no longer matches 6.6")
+
+RODIN_MOD_OFF(state, 0x000);
+RODIN_MOD_OFF(list, 0x008);
+RODIN_MOD_OFF(name, 0x018);
+#ifdef CONFIG_STACKTRACE_BUILD_ID
+RODIN_MOD_OFF(build_id, 0x050);
+#endif
+RODIN_MOD_OFF(mkobj, 0x068);
+RODIN_MOD_OFF(modinfo_attrs, 0x0e8);
+RODIN_MOD_OFF(version, 0x0f0);
+RODIN_MOD_OFF(srcversion, 0x0f8);
+RODIN_MOD_OFF(scmversion, 0x100);
+RODIN_MOD_OFF(holders_dir, 0x108);
+RODIN_MOD_OFF(syms, 0x110);
+RODIN_MOD_OFF(crcs, 0x118);
+RODIN_MOD_OFF(num_syms, 0x120);
+#ifdef CONFIG_SYSFS
+RODIN_MOD_OFF(param_lock, 0x128);
+#endif
+RODIN_MOD_OFF(kp, 0x158);
+RODIN_MOD_OFF(num_kp, 0x160);
+#ifdef CONFIG_MODULE_FORCE_LOAD
+RODIN_MOD_OFF(num_gpl_syms, 0x164);
+RODIN_MOD_OFF(gpl_syms, 0x168);
+RODIN_MOD_OFF(gpl_crcs, 0x170);
+#endif
+RODIN_MOD_OFF(using_gplonly_symbols, 0x178);
+RODIN_MOD_OFF(sig_ok, 0x179);
+RODIN_MOD_OFF(async_probe_requested, 0x17a);
+RODIN_MOD_OFF(num_exentries, 0x17c);
+RODIN_MOD_OFF(extable, 0x180);
+RODIN_MOD_OFF(init, 0x188);
+RODIN_MOD_OFF(mem, 0x1c0);
+RODIN_MOD_OFF(taints, 0x478);
+#ifdef CONFIG_GENERIC_BUG
+RODIN_MOD_OFF(num_bugs, 0x480);
+RODIN_MOD_OFF(bug_list, 0x488);
+RODIN_MOD_OFF(bug_table, 0x498);
+#endif
+#ifdef CONFIG_KALLSYMS
+RODIN_MOD_OFF(kallsyms, 0x4a0);
+RODIN_MOD_OFF(core_kallsyms, 0x4a8);
+RODIN_MOD_OFF(sect_attrs, 0x4c8);
+RODIN_MOD_OFF(notes_attrs, 0x4d0);
+#endif
+RODIN_MOD_OFF(args, 0x4d8);
+#ifdef CONFIG_SMP
+RODIN_MOD_OFF(percpu, 0x4e0);
+RODIN_MOD_OFF(percpu_size, 0x4e8);
+#endif
+RODIN_MOD_OFF(noinstr_text_start, 0x4f0);
+RODIN_MOD_OFF(noinstr_text_size, 0x4f8);
+#ifdef CONFIG_TRACEPOINTS
+RODIN_MOD_OFF(num_tracepoints, 0x4fc);
+RODIN_MOD_OFF(tracepoints_ptrs, 0x500);
+#endif
+#ifdef CONFIG_TREE_SRCU
+RODIN_MOD_OFF(num_srcu_structs, 0x508);
+RODIN_MOD_OFF(srcu_struct_ptrs, 0x510);
+#endif
+#ifdef CONFIG_BPF_EVENTS
+RODIN_MOD_OFF(num_bpf_raw_events, 0x518);
+RODIN_MOD_OFF(bpf_raw_events, 0x520);
+#endif
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+RODIN_MOD_OFF(btf_data_size, 0x528);
+RODIN_MOD_OFF(btf_data, 0x530);
+#endif
+#ifdef CONFIG_JUMP_LABEL
+RODIN_MOD_OFF(jump_entries, 0x538);
+RODIN_MOD_OFF(num_jump_entries, 0x540);
+#endif
+#ifdef CONFIG_TRACING
+RODIN_MOD_OFF(num_trace_bprintk_fmt, 0x544);
+RODIN_MOD_OFF(trace_bprintk_fmt_start, 0x548);
+#endif
+#ifdef CONFIG_EVENT_TRACING
+RODIN_MOD_OFF(trace_events, 0x550);
+RODIN_MOD_OFF(num_trace_events, 0x558);
+RODIN_MOD_OFF(trace_evals, 0x560);
+RODIN_MOD_OFF(num_trace_evals, 0x568);
+#endif
+#ifdef CONFIG_KPROBES
+RODIN_MOD_OFF(kprobes_text_start, 0x570);
+RODIN_MOD_OFF(kprobes_text_size, 0x578);
+RODIN_MOD_OFF(kprobe_blacklist, 0x580);
+RODIN_MOD_OFF(num_kprobe_blacklist, 0x588);
+#endif
+#if IS_ENABLED(CONFIG_KUNIT)
+RODIN_MOD_OFF(num_kunit_suites, 0x58c);
+RODIN_MOD_OFF(kunit_suites, 0x590);
+#endif
+#ifdef CONFIG_MODULE_UNLOAD
+RODIN_MOD_OFF(source_list, 0x598);
+RODIN_MOD_OFF(target_list, 0x5a8);
+RODIN_MOD_OFF(exit, 0x5b8);
+RODIN_MOD_OFF(refcnt, 0x5c0);
+#endif
+#ifdef CONFIG_DYNAMIC_DEBUG_CORE
+RODIN_MOD_OFF(dyndbg_info, 0x5c8);
+#endif
+#ifdef CONFIG_ANDROID_KABI_RESERVE
+RODIN_MOD_OFF(__kabi_reserved1, 0x5e0);
+RODIN_MOD_OFF(__kabi_reserved4, 0x5f8);
+#endif
+static_assert(RODIN_MODULE_6_6_SIZE == 0x600,
+	      "rodin: the frozen 6.6 prefix of struct module changed size");
+static_assert(offsetof(struct module, flagstab) >= RODIN_MODULE_6_6_SIZE,
+	      "rodin: 6.18-only members must stay after the frozen 6.6 block");
+static_assert(offsetof(struct module, arch) >= RODIN_MODULE_6_6_SIZE,
+	      "rodin: arch must stay out of the frozen 6.6 block");
+static_assert(offsetof(struct module_memory, size) == 8,
+	      "rodin: module_memory::size must keep 6.6's offset");
+
 static void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
 {
-	static const unsigned int off[][2] = {
-		{ MODULE_6_6_OFF_INIT, offsetof(struct module, init) },
-		{ MODULE_6_6_OFF_EXIT, offsetof(struct module, exit) },
-	};
 	Elf_Shdr *shdr = &info->sechdrs[mod_idx];
-	char *mod = (char *)info->hdr + shdr->sh_offset;
-	unsigned int i, j, k;
+	size_t tail, avail;
+	char *mod;
 
-	for (j = 0; j < ARRAY_SIZE(off); j++)
-		memset(mod + off[j][0], 0, sizeof(void *));
+	/*
+	 * `struct module' itself now reproduces the 6.6 layout, so init/exit
+	 * relocations land where the vendor module expects them and there is
+	 * nothing to rewrite in .rela.
+	 */
+	BUILD_BUG_ON(offsetof(struct module, init) != MODULE_6_6_OFF_INIT);
+	BUILD_BUG_ON(offsetof(struct module, exit) != MODULE_6_6_OFF_EXIT);
 
-	for (i = 1; i < info->hdr->e_shnum; i++) {
-		Elf_Rela *rela;
-		unsigned int n;
-
-		if (info->sechdrs[i].sh_type != SHT_RELA ||
-		    info->sechdrs[i].sh_info != mod_idx)
-			continue;
-
-		rela = (void *)info->hdr + info->sechdrs[i].sh_offset;
-		n = info->sechdrs[i].sh_size / sizeof(Elf_Rela);
-
-		for (k = 0; k < n; k++)
-			for (j = 0; j < ARRAY_SIZE(off); j++)
-				if (rela[k].r_offset == off[j][0])
-					rela[k].r_offset = off[j][1];
-	}
+	/*
+	 * The members 6.18 added live past the 6.6 size; the vendor's section is
+	 * only 1536 bytes, so give that tail defined (zero) contents instead of
+	 * whatever section happens to follow in the file.  The caller already
+	 * checked that sh_offset + sizeof(struct module) <= info->len, but clamp
+	 * anyway.
+	 */
+	mod = (char *)info->hdr + shdr->sh_offset;
+	tail = sizeof(struct module) - MODULE_6_6_SIZEOF;
+	avail = shdr->sh_offset < info->len ? info->len - shdr->sh_offset : 0;
+	if (avail > MODULE_6_6_SIZEOF)
+		memset(mod + MODULE_6_6_SIZEOF, 0,
+		       min(tail, avail - MODULE_6_6_SIZEOF));
 
 	shdr->sh_size = sizeof(struct module);
 	info->mod_6_6 = true;
@@ -3626,10 +3749,14 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	}
 
 #ifdef CONFIG_MODULE_FORCE_LOAD
-	if (info->mod_6_6) {
+	/*
+	 * rodin: a 6.6-built module.  Its .exit relocation lands on 6.6's
+	 * `exit' member (see module_fixup_6_6()), so rmmod runs the vendor's
+	 * cleanup_module exactly like it does on 6.6; the member is NULL on its
+	 * own for modules that ship no cleanup function.
+	 */
+	if (info->mod_6_6)
 		mod->rodin_66 = true;
-		mod->exit = NULL;
-	}
 #endif
 
 	module_allocated = true;
