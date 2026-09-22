@@ -1337,3 +1337,21 @@ int nr_ipi_get(void)
 }
 EXPORT_SYMBOL_GPL(nr_ipi_get);
 
+/*
+ * 6.6 kept one global IPI irq_desc array and handed it out directly; 6.18
+ * keeps a set per CPU and falls back to CPU0's when the descriptors are not
+ * per-CPU.  Vendor modules built against 6.6 dump IPI state through this, so
+ * hand out CPU0's set.
+ */
+struct irq_desc **ipi_desc_get(void)
+{
+	static struct irq_desc *descs[MAX_IPI];
+	int i;
+
+	for (i = 0; i < MAX_IPI; i++)
+		descs[i] = get_ipi_desc(0, i);
+
+	return descs;
+}
+EXPORT_SYMBOL_GPL(ipi_desc_get);
+
