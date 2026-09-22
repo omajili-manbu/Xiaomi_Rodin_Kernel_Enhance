@@ -58,6 +58,18 @@ fop_flags_t rodin_fop_flags(const struct file_operations *fop)
 }
 EXPORT_SYMBOL(rodin_fop_flags);
 
+/*
+ * rodin 7th-fix: mmap_prepare 与 fop_flags 同为 6.18 追加的 fops 尾部成员，
+ * 6.6 模块的 fops 实例没有它，直接判空/调用会使用越界垃圾。
+ */
+bool rodin_fops_has_mmap_prepare(const struct file_operations *fop)
+{
+	if (rodin_obj_is_legacy66(fop))
+		return false;
+	return fop->mmap_prepare;
+}
+EXPORT_SYMBOL(rodin_fops_has_mmap_prepare);
+
 /* Container for backing file with optional user path */
 struct backing_file {
 	struct file file;

@@ -2699,7 +2699,7 @@ static bool can_set_ksm_flags_early(struct mmap_state *map)
 	 * about mmap callbacks modifying VMA flags after the KSM flag has been
 	 * updated here, which could otherwise affect KSM eligibility.
 	 */
-	if (file->f_op->mmap_prepare)
+	if (rodin_fops_has_mmap_prepare(file->f_op))
 		return true;
 
 	/* shmem is safe. */
@@ -2717,7 +2717,8 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
 	int error;
-	bool have_mmap_prepare = file && file->f_op->mmap_prepare;
+	bool have_mmap_prepare =
+		file && rodin_fops_has_mmap_prepare(file->f_op);
 	VMA_ITERATOR(vmi, mm, addr);
 	MMAP_STATE(map, mm, &vmi, addr, len, pgoff, vm_flags, file);
 

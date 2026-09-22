@@ -14,6 +14,12 @@ bool cfi_warn __ro_after_init = IS_ENABLED(CONFIG_CFI_PERMISSIVE);
 enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 				      unsigned long *target, u32 type)
 {
+	/* rodin: permissive 模式下限频，避免模块侧 CFI 哈希漂移刷爆日志 */
+	static DEFINE_RATELIMIT_STATE(cfi_rs, 60 * HZ, 3);
+
+	if (cfi_warn && !__ratelimit(&cfi_rs))
+		return BUG_TRAP_TYPE_WARN;
+
 	if (target)
 		pr_err("CFI failure at %pS (target: %pS; expected type: 0x%08x)\n",
 		       (void *)addr, (void *)*target, type);
