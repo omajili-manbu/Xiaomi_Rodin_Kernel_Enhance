@@ -361,8 +361,15 @@ enum mod_mem_type {
 
 struct module_memory {
 	void *base;
-	bool is_rox;
 	unsigned int size;
+	/*
+	 * rodin 6.6-compat: is_rox is new in 6.18; declaring it after size puts
+	 * size back at 6.6's offset 8 and still fits in the padding hole, so
+	 * module_memory stays 72 bytes and nothing downstream of it moves.
+	 * Prebuilt modules read mem[type].size (mrdump walks the text/data
+	 * ranges) with the 6.6 offset.
+	 */
+	bool is_rox;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
 	struct mod_tree_node mtn;
@@ -400,6 +407,14 @@ struct klp_modinfo {
 };
 #endif
 
+/*
+ * rodin 6.6-compat: size of the frozen 6.6 prefix of `struct module'.  Every
+ * member 6.6 had lives below this offset and keeps its 6.6 offset; 6.18-only
+ * members are declared above it.  Pinned by static_assert() in
+ * kernel/module/main.c.
+ */
+#define RODIN_MODULE_6_6_SIZE	0x600
+
 struct module {
 	enum module_state state;
 
@@ -422,16 +437,22 @@ struct module {
 	const char *scmversion;
 	struct kobject *holders_dir;
 
+	/*
+	 * rodin 6.6-compat: this block, down to the "end of the frozen 6.6
+	 * layout" marker at the bottom of this struct, is frozen to 6.6's
+	 * declaration order and therefore to 6.6's member offsets.  Prebuilt
+	 * vendor modules read these members with 6.6-era hardcoded offsets --
+	 * aee_aed loads num_tracepoints from 0x4fc and tracepoints_ptrs from
+	 * 0x500, mrdump/aee walk kallsyms at 0x4a0 -- so a 6.18-only member
+	 * declared anywhere in between silently shifts them all.  Members that
+	 * 6.18 added must be declared after the marker.
+	 * kernel/module/main.c pins every offset below with static_assert().
+	 */
+
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
-	const u32 *crcs;
-	const u8 *flagstab;
+	const u32 *crcs;	/* 6.6 had const s32 *: same size, same offset */
 	unsigned int num_syms;
-#ifdef CONFIG_MODULE_FORCE_LOAD
-	const struct kernel_symbol *gpl_syms;
-	const u32 *gpl_crcs;
-	unsigned int num_gpl_syms;
-#endif
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
 	s32 *kcfi_traps;
@@ -446,14 +467,10 @@ struct module {
 	unsigned int num_kp;
 
 	/* GPL-only exported symbols. */
+	unsigned int num_gpl_syms;
+	const struct kernel_symbol *gpl_syms;
+	const u32 *gpl_crcs;
 	bool using_gplonly_symbols;
-
-	/*
-	 * rodin 6.6-compat: module was built against the 6.6 kernel layout.
-	 * Objects owned by such modules (fops, attribute_groups, ...) must be
-	 * accessed with the old ABI, see rodin_obj_is_legacy66().
-	 */
-	bool rodin_66;
 
 	/*
 	 * Signature was verified. Unconditionally compiled in Android to
@@ -473,8 +490,16 @@ struct module {
 
 	struct module_memory mem[MOD_MEM_NUM_TYPES] __module_memory_align;
 
-	/* Arch-specific module values */
-	struct mod_arch_specific arch;
+	/*
+	 * rodin 6.6-compat: 6.6 had `struct mod_arch_specific arch' right here
+	 * and it was 192 bytes wide; 6.18's is 304 (pkvm_el2_module grew by 104
+	 * bytes and init_ftrace_trampolines was added).  Declaring the real one
+	 * here would push every member below it up by 0x70, so hold the
+	 * 6.6-sized slot instead and keep the real arch at the very end of the
+	 * struct -- it is kernel-internal and only ever touched by name
+	 * (mod->arch.core/init/... in arch/arm64).
+	 */
+	u64 __rodin_arch_6_6_slot[24];
 
 	unsigned long taints;	/* same bits as kernel:taint_flags */
 
@@ -523,9 +548,7 @@ struct module {
 #endif
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	unsigned int btf_data_size;
-	unsigned int btf_base_data_size;
 	void *btf_data;
-	void *btf_base_data;
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
@@ -556,8 +579,6 @@ struct module {
 	struct static_call_site *static_call_sites;
 #endif
 #if IS_ENABLED(CONFIG_KUNIT)
-	int num_kunit_init_suites;
-	struct kunit_suite **kunit_init_suites;
 	int num_kunit_suites;
 	struct kunit_suite **kunit_suites;
 #endif
@@ -588,6 +609,12 @@ struct module {
 	atomic_t refcnt;
 #endif
 
+#ifdef CONFIG_MITIGATION_ITS
+	/* rodin 6.6-compat: 6.6 has these two members here (unused today) */
+	int its_num_pages;
+	void **its_page_array;
+#endif
+
 #ifdef CONFIG_CONSTRUCTORS
 	/* Constructor functions. */
 	ctor_fn_t *ctors;
@@ -606,6 +633,36 @@ struct module {
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
+
+	/* --- end of the frozen 6.6 layout (RODIN_MODULE_6_6_SIZE) --- */
+
+	/*
+	 * rodin 6.6-compat: members that exist only in 6.18.  They must stay
+	 * after the frozen block above; putting any of them in the middle would
+	 * shift the 6.6 offsets that prebuilt vendor modules rely on.
+	 */
+	const u8 *flagstab;	/* new in 6.18: per-symbol export flags */
+
+	/* rodin: module was built against the 6.6 layout, see rodin_66.c */
+	bool rodin_66;
+
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	/* new in 6.18: the split-BTF base image */
+	unsigned int btf_base_data_size;
+	void *btf_base_data;
+#endif
+
+#if IS_ENABLED(CONFIG_KUNIT)
+	/* new in 6.18: the built-in (init) flavour of the suites above */
+	int num_kunit_init_suites;
+	struct kunit_suite **kunit_init_suites;
+#endif
+
+	/*
+	 * rodin 6.6-compat: the real mod_arch_specific (304 bytes); the 192-byte
+	 * slot it replaces sits up at 6.6's offset 0x3b8.
+	 */
+	struct mod_arch_specific arch;
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
