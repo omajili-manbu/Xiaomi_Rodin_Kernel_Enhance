@@ -1254,6 +1254,7 @@ const char * const vmstat_text[] = {
 	[I(NR_FILE_PAGES)]			= "nr_file_pages",
 	[I(NR_FILE_DIRTY)]			= "nr_dirty",
 	[I(NR_WRITEBACK)]			= "nr_writeback",
+	[I(NR_WRITEBACK_TEMP)]			= "nr_writeback_temp", /* rodin: 6.6 枚举占位 */
 	[I(NR_SHMEM)]				= "nr_shmem",
 	[I(NR_SHMEM_THPS)]			= "nr_shmem_hugepages",
 	[I(NR_SHMEM_PMDMAPPED)]			= "nr_shmem_pmdmapped",

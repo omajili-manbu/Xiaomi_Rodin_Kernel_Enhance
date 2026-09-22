@@ -47,6 +47,8 @@ CFLAGS_kcov.o := $(call cc-option, -fno-conserve-stack) -fno-stack-protector
 
 # rodin: struct task_struct 6.6 ABI 冻结的编译期断言
 obj-y += rodin_task_abi.o
+# rodin: mm 数据结构（pg_data_t/mem_cgroup）6.6 ABI 冻结的编译期断言
+obj-y += rodin_mm_abi.o
 obj-y += sched/
 obj-y += locking/
 obj-y += power/

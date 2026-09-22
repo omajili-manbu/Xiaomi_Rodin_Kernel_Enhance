@@ -1728,6 +1728,9 @@ static void __init free_area_init_node(int nid)
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
 	pgdat->node_id = nid;
+	/* rodin: 6.6 厂商 ABI 镜像（见 kernel/rodin_mm_abi.c） */
+	pgdat->rodin_node_id66 = nid;
+	pgdat->__lruvec66.pgdat = pgdat;
 	pgdat->node_start_pfn = start_pfn;
 	pgdat->per_cpu_nodestats = NULL;
 
