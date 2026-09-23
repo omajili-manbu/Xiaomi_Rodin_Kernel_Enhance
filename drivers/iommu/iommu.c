@@ -3120,6 +3120,16 @@ const struct iommu_ops *iommu_ops_from_fwnode(const struct fwnode_handle *fwnode
 	return iommu ? iommu->ops : NULL;
 }
 
+/*
+ * rodin r14: 6.6 预编译模块直接解引用这两个结构的深字段，布局必须在 .o 与
+ * vmlinux 上都与 6.6 一致。断言把 ABI 钉死（改坏立刻编译失败）。
+ */
+_Static_assert(offsetof(struct dev_iommu, fwspec) == 0x40, "dev_iommu 6.6 ABI: fwspec");
+_Static_assert(offsetof(struct dev_iommu, priv) == 0x50, "dev_iommu 6.6 ABI: priv");
+_Static_assert(sizeof(struct dev_iommu) == 96, "dev_iommu 6.6 ABI: size");
+_Static_assert(offsetof(struct iommu_fwspec, ids) == 0x18, "iommu_fwspec 6.6 ABI: ids");
+_Static_assert(sizeof(struct iommu_fwspec) == 24, "iommu_fwspec 6.6 ABI: size");
+
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode)
 {
 	const struct iommu_device *iommu = iommu_from_fwnode(iommu_fwnode);
@@ -3143,6 +3153,8 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode)
 
 	fwnode_handle_get(iommu_fwnode);
 	fwspec->iommu_fwnode = iommu_fwnode;
+	/* rodin r14: 6.6 ABI 首字段，仅供 6.6 模块读；6.18 自身用 iommu_fwnode 查找 */
+	fwspec->ops = iommu->ops;
 	dev_iommu_fwspec_set(dev, fwspec);
 	return 0;
 }

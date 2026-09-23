@@ -922,6 +922,14 @@ struct iommu_fault_param {
 struct dev_iommu {
 	struct mutex lock;
 	struct iommu_fault_param __rcu	*fault_param;
+	/*
+	 * rodin r14: 6.6 树在 fault_param 与 fwspec 之间还有一个 8B 指针
+	 * (iopf_param)。6.18 上游删掉它，使 fwspec/priv/max_pasids 整体前移 8B，
+	 * 而预编译的 6.6 模块(mtk_iommu.ko)直接按 6.6 偏移读写
+	 * dev->iommu->{fwspec@0x40, priv@0x50}。这里按 6.6 布局补回占位，
+	 * 内核自身不引用该字段（零行为变化）。
+	 */
+	void				*__rodin_66_iopf_param;
 	struct iommu_fwspec		*fwspec;
 	struct iommu_device		*iommu_dev;
 	void				*priv;
@@ -1182,6 +1190,13 @@ extern struct iommu_group *generic_single_device_group(struct device *dev);
  * consumers.
  */
 struct iommu_fwspec {
+	/*
+	 * rodin r14: 6.6 布局首字段（6.18 上游删除 ⇒ iommu_fwnode..ids 整体前移
+	 * 8B）。6.6 预编译模块按 6.6 偏移读 fwspec->ids[0](0x18) 取 stream id，
+	 * 并在 of_xlate 中把 m4u data 存到 dev->iommu->priv。补回并由
+	 * iommu_fwspec_init() 填值，保持 6.6 ABI。
+	 */
+	const struct iommu_ops		*ops;
 	struct fwnode_handle	*iommu_fwnode;
 	u32			flags;
 	unsigned int		num_ids;

@@ -51,6 +51,22 @@ static DEFINE_IDA(scmi_id);
 
 static DEFINE_XARRAY(scmi_protocols);
 
+/*
+ * rodin r14: 6.6 预编译模块（tinysys_scmi.ko）编译时的 struct scmi_protocol 只有
+ * 56B，没有 vendor_id/sub_vendor_id/impl_ver 三个尾部字段。6.18 对 id>=0x80 的
+ * vendor 协议要按 80B 布局读它们做校验与哈希键 ⇒ 越界读到相邻 .rodata，
+ * strlen() 判 "malformed sub_vendor_id" ⇒ 注册被 -EINVAL 拒（真机 22 次），
+ * 协议 0x80 永不注册 ⇒ tinysys/VCP 服务不可用 ⇒ MTCMOS 电源域 hwv/vcp 握手超时、
+ * init 无限重试 mtk-scpsys-mt6899.ko 卡死。
+ *
+ * 这里为模块描述符建内核侧影子（只拷 6.6 的 56B、尾部清零，内核永不读模块内存），
+ * 并按 6.6 的注册语义（仅 protocol_id 为键）另表登记。
+ */
+#define RODIN_66_SCMI_PROTOCOL_SIZE	56
+static_assert(offsetof(struct scmi_protocol, vendor_id) ==
+	      RODIN_66_SCMI_PROTOCOL_SIZE);
+static DEFINE_XARRAY(rodin_66_scmi_protocols);
+
 /* List of all SCMI devices active in system */
 static LIST_HEAD(scmi_list);
 /* Protection for the entire list */
@@ -309,8 +325,12 @@ scmi_protocol_get(int protocol_id, struct scmi_revision_info *version)
 
 	if (protocol_id < SCMI_PROTOCOL_VENDOR_BASE)
 		proto = xa_load(&scmi_protocols, protocol_id);
-	else
-		proto = scmi_vendor_protocol_get(protocol_id, version);
+	else {
+		/* rodin r14: 6.6 模块注册的 vendor 协议（无 vendor 签名）先查影子表 */
+		proto = xa_load(&rodin_66_scmi_protocols, protocol_id);
+		if (!proto)
+			proto = scmi_vendor_protocol_get(protocol_id, version);
+	}
 
 	if (!proto || !try_module_get(proto->owner)) {
 		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
@@ -360,6 +380,32 @@ int scmi_protocol_register(const struct scmi_protocol *proto)
 		return -EINVAL;
 	}
 
+	/*
+	 * rodin r14: 调用方是模块 ⇒ 6.6 预编译（描述符 56B，无 vendor 字段）。
+	 * 影子化后再按 6.6 语义登记，详见 rodin_66_scmi_protocols 处说明。
+	 */
+	if (is_module_text_address((unsigned long)_RET_IP_)) {
+		struct scmi_protocol *sh = kmalloc(sizeof(*sh), GFP_KERNEL);
+
+		if (!sh)
+			return -ENOMEM;
+		memcpy(sh, proto, RODIN_66_SCMI_PROTOCOL_SIZE);
+		memset((char *)sh + RODIN_66_SCMI_PROTOCOL_SIZE, 0,
+		       sizeof(*sh) - RODIN_66_SCMI_PROTOCOL_SIZE);
+
+		ret = xa_insert(&rodin_66_scmi_protocols, proto->id, sh,
+				GFP_KERNEL);
+		if (ret) {
+			kfree(sh);
+			pr_err("unable to allocate SCMI protocol slot for 0x%x - err %d\n",
+			       proto->id, ret);
+			return ret;
+		}
+		pr_info("rodin: registered 6.6-ABI SCMI protocol 0x%x (shadow)\n",
+			proto->id);
+		return 0;
+	}
+
 	if (!proto->instance_init) {
 		pr_err("missing init for protocol 0x%x\n", proto->id);
 		return -EINVAL;
@@ -397,6 +443,15 @@ EXPORT_SYMBOL_GPL(scmi_protocol_register);
 void scmi_protocol_unregister(const struct scmi_protocol *proto)
 {
 	unsigned long key;
+	struct scmi_protocol *sh;
+
+	/* rodin r14: 6.6 影子表登记的先撤影子 */
+	sh = xa_load(&rodin_66_scmi_protocols, proto->id);
+	if (sh == proto) {
+		xa_erase(&rodin_66_scmi_protocols, proto->id);
+		kfree(sh);
+		return;
+	}
 
 	key = scmi_protocol_key_calculate(proto->id, proto->vendor_id,
 					  proto->sub_vendor_id,

@@ -130,7 +130,10 @@ config GKI_HIDDEN_QCOM_CONFIGS
 
 config GKI_HIDDEN_MTK_CONFIGS
 	bool "Hidden MTK configs needed for GKI"
-	select MTK_TIMER
+	# rodin r14: 不再 select MTK_TIMER —— 6.6 设备内核没有这个配置，
+	# 内建 clocksource 驱动会以 IRQF_TIMER|IRQF_IRQPOLL 抢占 systimer IRQ
+	# （1cc10000），厂商 timer_mediatek.ko 绑定 -EBUSY。厂商模块自己就是
+	# GKI 语境下"out-of-tree module"的计时器提供者。
 	help
 	  This dummy config option is used to enable hidden MediaTek (MTK)
 	  configs required for GKI. Specifically, it selects MTK_TIMER.
