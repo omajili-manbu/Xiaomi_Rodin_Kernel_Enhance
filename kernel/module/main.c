@@ -2240,11 +2240,14 @@ static_assert(offsetof(struct module, arch) >= RODIN_MODULE_6_6_SIZE,
 static_assert(offsetof(struct module_memory, size) == 8,
 	      "rodin: module_memory::size must keep 6.6's offset");
 
-static void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
+/*
+ * noinline: this recipe has to stay separately assertable in the linked image --
+ * the r10 lesson is that ".o green" proves nothing about vmlinux, and the gate for
+ * "the 6.6 fixup must not write the file image" is a disassembly of this symbol.
+ */
+static noinline void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
 {
 	Elf_Shdr *shdr = &info->sechdrs[mod_idx];
-	size_t tail, avail;
-	char *mod;
 
 	/*
 	 * `struct module' itself now reproduces the 6.6 layout, so init/exit
@@ -2255,19 +2258,16 @@ static void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
 	BUILD_BUG_ON(offsetof(struct module, exit) != MODULE_6_6_OFF_EXIT);
 
 	/*
-	 * The members 6.18 added live past the 6.6 size; the vendor's section is
-	 * only 1536 bytes, so give that tail defined (zero) contents instead of
-	 * whatever section happens to follow in the file.  The caller already
-	 * checked that sh_offset + sizeof(struct module) <= info->len, but clamp
-	 * anyway.
+	 * The members 6.18 added live past the 6.6 size and must read as zero,
+	 * but that tail MUST NOT be zeroed here: this runs on the file image,
+	 * and the 384 bytes that follow `.gnu.linkonce.this_module' in the file
+	 * are not ours.  For 14 of the 596 vendor modules they are .rela.text /
+	 * .rela.init.text / .rela.eh_frame / .rela.*.data, and blanking them
+	 * silently dropped those relocations -- mtk_iommu_util's
+	 * mtk_iommu_set_ops() then stored its ops table into its own read-only
+	 * text page ("write to read-only memory at ffffffcfec1a4000", r11).
+	 * The tail is defined in move_module() instead, on the destination.
 	 */
-	mod = (char *)info->hdr + shdr->sh_offset;
-	tail = sizeof(struct module) - MODULE_6_6_SIZEOF;
-	avail = shdr->sh_offset < info->len ? info->len - shdr->sh_offset : 0;
-	if (avail > MODULE_6_6_SIZEOF)
-		memset(mod + MODULE_6_6_SIZEOF, 0,
-		       min(tail, avail - MODULE_6_6_SIZEOF));
-
 	shdr->sh_size = sizeof(struct module);
 	info->mod_6_6 = true;
 }
@@ -3050,6 +3050,17 @@ static int move_module(struct module *mod, struct load_info *info)
 				goto out_err;
 			}
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
+#ifdef CONFIG_MODULE_FORCE_LOAD
+			/*
+			 * rodin: a 6.6-built module's section is only 1536 bytes
+			 * and the file bytes past it belong to other sections, so
+			 * the 6.18 tail is defined (zero) here, in the module's own
+			 * .data -- never in the image we are copying from.
+			 */
+			if (i == info->index.mod && info->mod_6_6)
+				memset(dest + MODULE_6_6_SIZEOF, 0,
+				       sizeof(struct module) - MODULE_6_6_SIZEOF);
+#endif
 		}
 		/*
 		 * Update the userspace copy's ELF section address to point to
