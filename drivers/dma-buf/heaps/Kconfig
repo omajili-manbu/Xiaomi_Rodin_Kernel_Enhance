@@ -1,3 +1,12 @@
+config DMABUF_HEAPS_PAGE_POOL
+	bool "DMA-BUF heaps page-pool library"
+	default y
+	depends on DMABUF_HEAPS
+	help
+	  rodin r12: 6.6 设备树的 DMABUF heaps page-pool 库。预编译的
+	  mtk_sec_heap.ko / mtk_heap_refill.ko 导入其 dmabuf_page_pool_* 导出，
+	  6.18 移植时整个文件丢了，这里补回。
+
 config DMABUF_HEAPS_SYSTEM
 	tristate "DMA-BUF System Heap"
 	depends on DMABUF_HEAPS

@@ -62,6 +62,32 @@ static void __dma_buf_list_del(struct dma_buf *dmabuf)
 	mutex_unlock(&dmabuf_list_mutex);
 }
 
+
+/*
+ * rodin r12: 6.6 的 MTK 扩展（dma_buf_get_each，供 minidump 遍历全部 dma-buf），
+ * 移植到 6.18 时丢了。全局表 dmabuf_list/dmabuf_list_mutex 仍在 dma-buf.c 里，
+ * 原样搬回 6.6 实现（含 MINIDUMP 命名空间导出，mtk_heap_debug.ko 声明了该命名空间）。
+ */
+int dma_buf_get_each(int (*callback)(const struct dma_buf *dmabuf,
+		     void *private), void *private)
+{
+	struct dma_buf *buf;
+	int ret = mutex_lock_interruptible(&dmabuf_list_mutex);
+
+	if (ret)
+		return ret;
+
+	list_for_each_entry(buf, &dmabuf_list, list_node) {
+		ret = callback(buf, private);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&dmabuf_list_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(dma_buf_get_each, "MINIDUMP");
+
+
 /**
  * dma_buf_iter_begin - begin iteration through global list of all DMA buffers
  *

@@ -159,4 +159,10 @@ int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 	return 0;
 }
 #endif /* CONFIG_SHRINKER_DEBUG */
+/* rodin 6.6-compat: 6.6 的两参注册接口（实现见 lib/compat-6.6-core.c），
+ * 预编译厂商模块与补回的 dmabuf page-pool 库都在用。 */
+extern int __printf(2, 3) register_shrinker(struct shrinker *shrinker,
+					    const char *fmt, ...);
+extern void unregister_shrinker(struct shrinker *shrinker);
+
 #endif /* _LINUX_SHRINKER_H */

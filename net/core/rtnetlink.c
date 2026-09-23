@@ -450,7 +450,7 @@ unlock:
  *
  * Returns 0 on success or a negative error code.
  */
-static int rtnl_unregister(int protocol, int msgtype)
+int rtnl_unregister(int protocol, int msgtype)
 {
 	struct rtnl_link __rcu **tab;
 	struct rtnl_link *link;
@@ -473,6 +473,8 @@ static int rtnl_unregister(int protocol, int msgtype)
 
 	return 0;
 }
+/* rodin r12: 6.18 把 rtnl_unregister 改成 static，can-gw.ko（system_dlkm）仍导入它 */
+EXPORT_SYMBOL_GPL(rtnl_unregister);
 
 /**
  * rtnl_unregister_all - Unregister all rtnetlink message type of a protocol

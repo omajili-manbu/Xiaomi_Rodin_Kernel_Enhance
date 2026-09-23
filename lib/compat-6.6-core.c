@@ -29,6 +29,7 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/cpufreq.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/hrtimer.h>
@@ -42,6 +43,8 @@
 #include <linux/srcu.h>
 #include <linux/xarray.h>
 #include <linux/rwlock.h>
+#include <linux/percpu-rwsem.h>
+#include <trace/hooks/dtask.h>
 #include <linux/bitmap.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
@@ -1015,3 +1018,77 @@ struct reset_control *__devm_reset_control_get(struct device *dev,
 	return __devm_reset_control_get_k618(dev, id, index, flags);
 }
 EXPORT_SYMBOL_GPL(__devm_reset_control_get);
+
+/*
+ * rodin r12: cpufreq_get_policy 被 6.18 上游删除（drivers/cpufreq/cpufreq.c），
+ * 预编译的 mtk_fpsgo.ko 仍按 6.6 语义调用它：把 policies[cpu] 整份拷进调用者的
+ * struct cpufreq_policy。BTF 逐字段核对（r8_dump.py cpufreq_policy）：
+ *   6.6 与 6.18 均为 760B，除 @634（6.6 空洞 / 6.18 boost_supported）外偏移全同
+ *   ⇒ 按 6.18 的 sizeof 拷贝与 6.6 行为一致，调用者的 6.6 结构不会被写坏。
+ */
+int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
+{
+	struct cpufreq_policy *cpu_policy;
+
+	if (!policy)
+		return -EINVAL;
+
+	cpu_policy = cpufreq_cpu_get(cpu);
+	if (!cpu_policy)
+		return -EINVAL;
+
+	memcpy(policy, cpu_policy, sizeof(*policy));
+
+	cpufreq_cpu_put(cpu_policy);
+	return 0;
+}
+EXPORT_SYMBOL(cpufreq_get_policy);
+
+/*
+ * rodin r12: 6.6 名字的 percpu-rwsem vendor hook 包装。
+ * 6.18 把这两个 hook 改了名（record_pcpu_rwsem_starttime(_rdheld) ->
+ * pcpu_rwsem_lock_acquired(released)），而 6.6 的 include/linux/percpu-rwsem.h
+ * 内联里调的是旧名，于是预编译模块（如 hci_uart.ko）留着旧名的未定义引用。
+ * 这里按 6.6 语义把旧名转发到 6.18 的对应 hook。
+ */
+void _trace_android_vh_record_pcpu_rwsem_starttime(struct percpu_rw_semaphore *sem,
+						   unsigned long settime)
+{
+	trace_android_vh_pcpu_rwsem_lock_acquired(sem);
+}
+EXPORT_SYMBOL_GPL(_trace_android_vh_record_pcpu_rwsem_starttime);
+
+void _trace_android_vh_record_pcpu_rwsem_rdheld_starttime(struct percpu_rw_semaphore *sem,
+							  unsigned long settime)
+{
+	trace_android_vh_pcpu_rwsem_lock_released(sem);
+}
+EXPORT_SYMBOL_GPL(_trace_android_vh_record_pcpu_rwsem_rdheld_starttime);
+/*
+ * rodin r12: crc_ccitt（CRC-CCITT 变体）。
+ * 6.6 设备配置里 CRC_CCITT=y，符号由 vmlinux 导出；6.18 侧 CRC_CCITT 是无 prompt
+ * 的 tristate，被 =m 的 MAC802154 一类模块 select 成 m，导出跑进了 crc-ccitt.ko，
+ * 而设备三个分区都不带这个模块（所以 vmlinux 必须自己提供，不能靠改配置：
+ * 无 prompt 的 tristate 会被 kconfig 按选择者重算，强制 =y 无效）。
+ * mac802154.ko（system_dlkm，在 modules.load 里）导入 crc_ccitt，这里补一份等价实现。
+ * 注意不能用 <linux/crc-ccitt.h> 的 crc_ccitt_byte() 内联：它引用 crc_ccitt_table，
+ * 而那张表在 6.18 侧属于 crc-ccitt.ko（vmlinux 里没有，会链接失败）。
+ * 这里用逐位实现（反射多项式 0x8408），并已数值验证与树内表逐字节一致：
+ * 256 项表全同 + 4096 字节随机数据在 init=0x0000/0xffff/0x1d0f 下结果全同。
+ */
+/* 声明（6.6 在 <linux/crc-ccitt.h> 里，这里只补 crc_ccitt 本身）*/
+u16 crc_ccitt(u16 crc, const u8 *buffer, size_t len);
+
+u16 crc_ccitt(u16 crc, const u8 *buffer, size_t len)
+{
+	while (len--) {
+		int i;
+
+		crc ^= (u16)*buffer++;
+		for (i = 0; i < 8; i++)
+			crc = (crc >> 1) ^ ((crc & 1) ? 0x8408 : 0);
+	}
+	return crc;
+}
+EXPORT_SYMBOL(crc_ccitt);
+
