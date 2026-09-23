@@ -14,10 +14,17 @@ bool cfi_warn __ro_after_init = IS_ENABLED(CONFIG_CFI_PERMISSIVE);
 enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 				      unsigned long *target, u32 type)
 {
-	/* rodin: permissive 模式下限频，避免模块侧 CFI 哈希漂移刷爆日志 */
-	static DEFINE_RATELIMIT_STATE(cfi_rs, 60 * HZ, 3);
+	/*
+	 * rodin: 预编译 6.6 模块的回调带 6.6 的 KCFI 类型哈希，与 6.18 的类型
+	 * 哈希天然不同，每次间接调用都会触发。这里把"一行普查"（用于离线枚举
+	 * 全部漂移点）与"完整栈"分开限频：前者 60/分钟，后者仍只打前 3 条，
+	 * 避免一次 probe 的级联把 ramoops 刷爆。
+	 */
+	static DEFINE_RATELIMIT_STATE(cfi_line_rs, 60 * HZ, 60);
+	static DEFINE_RATELIMIT_STATE(cfi_trace_rs, 60 * HZ, 3);
+	bool show_trace = cfi_warn && __ratelimit(&cfi_trace_rs);
 
-	if (cfi_warn && !__ratelimit(&cfi_rs))
+	if (cfi_warn && !__ratelimit(&cfi_line_rs))
 		return BUG_TRAP_TYPE_WARN;
 
 	if (target)
@@ -28,7 +35,8 @@ enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 		       (void *)addr);
 
 	if (cfi_warn) {
-		__warn(NULL, 0, (void *)addr, 0, regs, NULL);
+		if (show_trace)
+			__warn(NULL, 0, (void *)addr, 0, regs, NULL);
 		return BUG_TRAP_TYPE_WARN;
 	}
 
