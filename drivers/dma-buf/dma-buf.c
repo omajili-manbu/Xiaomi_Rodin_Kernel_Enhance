@@ -85,7 +85,7 @@ struct dma_buf *dma_buf_iter_begin(void)
 	 */
 	mutex_lock(&dmabuf_list_mutex);
 	list_for_each_entry(dmabuf, &dmabuf_list, list_node) {
-		if (file_ref_get(&dmabuf->file->f_ref)) {
+		if (file_ref_get(&dmabuf->file->f_count)) {
 			ret = dmabuf;
 			break;
 		}
@@ -120,7 +120,7 @@ struct dma_buf *dma_buf_iter_next(struct dma_buf *dmabuf)
 	mutex_lock(&dmabuf_list_mutex);
 	dma_buf_put(dmabuf);
 	list_for_each_entry_continue(dmabuf, &dmabuf_list, list_node) {
-		if (file_ref_get(&dmabuf->file->f_ref)) {
+		if (file_ref_get(&dmabuf->file->f_count)) {
 			ret = dmabuf;
 			break;
 		}

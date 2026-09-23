@@ -484,8 +484,6 @@ struct v4l2_ctrl_config {
 	u64 step;
 	s64 def;
 	union v4l2_ctrl_ptr p_def;
-	union v4l2_ctrl_ptr p_min;
-	union v4l2_ctrl_ptr p_max;
 	u32 dims[V4L2_CTRL_MAX_DIMS];
 	u32 elem_size;
 	u32 flags;
@@ -495,7 +493,27 @@ struct v4l2_ctrl_config {
 	unsigned int is_private:1;
 
 	ANDROID_KABI_RESERVE(1);
+
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.18-only pointer-control bounds. 6.6
+	 * modules (mtk-cam-isp8 / imgsensor_isp8) build 144-byte configs with
+	 * no such members, so these sit past the 6.6 footprint and are masked
+	 * off at the v4l2_ctrl_new_custom() entry for module callers.
+	 */
+	union v4l2_ctrl_ptr p_min;
+	union v4l2_ctrl_ptr p_max;
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, p_def) == 72, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, dims) == 80, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, elem_size) == 96, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, flags) == 100, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, menu_skip_mask) == 104, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, qmenu) == 112, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, qmenu_int) == 120, "v4l2_ctrl_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct v4l2_ctrl_config, p_min) == 144, "v4l2_ctrl_config r9 tail");
+_Static_assert(sizeof(struct v4l2_ctrl_config) == 160, "v4l2_ctrl_config r9 size");
 
 /**
  * v4l2_ctrl_fill - Fill in the control fields based on the control ID.

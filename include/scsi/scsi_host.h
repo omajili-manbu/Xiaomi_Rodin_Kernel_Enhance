@@ -438,7 +438,17 @@ struct scsi_host_template {
 	/*
 	 * Allocate tags starting from last allocated tag.
 	 */
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.6 has a 4-byte `int
+	 * tag_alloc_policy` here; 6.18 shrank it to this bool
+	 * bitfield. Keep the 4-byte footprint so the flag block stays
+	 * at byte 320 and max_host_blocked at 324. On a 6.6 table the
+	 * bool reads the low bit of the module's tag_alloc_policy,
+	 * which is exactly BLK_TAG_ALLOC_RR.
+	 */
+	unsigned char rodin_66_tag_alloc_policy_pre[2];
 	bool tag_alloc_policy_rr : 1;
+	unsigned char rodin_66_tag_alloc_policy_pad[3];
 
 	/*
 	 * Track QUEUE_FULL events and reduce queue depth on demand.
@@ -507,7 +517,22 @@ struct scsi_host_template {
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
+	ANDROID_KABI_RESERVE(5);	/* rodin r9: 6.6 has 5 slots */
 };
+
+/* rodin 6.6 ABI freeze (r9): 6.6 表尺寸 392，模块模板按此布局填充 */
+_Static_assert(__builtin_offsetof(struct scsi_host_template, cmd_per_lun) == 312,
+	       "rodin scsi_host_template 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct scsi_host_template, max_host_blocked) == 324,
+	       "rodin scsi_host_template 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct scsi_host_template, shost_groups) == 328,
+	       "rodin scsi_host_template 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct scsi_host_template, sdev_groups) == 336,
+	       "rodin scsi_host_template 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct scsi_host_template, vendor_id) == 344,
+	       "rodin scsi_host_template 6.6 ABI");
+_Static_assert(sizeof(struct scsi_host_template) == 392,
+	       "rodin scsi_host_template 6.6 ABI size");
 
 /*
  * Temporary #define for host lock push down. Can be removed when all

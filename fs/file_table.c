@@ -229,11 +229,11 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	f->f_sb_err	= 0;
 
 	/*
-	 * We're SLAB_TYPESAFE_BY_RCU so initialize f_ref last. While
+	 * We're SLAB_TYPESAFE_BY_RCU so initialize f_count last. While
 	 * fget-rcu pattern users need to be able to handle spurious
 	 * refcount bumps we should reinitialize the reused file first.
 	 */
-	file_ref_init(&f->f_ref, 1);
+	file_ref_init(&f->f_count, 1);
 	return 0;
 }
 
@@ -586,7 +586,7 @@ static void __fput_deferred(struct file *file)
 
 void fput(struct file *file)
 {
-	if (unlikely(file_ref_put(&file->f_ref)))
+	if (unlikely(file_ref_put(&file->f_count)))
 		__fput_deferred(file);
 }
 EXPORT_SYMBOL(fput);
@@ -601,7 +601,7 @@ EXPORT_SYMBOL(fput);
  */
 void __fput_sync(struct file *file)
 {
-	if (file_ref_put(&file->f_ref))
+	if (file_ref_put(&file->f_count))
 		__fput(file);
 }
 EXPORT_SYMBOL(__fput_sync);
@@ -614,7 +614,7 @@ EXPORT_SYMBOL(__fput_sync);
  */
 void fput_close_sync(struct file *file)
 {
-	if (likely(file_ref_put_close(&file->f_ref)))
+	if (likely(file_ref_put_close(&file->f_count)))
 		__fput(file);
 }
 
@@ -626,7 +626,7 @@ void fput_close_sync(struct file *file)
  */
 void fput_close(struct file *file)
 {
-	if (file_ref_put_close(&file->f_ref))
+	if (file_ref_put_close(&file->f_count))
 		__fput_deferred(file);
 }
 

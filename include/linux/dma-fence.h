@@ -126,6 +126,13 @@ struct dma_fence_cb {
  *
  */
 struct dma_fence_ops {
+	/*
+	 * rodin 6.6 ABI freeze (r9): vendor modules (ged/apusys/mali/
+	 * mtk_sync/vdec-fmt) fill this table with 6.6 offsets. 6.18
+	 * dropped use_64bit_seqno and the two *_value_str members,
+	 * which shifted every callback by one pointer slot.
+	 */
+	bool use_64bit_seqno;
 	/**
 	 * @get_driver_name:
 	 *
@@ -250,8 +257,39 @@ struct dma_fence_ops {
 	 *
 	 * This callback is optional.
 	 */
+	/* rodin r9: 6.6 anchors, no longer called by 6.18 core (the
+	 * fence-name rework dropped them) but still populated by 6.6
+	 * modules at these offsets. */
+	void (*fence_value_str)(struct dma_fence *fence, char *str, int size);
+	void (*timeline_value_str)(struct dma_fence *fence,
+				   char *str, int size);
+
 	void (*set_deadline)(struct dma_fence *fence, ktime_t deadline);
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, use_64bit_seqno) == 0,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, get_driver_name) == 8,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, get_timeline_name) == 16,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, enable_signaling) == 24,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, signaled) == 32,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, wait) == 40,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, release) == 48,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, fence_value_str) == 56,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, timeline_value_str) == 64,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct dma_fence_ops, set_deadline) == 72,
+	       "rodin dma_fence_ops 6.6 ABI");
+_Static_assert(sizeof(struct dma_fence_ops) == 80,
+	       "rodin dma_fence_ops 6.6 ABI size");
 
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 		    spinlock_t *lock, u64 context, u64 seqno);

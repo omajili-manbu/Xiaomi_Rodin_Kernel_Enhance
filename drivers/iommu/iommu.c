@@ -248,6 +248,130 @@ static int remove_iommu_group(struct device *dev, void *data)
 	return 0;
 }
 
+/*
+ * rodin r9: kernel-side state that 6.18 keeps inside struct iommu_device,
+ * which has to stay 6.6-sized for vendor drivers that embed it.
+ */
+struct rodin_66_iommu_state {
+	struct list_head node;
+	struct iommu_device *iommu;
+	struct iommu_ops *shadow;	/* shadow of a 6.6 vendor ops table */
+	struct iommu_group *singleton_group;
+};
+
+#define RODIN_66_IOMMU_OPS_SIZE 152
+
+static LIST_HEAD(rodin_66_iommu_states);
+static DEFINE_MUTEX(rodin_66_iommu_lock);
+
+static struct rodin_66_iommu_state *
+rodin_66_iommu_state(struct iommu_device *iommu, bool create)
+{
+	struct rodin_66_iommu_state *st;
+
+	lockdep_assert_held(&rodin_66_iommu_lock);
+	list_for_each_entry(st, &rodin_66_iommu_states, node)
+		if (st->iommu == iommu)
+			return st;
+	if (!create)
+		return NULL;
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (st) {
+		st->iommu = iommu;
+		list_add_tail(&st->node, &rodin_66_iommu_states);
+	}
+	return st;
+}
+
+/*
+ * A 6.6 vendor table is only RODIN_66_IOMMU_OPS_SIZE bytes; 6.18-only members
+ * past that would otherwise read adjacent module .rodata as live callbacks.
+ * Copy the 6.6 region verbatim and leave the 6.18-only tail zeroed - that is
+ * exactly the 6.6 behaviour (no identity/blocked/default domain, no viommu,
+ * no paging callback; __iommu_paging_domain_alloc_flags() then routes domain
+ * allocation through the 6.6 domain_alloc()).
+ */
+static const struct iommu_ops *
+rodin_66_iommu_shadow_ops(struct iommu_device *iommu, const struct iommu_ops *ops)
+{
+	struct rodin_66_iommu_state *st;
+	struct iommu_ops *shadow;
+
+	if (!is_module_address((unsigned long)ops))
+		return ops;
+
+	shadow = kmalloc(sizeof(*shadow), GFP_KERNEL);
+	if (!shadow)
+		return ERR_PTR(-ENOMEM);
+	memcpy(shadow, ops, RODIN_66_IOMMU_OPS_SIZE);
+	memset((char *)shadow + RODIN_66_IOMMU_OPS_SIZE, 0,
+	       sizeof(*shadow) - RODIN_66_IOMMU_OPS_SIZE);
+	shadow->__rodin_66_legacy = true;
+
+	mutex_lock(&rodin_66_iommu_lock);
+	st = rodin_66_iommu_state(iommu, true);
+	if (st)
+		st->shadow = shadow;
+	mutex_unlock(&rodin_66_iommu_lock);
+	if (!st) {
+		kfree(shadow);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pr_info("rodin: shadowed 6.6-ABI iommu_ops table (module %s)\n",
+		ops->owner ? ops->owner->name : "?");
+	return shadow;
+}
+
+static void rodin_66_iommu_state_free(struct iommu_device *iommu)
+{
+	struct rodin_66_iommu_state *st;
+	struct iommu_group *group = NULL;
+
+	mutex_lock(&rodin_66_iommu_lock);
+	st = rodin_66_iommu_state(iommu, false);
+	if (st) {
+		list_del(&st->node);
+		group = st->singleton_group;
+		kfree(st->shadow);
+		kfree(st);
+	}
+	mutex_unlock(&rodin_66_iommu_lock);
+
+	/* pairs with the alloc in generic_single_device_group() */
+	iommu_group_put(group);
+}
+
+static struct iommu_group *
+rodin_66_iommu_singleton_get(struct iommu_device *iommu)
+{
+	struct rodin_66_iommu_state *st;
+	struct iommu_group *group = NULL;
+
+	mutex_lock(&rodin_66_iommu_lock);
+	st = rodin_66_iommu_state(iommu, false);
+	if (st && st->singleton_group)
+		group = iommu_group_ref_get(st->singleton_group);
+	mutex_unlock(&rodin_66_iommu_lock);
+	return group;
+}
+
+static struct iommu_group *
+rodin_66_iommu_singleton_set(struct iommu_device *iommu, struct iommu_group *group)
+{
+	struct rodin_66_iommu_state *st;
+	struct iommu_group *ret = NULL;
+
+	mutex_lock(&rodin_66_iommu_lock);
+	st = rodin_66_iommu_state(iommu, true);
+	if (st && !st->singleton_group) {
+		st->singleton_group = group;
+		ret = group;
+	}
+	mutex_unlock(&rodin_66_iommu_lock);
+	return ret;
+}
+
 /**
  * iommu_device_register() - Register an IOMMU hardware instance
  * @iommu: IOMMU handle for the instance
@@ -264,6 +388,10 @@ int iommu_device_register(struct iommu_device *iommu,
 	/* We need to be able to take module references appropriately */
 	if (WARN_ON(is_module_address((unsigned long)ops) && !ops->owner))
 		return -EINVAL;
+
+	ops = rodin_66_iommu_shadow_ops(iommu, ops);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
 	iommu->ops = ops;
 	if (hwdev)
@@ -293,8 +421,7 @@ void iommu_device_unregister(struct iommu_device *iommu)
 	spin_unlock(&iommu_device_lock);
 
 	/* Pairs with the alloc in generic_single_device_group() */
-	iommu_group_put(iommu->singleton_group);
-	iommu->singleton_group = NULL;
+	rodin_66_iommu_state_free(iommu);
 }
 EXPORT_SYMBOL_GPL(iommu_device_unregister);
 
@@ -1557,16 +1684,24 @@ EXPORT_SYMBOL_GPL(generic_device_group);
 struct iommu_group *generic_single_device_group(struct device *dev)
 {
 	struct iommu_device *iommu = dev->iommu->iommu_dev;
+	struct iommu_group *group;
 
-	if (!iommu->singleton_group) {
-		struct iommu_group *group;
+	/*
+	 * rodin r9: 6.18 caches the group in struct iommu_device, which
+	 * must stay 6.6-sized for vendor drivers; keep it kernel-side.
+	 */
+	group = rodin_66_iommu_singleton_get(iommu);
+	if (group)
+		return group;
 
-		group = iommu_group_alloc();
-		if (IS_ERR(group))
-			return group;
-		iommu->singleton_group = group;
+	group = iommu_group_alloc();
+	if (IS_ERR(group))
+		return group;
+	if (!rodin_66_iommu_singleton_set(iommu, group)) {
+		iommu_group_put(group);
+		return ERR_PTR(-ENOMEM);
 	}
-	return iommu_group_ref_get(iommu->singleton_group);
+	return iommu_group_ref_get(group);
 }
 EXPORT_SYMBOL_GPL(generic_single_device_group);
 
@@ -2042,7 +2177,15 @@ __iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
 
 	ops = dev_iommu_ops(dev);
 
-	if (ops->domain_alloc_paging && !flags)
+	/*
+	 * rodin r9: 6.6 shadow tables have every 6.18-only member zeroed,
+	 * so route domain allocation through the module's 6.6 callback.
+	 * The core sets the domain type right after (iommu_domain_init)
+	 * and installs the DMA cookie itself.
+	 */
+	if (ops->__rodin_66_legacy && !flags && ops->domain_alloc)
+		domain = ops->domain_alloc(type);
+	else if (ops->domain_alloc_paging && !flags)
 		domain = ops->domain_alloc_paging(dev);
 	else if (ops->domain_alloc_paging_flags)
 		domain = ops->domain_alloc_paging_flags(dev, flags, NULL);
