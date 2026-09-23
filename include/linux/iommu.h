@@ -663,15 +663,45 @@ __iommu_copy_struct_to_user(const struct iommu_user_data *dst_data,
  *                    forwarded through the user domain attached to the device
  *                    RID.
  */
+/*
+ * rodin 6.6 ABI freeze (r9): vendor modules (mtk_iommu.ko) register a table
+ * built for the 6.6 layout (152 bytes). Keep every 6.6 member at its 6.6
+ * offset; the members 6.18 added go past byte 152 so that a kernel-side
+ * shadow of a module table can zero them (see rodin_66_iommu_shadow_ops()).
+ */
 struct iommu_ops {
 	bool (*capable)(struct device *dev, enum iommu_cap);
-	void *(*hw_info)(struct device *dev, u32 *length,
-			 enum iommu_hw_info_type *type);
+	void *(*hw_info)(struct device *dev, u32 *length, u32 *type);
 
-	/* Domain allocation and freeing by the iommu driver */
-#if IS_ENABLED(CONFIG_FSL_PAMU)
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
-#endif
+
+	struct iommu_device *(*probe_device)(struct device *dev);
+	void (*release_device)(struct device *dev);
+	void (*probe_finalize)(struct device *dev);
+	void (*set_platform_dma_ops)(struct device *dev);
+	struct iommu_group *(*device_group)(struct device *dev);
+
+	void (*get_resv_regions)(struct device *dev, struct list_head *list);
+
+	int (*of_xlate)(struct device *dev, const struct of_phandle_args *args);
+	bool (*is_attach_deferred)(struct device *dev);
+
+	/* rodin r9: 6.6 anchors; 6.18 dropped the enum and no longer
+	 * references these callbacks, so the parameter stays neutral. */
+	int (*dev_enable_feat)(struct device *dev, unsigned int f);
+	int (*dev_disable_feat)(struct device *dev, unsigned int f);
+
+	int (*page_response)(struct device *dev, struct iopf_fault *evt,
+			     struct iommu_page_response *msg);
+
+	int (*def_domain_type)(struct device *dev);
+	void (*remove_dev_pasid)(struct device *dev, ioasid_t pasid);
+
+	const struct iommu_domain_ops *default_domain_ops;
+	unsigned long pgsize_bitmap;
+	struct module *owner;
+
+	/* ---------------- 6.18-only members, past the 6.6 footprint --------- */
 	struct iommu_domain *(*domain_alloc_identity)(struct device *dev);
 	struct iommu_domain *(*domain_alloc_paging_flags)(
 		struct device *dev, u32 flags,
@@ -683,42 +713,46 @@ struct iommu_ops {
 		struct device *dev, struct iommu_domain *parent, u32 flags,
 		const struct iommu_user_data *user_data);
 
-	struct iommu_device *(*probe_device)(struct device *dev);
-	void (*release_device)(struct device *dev);
-	void (*probe_finalize)(struct device *dev);
-	struct iommu_group *(*device_group)(struct device *dev);
-
-	/* Request/Free a list of reserved regions for a device */
-	void (*get_resv_regions)(struct device *dev, struct list_head *list);
-
-	int (*of_xlate)(struct device *dev, const struct of_phandle_args *args);
-	bool (*is_attach_deferred)(struct device *dev);
-
-	/* Per device IOMMU features */
-	void (*page_response)(struct device *dev, struct iopf_fault *evt,
-			      struct iommu_page_response *msg);
-
-	int (*def_domain_type)(struct device *dev);
-
 	size_t (*get_viommu_size)(struct device *dev,
 				  enum iommu_viommu_type viommu_type);
 	int (*viommu_init)(struct iommufd_viommu *viommu,
 			   struct iommu_domain *parent_domain,
 			   const struct iommu_user_data *user_data);
 
-	const struct iommu_domain_ops *default_domain_ops;
-	struct module *owner;
 	struct iommu_domain *identity_domain;
 	struct iommu_domain *blocked_domain;
 	struct iommu_domain *release_domain;
 	struct iommu_domain *default_domain;
 	u8 user_pasid_table:1;
 
+	/* rodin r9: set only on kernel-side shadows of 6.6 vendor tables */
+	bool __rodin_66_legacy;
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct iommu_ops, capable) == 0, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, hw_info) == 8, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, domain_alloc) == 16, "iommu_ops 6.6 ABI: mtk_iommu_domain_alloc");
+_Static_assert(__builtin_offsetof(struct iommu_ops, probe_device) == 24, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, release_device) == 32, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, probe_finalize) == 40, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, set_platform_dma_ops) == 48, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, device_group) == 56, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, get_resv_regions) == 64, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, of_xlate) == 72, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, is_attach_deferred) == 80, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, page_response) == 104, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, def_domain_type) == 112, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, remove_dev_pasid) == 120, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, default_domain_ops) == 128, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, pgsize_bitmap) == 136, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, owner) == 144, "iommu_ops 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_ops, domain_alloc_identity) == 152, "iommu_ops 6.6 footprint ends at 152");
 
 /**
  * struct iommu_map_cookie_sg - Cookie for a deferred map sg
@@ -821,15 +855,28 @@ struct iommu_domain_ops {
  * @max_pasids: number of supported PASIDs
  * @ready: set once iommu_device_register() has completed successfully
  */
+/*
+ * rodin 6.6 ABI freeze (r9): vendor iommu drivers embed this struct in their
+ * private data (mtk_iommu_data.iommu), so it must stay 6.6-sized (48 bytes).
+ * 6.18's singleton_group lives in kernel-side state instead
+ * (rodin_66_iommu_state) and `ready` reuses the 6.6 tail padding at byte 44.
+ */
 struct iommu_device {
 	struct list_head list;
 	const struct iommu_ops *ops;
 	struct fwnode_handle *fwnode;
 	struct device *dev;
-	struct iommu_group *singleton_group;
 	u32 max_pasids;
 	bool ready;
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct iommu_device, list) == 0, "iommu_device 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_device, ops) == 16, "iommu_device 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_device, fwnode) == 24, "iommu_device 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_device, dev) == 32, "iommu_device 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct iommu_device, max_pasids) == 40, "iommu_device 6.6 ABI");
+_Static_assert(sizeof(struct iommu_device) == 48, "iommu_device 6.6 ABI: vendor drivers embed it");
 
 /**
  * struct iommu_fault_param - per-device IOMMU fault data

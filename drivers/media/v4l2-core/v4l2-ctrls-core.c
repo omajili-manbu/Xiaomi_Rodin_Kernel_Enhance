@@ -2153,6 +2153,16 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 	s64 max = cfg->max;
 	u64 step = cfg->step;
 	s64 def = cfg->def;
+	/* rodin r9: 6.6 configs have no p_min/p_max (they live past
+	 * the 144-byte 6.6 footprint); never read them for module
+	 * callers. */
+	union v4l2_ctrl_ptr p_min = cfg->p_min;
+	union v4l2_ctrl_ptr p_max = cfg->p_max;
+
+	if (is_module_text_address(_RET_IP_)) {
+		p_min.p = NULL;
+		p_max.p = NULL;
+	}
 
 	if (name == NULL)
 		v4l2_ctrl_fill(cfg->id, &name, &type, &min, &max, &step,
@@ -2175,8 +2185,8 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 			type, min, max,
 			is_menu ? cfg->menu_skip_mask : step, def,
 			cfg->dims, cfg->elem_size,
-			flags, qmenu, qmenu_int, cfg->p_def, cfg->p_min,
-			cfg->p_max, priv);
+			flags, qmenu, qmenu_int, cfg->p_def, p_min,
+			p_max, priv);
 	if (ctrl)
 		ctrl->is_private = cfg->is_private;
 	return ctrl;

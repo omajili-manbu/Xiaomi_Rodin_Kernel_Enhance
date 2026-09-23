@@ -1180,79 +1180,98 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 		index <  ra->start + ra->size);
 }
 
-/**
- * struct file - Represents a file
- * @f_lock: Protects f_ep, f_flags. Must not be taken from IRQ context.
- * @f_mode: FMODE_* flags often used in hotpaths
- * @f_op: file operations
- * @f_mapping: Contents of a cacheable, mappable object.
- * @private_data: filesystem or driver specific data
- * @f_inode: cached inode
- * @f_flags: file flags
- * @f_iocb_flags: iocb flags
- * @f_cred: stashed credentials of creator/opener
- * @f_owner: file owner
- * @f_path: path of the file
- * @__f_path: writable alias for @f_path; *ONLY* for core VFS and only before
- *   the file gets open
- * @f_pos_lock: lock protecting file position
- * @f_pipe: specific to pipes
- * @f_pos: file position
- * @f_security: LSM security context of this file
- * @f_wb_err: writeback error
- * @f_sb_err: per sb writeback errors
- * @f_ep: link of all epoll hooks for this file
- * @f_task_work: task work entry point
- * @f_llist: work queue entrypoint
- * @f_ra: file's readahead state
- * @f_freeptr: Pointer used by SLAB_TYPESAFE_BY_RCU file cache (don't touch.)
- * @f_ref: reference count
+/*
+ * rodin 6.6 ABI freeze (r9): vendor modules are built against the 6.6
+ * layout, so struct file must keep the 6.6 member order byte-for-byte.
+ * 6.14 redesigned it (private_data@24, f_path@64, f_owner pointer,
+ * f_count renamed, f_version gone) which made filp->private_data = x from
+ * a module a heap OOB write. Notes:
+ *  - head union: 6.6 f_u slot; f_task_work/f_freeptr are used only when
+ *    the file is being released / freed, i.e. lifetime-exclusive with
+ *    the active fields, so they share this space.
+ *  - f_count: 6.18 file_ref_t renamed back to f_count and kept in the
+ *    6.6 slot; file_ref_t is a single atomic64, so module-side bare
+ *    atomic_long_inc (get_file macro) stays compatible.
+ *  - f_owner: 6.6 embedded fown_struct is preserved as a slot anchor
+ *    (__rodin_66_slot_f_owner); the 6.18 pointer lives at the tail
+ *    where 6.6 had ANDROID_KABI_RESERVE(1). Module reads of the anchor
+ *    see zeros = "no owner" (accepted degradation).
+ *  - f_pipe: moved out of the f_pos_lock union to the 6.6 KABI(2) slot.
+ *  - f_version: 6.6 anchor, unused by 6.18 core.
+ *  - f_ra: kept resident (6.18 init_file/readahead maintain it as
+ *    before); file_ra_state.order/mmap_miss packing differs from 6.6
+ *    (accepted degradation, no known module reads it).
  */
 struct file {
-	spinlock_t			f_lock;
-	fmode_t				f_mode;
-	const struct file_operations	*f_op;
-	struct address_space		*f_mapping;
-	void				*private_data;
-	struct inode			*f_inode;
-	unsigned int			f_flags;
-	unsigned int			f_iocb_flags;
-	const struct cred		*f_cred;
-	struct fown_struct		*f_owner;
-	/* --- cacheline 1 boundary (64 bytes) --- */
+	union {
+		struct llist_node	f_llist;
+		struct rcu_head		f_rcuhead;
+		struct callback_head	f_task_work;
+		freeptr_t		f_freeptr;
+		unsigned int		f_iocb_flags;
+	};
+
+	spinlock_t		f_lock;
+	fmode_t			f_mode;
+	file_ref_t		f_count;
+	struct mutex		f_pos_lock;
+	loff_t			f_pos;
+	unsigned int		f_flags;
+	u64			__rodin_66_slot_f_owner[4];	/* 6.6: struct fown_struct (32B) */
+	const struct cred	*f_cred;
+	struct file_ra_state	f_ra;
 	union {
 		const struct path	f_path;
 		struct path		__f_path;
 	};
-	union {
-		/* regular files (with FMODE_ATOMIC_POS) and directories */
-		struct mutex		f_pos_lock;
-		/* pipes */
-		u64			f_pipe;
-	};
-	loff_t				f_pos;
+	struct inode		*f_inode;	/* cached value */
+	const struct file_operations	*f_op;
+	u64			f_version;	/* 6.6 anchor */
 #ifdef CONFIG_SECURITY
-	void				*f_security;
+	void			*f_security;
 #endif
-	/* --- cacheline 2 boundary (128 bytes) --- */
-	errseq_t			f_wb_err;
-	errseq_t			f_sb_err;
-#ifdef CONFIG_EPOLL
-	struct hlist_head		*f_ep;
-#endif
-	union {
-		struct callback_head	f_task_work;
-		struct llist_node	f_llist;
-		struct file_ra_state	f_ra;
-		freeptr_t		f_freeptr;
-	};
-	file_ref_t			f_ref;
-	/* --- cacheline 3 boundary (192 bytes) --- */
+	/* needed for tty driver, and maybe others */
+	void			*private_data;
 
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
+#ifdef CONFIG_EPOLL
+	/* Used by fs/eventpoll.c to link all the hooks to this file */
+	struct hlist_head	*f_ep;
+#endif /* #ifdef CONFIG_EPOLL */
+	struct address_space	*f_mapping;
+	errseq_t		f_wb_err;
+	errseq_t		f_sb_err; /* for syncfs */
+
+	struct fown_struct	*f_owner;	/* 6.18 pointer form, tail slot */
+	u64			f_pipe;		/* 6.18, tail slot */
+
 } __randomize_layout
   __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
+
+/* rodin 6.6 ABI freeze (r9): module-visible offsets, compile-time gate */
+_Static_assert(offsetof(struct file, f_iocb_flags) == 0, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_lock) == 16, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_mode) == 20, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_count) == 24, "file 6.6 ABI: module get_file() hits this slot");
+_Static_assert(offsetof(struct file, f_pos_lock) == 32, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_pos) == 80, "file 6.6 ABI: modules llseek f_pos directly");
+_Static_assert(offsetof(struct file, f_flags) == 88, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_cred) == 128, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_ra) == 136, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_path) == 168, "file 6.6 ABI: modules read f_path.dentry anchor");
+_Static_assert(offsetof(struct file, f_inode) == 184, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_op) == 192, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_version) == 200, "file 6.6 ABI");
+#ifdef CONFIG_SECURITY
+_Static_assert(offsetof(struct file, f_security) == 208, "file 6.6 ABI");
+#endif
+_Static_assert(offsetof(struct file, private_data) == 216, "file 6.6 ABI: module filp->private_data writes (heap OOB on stock 6.18)");
+_Static_assert(offsetof(struct file, f_ep) == 224, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_mapping) == 232, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_wb_err) == 240, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_sb_err) == 244, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_owner) == 248, "file 6.6 ABI");
+_Static_assert(offsetof(struct file, f_pipe) == 256, "file 6.6 ABI");
+_Static_assert(sizeof(struct file) == 264, "file 6.6 ABI: size 264 (stock 6.18 was 216)");
 
 struct file_handle {
 	__u32 handle_bytes;
@@ -1263,14 +1282,14 @@ struct file_handle {
 
 static inline struct file *get_file(struct file *f)
 {
-	file_ref_inc(&f->f_ref);
+	file_ref_inc(&f->f_count);
 	return f;
 }
 
 struct file *get_file_rcu(struct file __rcu **f);
 struct file *get_file_active(struct file **f);
 
-#define file_count(f)	file_ref_read(&(f)->f_ref)
+#define file_count(f)	file_ref_read(&(f)->f_count)
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
 

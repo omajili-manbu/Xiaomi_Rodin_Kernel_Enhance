@@ -1824,7 +1824,14 @@ __power_supply_register(struct device *parent,
 	dev_set_drvdata(dev, psy);
 	psy->desc = desc;
 	if (cfg) {
-		device_set_node(dev, cfg->fwnode);
+		/* rodin r9: 6.6 callers only fill cfg->of_node (6.18
+		 * dropped that member); fall back so the DT node is
+		 * not lost. */
+		struct fwnode_handle *fwnode = cfg->fwnode;
+
+		if (!fwnode && cfg->of_node)
+			fwnode = of_fwnode_handle(cfg->of_node);
+		device_set_node(dev, fwnode);
 		dev->groups = cfg->attr_grp;
 		psy->drv_data = cfg->drv_data;
 		psy->supplied_to = cfg->supplied_to;

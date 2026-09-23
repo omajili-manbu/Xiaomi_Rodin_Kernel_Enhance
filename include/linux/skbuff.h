@@ -994,7 +994,6 @@ struct sk_buff {
 	__u8			remcsum_offload:1;
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
-	__u8			inner_protocol_type:1;
 
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
@@ -1032,10 +1031,10 @@ struct sk_buff {
 	__u8			decrypted:1;
 #endif
 	__u8			slow_gro:1;
+	__u8			inner_protocol_type:1;	/* rodin r9: 6.6 ABI hole @131 bit7 */
 #if IS_ENABLED(CONFIG_IP_SCTP)
 	__u8			csum_not_inet:1;
 #endif
-	__u8			unreadable:1;
 #if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
 	__u16			tc_index;	/* traffic control index */
 #endif
@@ -1092,8 +1091,18 @@ struct sk_buff {
 	u64			kcov_handle;
 #endif
 
+	/*
+	 * rodin r9: 6.18-only page-pool flag, kept inside the 6.6
+	 * ANDROID_KABI_RESERVE(1) footprint (module-invisible, zeroed
+	 * on module-built skbs) so sizeof(struct sk_buff) stays 240
+	 * and the flag stays inside the headers group: the alloc
+	 * memset and the __copy_skb_header() group memcpy keep
+	 * covering it, exactly like 6.18's own placement.
+	 */
+	__u8			unreadable;
+	__u8			__rodin_66_pad_kabi1[7];
+
 	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
 
 	); /* end headers group */
 
@@ -1106,10 +1115,43 @@ struct sk_buff {
 	refcount_t		users;
 
 #ifdef CONFIG_SKB_EXTENSIONS
-	/* only usable after checking ->active_extensions != 0 */
+	/* only useable after checking ->active_extensions != 0 */
 	struct skb_ext		*extensions;
 #endif
+
 };
+
+/* rodin 6.6 ABI freeze (r9): vendor net modules read skb->data/tail/end
+ * and the headers scalars with 6.6 offsets; 6.18 bit packing spilled +8B */
+_Static_assert(offsetof(struct sk_buff, tc_index) == 132, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, alloc_cpu) == 134, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, csum) == 136, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, priority) == 140, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, skb_iif) == 144, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, hash) == 148, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, vlan_all) == 152, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, napi_id) == 156, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, secmark) == 160, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, mark) == 164, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, inner_protocol) == 168, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, inner_transport_header) == 170, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, inner_network_header) == 172, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, inner_mac_header) == 174, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, protocol) == 176, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, transport_header) == 178, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, network_header) == 180, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, mac_header) == 182, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, tail) == 200, "skb 6.6 ABI: skb_put/skb_push inline tail");
+_Static_assert(offsetof(struct sk_buff, end) == 204, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, head) == 208, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, data) == 216, "skb 6.6 ABI: wlan ko reads skb->data");
+_Static_assert(offsetof(struct sk_buff, truesize) == 224, "skb 6.6 ABI");
+_Static_assert(offsetof(struct sk_buff, users) == 228, "skb 6.6 ABI");
+#ifdef CONFIG_SKB_EXTENSIONS
+_Static_assert(offsetof(struct sk_buff, extensions) == 232, "skb 6.6 ABI");
+#endif
+_Static_assert(offsetof(struct sk_buff, unreadable) == 184, "skb r9: 6.18 flag in 6.6 KABI slot");
+_Static_assert(sizeof(struct sk_buff) == 240, "skb 6.6 ABI size");
 
 /* if you move pkt_type around you also must adapt those constants */
 #ifdef __BIG_ENDIAN_BITFIELD

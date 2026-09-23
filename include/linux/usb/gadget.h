@@ -236,21 +236,40 @@ struct usb_ep {
 
 	const char		*name;
 	const struct usb_ep_ops	*ops;
-	const struct usb_endpoint_descriptor	*desc;
-	const struct usb_ss_ep_comp_descriptor	*comp_desc;
 	struct list_head	ep_list;
 	struct usb_ep_caps	caps;
 	bool			claimed;
 	bool			enabled;
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.6 packs the maxpacket family into one
+	 * bitfield block (bytes 46..52); 6.18 turned them into plain u16
+	 * members placed after address, shifting desc/comp_desc by +32.
+	 * Kernel accesses (ep->maxpacket etc.) are layout-equivalent.
+	 */
+	unsigned		maxpacket:16;
+	unsigned		maxpacket_limit:16;
+	unsigned		max_streams:16;
 	unsigned		mult:2;
 	unsigned		maxburst:5;
 	u8			address;
-	u16			maxpacket;
-	u16			maxpacket_limit;
-	u16			max_streams;
+	const struct usb_endpoint_descriptor	*desc;
+	const struct usb_ss_ep_comp_descriptor	*comp_desc;
 
 	ANDROID_KABI_RESERVE(1);
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct usb_ep, driver_data) == 0, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, name) == 8, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, ops) == 16, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, ep_list) == 24, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, caps) == 40, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, claimed) == 44, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, enabled) == 45, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, address) == 53, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, desc) == 56, "usb_ep 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct usb_ep, comp_desc) == 64, "usb_ep 6.6 ABI");
+_Static_assert(sizeof(struct usb_ep) == 80, "usb_ep 6.6 ABI size");
 
 /*-------------------------------------------------------------------------*/
 

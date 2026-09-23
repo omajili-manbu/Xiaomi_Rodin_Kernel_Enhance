@@ -101,21 +101,27 @@ struct genl_family {
 	const struct genl_multicast_group *mcgrps;
 	struct module		*module;
 
-	size_t			sock_priv_size;
-	void			(*sock_priv_init)(void *priv);
-	void			(*sock_priv_destroy)(void *priv);
-
 /* private: internal use only */
 	/* protocol family identifier */
 	int			id;
 	/* starting number of multicast group IDs in this family */
 	unsigned int		mcgrp_offset;
-	/* list of per-socket privs */
+
+	ANDROID_KABI_RESERVE(1);
+
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.18-only members, placed past the
+	 * 120-byte 6.6 footprint (id/mcgrp_offset sit where 6.6 has them).
+	 * Families registered by 6.6 vendor modules have no such fields, so
+	 * net/netlink/genetlink.c masks them off for those
+	 * (rodin_66_genl_family()).
+	 */
+	size_t			sock_priv_size;
+	void			(*sock_priv_init)(void *priv);
+	void			(*sock_priv_destroy)(void *priv);
 	struct xarray		*sock_privs;
 	int			(*bind)(int mcgrp);
 	void			(*unbind)(int mcgrp);
-
-	ANDROID_KABI_RESERVE(1);
 };
 
 _Static_assert(__builtin_offsetof(struct genl_family, policy) == 40,

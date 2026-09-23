@@ -369,12 +369,17 @@ struct regulator_desc {
 	const char *supply_name;
 	const char *of_match;
 	bool of_match_full_name;
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.18-only flag placed in the
+	 * 6.6 padding after of_match_full_name. The core only reads
+	 * it, and 6.6 descriptors see zero here (= false), which is
+	 * the 6.6 behaviour.
+	 */
+	bool range_applied_by_vsel;
 	const char *regulators_node;
 	int (*of_parse_cb)(struct device_node *,
 			    const struct regulator_desc *,
 			    struct regulator_config *);
-	int (*init_cb)(struct regulator_dev *,
-		       struct regulator_config *);
 	int id;
 	unsigned int continuous_voltage_range:1;
 	unsigned n_voltages;
@@ -401,7 +406,6 @@ struct regulator_desc {
 
 	unsigned int vsel_range_reg;
 	unsigned int vsel_range_mask;
-	bool range_applied_by_vsel;
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
 	unsigned int vsel_step;
@@ -441,8 +445,47 @@ struct regulator_desc {
 
 	unsigned int (*of_map_mode)(unsigned int mode);
 
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.18's init_cb occupies the 6.6
+	 * KABI reserve slot (byte 304). 6.6 descriptors are static
+	 * and zero that slot, so the core's `if (desc->init_cb)`
+	 * skips it exactly like 6.6 did. The reserve moves past it.
+	 */
+	int (*init_cb)(struct regulator_dev *,
+		       struct regulator_config *);
+
 	ANDROID_KABI_RESERVE(1);
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct regulator_desc, of_parse_cb) == 40,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, id) == 48,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, n_voltages) == 56,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, ops) == 64,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, min_uV) == 88,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, linear_ranges) == 112,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, vsel_range_reg) == 152,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, vsel_reg) == 160,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, ramp_delay_table) == 272,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, n_ramp_values) == 280,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, of_map_mode) == 296,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, range_applied_by_vsel) == 25,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct regulator_desc, init_cb) == 304,
+	       "rodin regulator_desc 6.6 ABI");
+_Static_assert(sizeof(struct regulator_desc) == 320,
+	       "rodin regulator_desc 6.6 ABI size");
 
 /**
  * struct regulator_config - Dynamic regulator descriptor

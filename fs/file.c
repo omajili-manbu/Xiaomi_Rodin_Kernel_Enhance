@@ -937,7 +937,7 @@ static struct file *__get_file_rcu(struct file __rcu **f)
 	if (!file)
 		return NULL;
 
-	if (unlikely(!file_ref_get(&file->f_ref)))
+	if (unlikely(!file_ref_get(&file->f_count)))
 		return ERR_PTR(-EAGAIN);
 
 	file_reloaded = rcu_dereference_raw(*f);
@@ -1054,7 +1054,7 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 * only really need an 'acquire' one to protect the
 		 * loads below, but we don't have that.
 		 */
-		if (unlikely(!file_ref_get(&file->f_ref)))
+		if (unlikely(!file_ref_get(&file->f_count)))
 			continue;
 
 		/*
@@ -1233,7 +1233,7 @@ static inline bool file_needs_f_pos_lock(struct file *file)
 {
 	if (!(file->f_mode & FMODE_ATOMIC_POS))
 		return false;
-	if (__file_ref_read_raw(&file->f_ref) != FILE_REF_ONEREF)
+	if (__file_ref_read_raw(&file->f_count) != FILE_REF_ONEREF)
 		return true;
 	if (file->f_op->iterate_shared)
 		return true;

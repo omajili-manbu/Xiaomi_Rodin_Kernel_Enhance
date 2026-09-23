@@ -633,15 +633,33 @@ static int genl_validate_ops(const struct genl_family *family)
 	return 0;
 }
 
+/*
+ * rodin r9: genl_family objects registered by 6.6 vendor modules are 120 bytes
+ * (6.6 layout) and have no sock_priv_* / bind / unbind members. Reading
+ * 6.18-only tail fields would run past the object into adjacent module data,
+ * so such families are treated exactly like 6.6: no per-socket priv area and
+ * no bind/unbind callbacks. Only the 6.6 members (id/mcgrp_offset/...) are
+ * touched, and those sit inside the module's object.
+ */
+static inline bool rodin_66_genl_family(const struct genl_family *family)
+{
+	return is_module_address((unsigned long)family);
+}
+
+static inline size_t rodin_genl_sock_priv_size(const struct genl_family *family)
+{
+	return rodin_66_genl_family(family) ? 0 : family->sock_priv_size;
+}
+
 static void *genl_sk_priv_alloc(struct genl_family *family)
 {
 	void *priv;
 
-	priv = kzalloc(family->sock_priv_size, GFP_KERNEL);
+	priv = kzalloc(rodin_genl_sock_priv_size(family), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
-	if (family->sock_priv_init)
+	if (!rodin_66_genl_family(family) && family->sock_priv_init)
 		family->sock_priv_init(priv);
 
 	return priv;
@@ -649,14 +667,14 @@ static void *genl_sk_priv_alloc(struct genl_family *family)
 
 static void genl_sk_priv_free(const struct genl_family *family, void *priv)
 {
-	if (family->sock_priv_destroy)
+	if (!rodin_66_genl_family(family) && family->sock_priv_destroy)
 		family->sock_priv_destroy(priv);
 	kfree(priv);
 }
 
 static int genl_sk_privs_alloc(struct genl_family *family)
 {
-	if (!family->sock_priv_size)
+	if (!rodin_genl_sock_priv_size(family))
 		return 0;
 
 	family->sock_privs = kzalloc(sizeof(*family->sock_privs), GFP_KERNEL);
@@ -671,7 +689,7 @@ static void genl_sk_privs_free(const struct genl_family *family)
 	unsigned long id;
 	void *priv;
 
-	if (!family->sock_priv_size)
+	if (!rodin_genl_sock_priv_size(family))
 		return;
 
 	xa_for_each(family->sock_privs, id, priv)
@@ -686,7 +704,7 @@ static void genl_sk_priv_free_by_sock(struct genl_family *family,
 {
 	void *priv;
 
-	if (!family->sock_priv_size)
+	if (!rodin_genl_sock_priv_size(family))
 		return;
 	priv = xa_erase(family->sock_privs, (unsigned long) sk);
 	if (!priv)
@@ -1839,7 +1857,7 @@ static int genl_bind(struct net *net, int group)
 		if (ret)
 			break;
 
-		if (family->bind)
+		if (!rodin_66_genl_family(family) && family->bind)
 			family->bind(i);
 
 		break;
@@ -1866,7 +1884,7 @@ static void genl_unbind(struct net *net, int group)
 		if (i < 0 || i >= family->n_mcgrps)
 			continue;
 
-		if (family->unbind)
+		if (!rodin_66_genl_family(family) && family->unbind)
 			family->unbind(i);
 
 		break;

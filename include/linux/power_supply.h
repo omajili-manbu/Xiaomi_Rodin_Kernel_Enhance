@@ -244,6 +244,14 @@ struct power_supply;
 
 /* Run-time specific power supply configuration */
 struct power_supply_config {
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.6 leads with of_node, which 6.18
+	 * dropped (fwnode only). Restored so fwnode..num_supplicants keep
+	 * their 6.6 offsets; the core falls back to of_fwnode_handle() for
+	 * callers that only fill of_node.
+	 */
+	struct device_node *of_node;
+
 	struct fwnode_handle *fwnode;
 
 	/* Driver private data */
@@ -255,10 +263,24 @@ struct power_supply_config {
 	char **supplied_to;
 	size_t num_supplicants;
 
+	/*
+	 * rodin 6.6 ABI freeze (r9): 6.6 has no such member, so this reuses
+	 * the first byte of the 6.6 KABI reserve slot (zero on 6.6 objects
+	 * => wakeup source enabled, the 6.6 default).
+	 */
 	bool no_wakeup_source;
 
 	ANDROID_KABI_RESERVE(1);
 };
+
+/* rodin 6.6 ABI freeze (r9) */
+_Static_assert(__builtin_offsetof(struct power_supply_config, of_node) == 0, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, fwnode) == 8, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, drv_data) == 16, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, attr_grp) == 24, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, supplied_to) == 32, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, num_supplicants) == 40, "power_supply_config 6.6 ABI");
+_Static_assert(__builtin_offsetof(struct power_supply_config, no_wakeup_source) == 48, "power_supply_config r9 slot");
 
 /* Description of power supply */
 struct power_supply_desc {
