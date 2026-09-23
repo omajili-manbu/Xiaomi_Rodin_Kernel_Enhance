@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include <linux/rodin_abi66.h>
 #include <linux/stat.h>
 #include <linux/string_helpers.h>
 
@@ -325,7 +326,8 @@ static ssize_t power_supply_show_charge_behaviour(struct device *dev,
 		}
 	}
 
-	return power_supply_charge_behaviour_show(dev, psy->desc->charge_behaviours,
+	return power_supply_charge_behaviour_show(dev,
+			RODIN_66_NEWIDX(psy->desc, charge_behaviours),
 						  value->intval, buf);
 }
 
@@ -346,7 +348,8 @@ static ssize_t power_supply_show_charge_types(struct device *dev,
 		}
 	}
 
-	return power_supply_charge_types_show(dev, psy->desc->charge_types,
+	return power_supply_charge_types_show(dev,
+			RODIN_66_NEWIDX(psy->desc, charge_types),
 						  current_type, buf);
 }
 
@@ -384,7 +387,7 @@ static ssize_t power_supply_format_property(struct device *dev,
 		ret = power_supply_show_enum_with_available(
 				dev, POWER_SUPPLY_USB_TYPE_TEXT,
 				ARRAY_SIZE(POWER_SUPPLY_USB_TYPE_TEXT),
-				psy->desc->usb_types, value.intval, buf);
+				power_supply_usb_types(psy->desc), value.intval, buf);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
 		if (uevent) /* no possible values in uevents */

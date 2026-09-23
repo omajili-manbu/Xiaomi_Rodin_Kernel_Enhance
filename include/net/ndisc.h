@@ -186,9 +186,12 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
  *     addresses. E.g. 802.15.4 6LoWPAN.
  */
 struct ndisc_ops {
-	int	(*parse_options)(const struct net_device *dev,
+int	(*is_useropt)(u8 nd_opt_type);
+
+int	(*parse_options)(const struct net_device *dev,
 				 struct nd_opt_hdr *nd_opt,
 				 struct ndisc_options *ndopts);
+
 	void	(*update)(const struct net_device *dev, struct neighbour *n,
 			  u32 flags, u8 icmp6_type,
 			  const struct ndisc_options *ndopts);

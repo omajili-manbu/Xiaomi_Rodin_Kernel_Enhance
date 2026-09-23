@@ -30,6 +30,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/console.h>
+#include <linux/rodin_abi66.h>
 #include <linux/export.h>
 #include <linux/sysrq.h>
 
@@ -1627,7 +1628,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper)
 	struct drm_fb_helper_surface_size sizes;
 	int ret;
 
-	if (drm_WARN_ON(dev, !dev->driver->fbdev_probe))
+	if (drm_WARN_ON(dev, !RODIN_66_NEWFIELD(dev->driver, fbdev_probe)))
 		return -EINVAL;
 
 	ret = drm_fb_helper_find_sizes(fb_helper, &sizes);

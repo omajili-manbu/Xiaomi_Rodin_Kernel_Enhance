@@ -33,6 +33,7 @@
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
 #include <linux/if_bridge.h>
+#include <linux/rodin_abi66.h>
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
@@ -57,6 +58,45 @@
 #include <net/devlink.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/addrconf.h>
+/*
+ * 6.6 ABI：6.6 的 rtnl_link_ops 没有 srcu 字段；6.18 把它插在表头 16..32，正好
+ * 压在 6.6 的 kind/priv_size 上。模块表（208B == 6.6 sizeof）不能承载 srcu，
+ * 否则 init_srcu_struct() 会把 kind 指针写成 srcu 数据（且模块表在只读段时直接
+ * 写只读页 Oops）。改为：模块 ops 共用内核侧一个 srcu 实例。
+ */
+static struct srcu_struct rodin_66_rtnl_link_srcu;
+static bool rodin_66_rtnl_link_srcu_ready;
+
+static struct srcu_struct *rtnl_link_srcu(struct rtnl_link_ops *ops)
+{
+	if (!rodin_66_module_ops(ops))
+		return &ops->srcu;
+	if (!rodin_66_rtnl_link_srcu_ready)
+		return NULL;
+	return &rodin_66_rtnl_link_srcu;
+}
+
+static int rtnl_link_srcu_init(struct rtnl_link_ops *ops)
+{
+	if (!rodin_66_module_ops(ops))
+		return init_srcu_struct(&ops->srcu);
+
+	if (!rodin_66_rtnl_link_srcu_ready) {
+		int err = init_srcu_struct(&rodin_66_rtnl_link_srcu);
+
+		if (err)
+			return err;
+		rodin_66_rtnl_link_srcu_ready = true;
+	}
+	return 0;
+}
+
+static void rtnl_link_srcu_cleanup(struct rtnl_link_ops *ops)
+{
+	if (!rodin_66_module_ops(ops))
+		cleanup_srcu_struct(&ops->srcu);
+	/* 模块 ops 共用实例：随内核生命周期，不在此清理 */
+}
 #endif
 #include <linux/dpll.h>
 
@@ -573,7 +613,7 @@ static struct rtnl_link_ops *rtnl_link_ops_get(const char *kind, int *srcu_index
 
 	list_for_each_entry_rcu(ops, &link_ops, list) {
 		if (!strcmp(ops->kind, kind)) {
-			*srcu_index = srcu_read_lock(&ops->srcu);
+			*srcu_index = srcu_read_lock(rtnl_link_srcu(ops));
 			goto unlock;
 		}
 	}
@@ -587,7 +627,7 @@ unlock:
 
 static void rtnl_link_ops_put(struct rtnl_link_ops *ops, int srcu_index)
 {
-	srcu_read_unlock(&ops->srcu, srcu_index);
+	srcu_read_unlock(rtnl_link_srcu(ops), srcu_index);
 }
 
 /**
@@ -614,7 +654,7 @@ int rtnl_link_register(struct rtnl_link_ops *ops)
 	if ((ops->alloc || ops->setup) && !ops->dellink)
 		ops->dellink = unregister_netdevice_queue;
 
-	err = init_srcu_struct(&ops->srcu);
+	err = rtnl_link_srcu_init(ops);
 	if (err)
 		return err;
 
@@ -632,7 +672,7 @@ unlock:
 	mutex_unlock(&link_ops_mutex);
 
 	if (err)
-		cleanup_srcu_struct(&ops->srcu);
+		rtnl_link_srcu_cleanup(ops);
 
 	return err;
 }
@@ -684,8 +724,8 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops)
 	list_del_rcu(&ops->list);
 	mutex_unlock(&link_ops_mutex);
 
-	synchronize_srcu(&ops->srcu);
-	cleanup_srcu_struct(&ops->srcu);
+	synchronize_srcu(rtnl_link_srcu(ops));
+	cleanup_srcu_struct(rtnl_link_srcu(ops));
 
 	/* Close the race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
@@ -3900,7 +3940,7 @@ static struct net *rtnl_get_peer_net(struct sk_buff *skb,
 	struct net *net;
 	int err;
 
-	if (!data || !data[ops->peer_type]) {
+	if (!data || !data[RODIN_66_NEWIDX(ops, peer_type)]) {
 		attrs = tbp;
 	} else {
 		err = rtnl_nla_parse_ifinfomsg(tb, data[ops->peer_type], extack);

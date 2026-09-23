@@ -27,6 +27,7 @@
 #include <linux/string.h>
 
 #include <linux/pinctrl/machine.h>
+#include <linux/rodin_abi66.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
@@ -99,7 +100,7 @@ bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned int pin)
 	mux_setting = desc->mux_setting;
 
 	guard(mutex)(&desc->mux_lock);
-	if (mux_setting && ops->function_is_gpio)
+	if (mux_setting && !rodin_66_module_ops(ops) && ops->function_is_gpio)
 		func_is_gpio = ops->function_is_gpio(pctldev, mux_setting->func);
 
 	if (ops->strict && desc->mux_usecount && !func_is_gpio)
@@ -142,7 +143,7 @@ static int pin_request(struct pinctrl_dev *pctldev,
 
 	scoped_guard(mutex, &desc->mux_lock) {
 		if (mux_setting) {
-			if (ops->function_is_gpio)
+			if (!rodin_66_module_ops(ops) && ops->function_is_gpio)
 				gpio_ok = ops->function_is_gpio(pctldev,
 								mux_setting->func);
 		} else {

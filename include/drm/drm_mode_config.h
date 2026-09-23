@@ -96,9 +96,23 @@ struct drm_mode_config_funcs {
 	 * The format information specific to the given fb metadata, or
 	 * NULL if none is found.
 	 */
-	const struct drm_format_info *(*get_format_info)(u32 pixel_format, u64 modifier);
+	const struct drm_format_info *(*get_format_info)(u32 pixel_format, u64 modifier);/**
+	 * @output_poll_changed:
+	 *
+	 * Callback used by helpers to inform the driver of output configuration
+	 * changes.
+	 *
+	 * Drivers implementing fbdev emulation use drm_kms_helper_hotplug_event()
+	 * to call this hook to inform the fbdev helper of output changes.
+	 *
+	 * This hook is deprecated, drivers should instead use
+	 * drm_fbdev_generic_setup() which takes care of any necessary
+	 * hotplug event forwarding already without further involvement by
+	 * the driver.
+	 */
+	void (*output_poll_changed)(struct drm_device *dev);
 
-	/**
+/**
 	 * @mode_valid:
 	 *
 	 * Device specific validation of display modes. Can be used to reject
@@ -108,6 +122,7 @@ struct drm_mode_config_funcs {
 	 */
 	enum drm_mode_status (*mode_valid)(struct drm_device *dev,
 					   const struct drm_display_mode *mode);
+
 
 	/**
 	 * @atomic_check:

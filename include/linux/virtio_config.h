@@ -125,8 +125,6 @@ struct virtio_config_ops {
 	void (*del_vqs)(struct virtio_device *);
 	void (*synchronize_cbs)(struct virtio_device *);
 	u64 (*get_features)(struct virtio_device *vdev);
-	void (*get_extended_features)(struct virtio_device *vdev,
-				      u64 *features);
 	int (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
 	int (*set_vq_affinity)(struct virtqueue *vq,
@@ -137,6 +135,9 @@ struct virtio_config_ops {
 			       struct virtio_shm_region *region, u8 id);
 	int (*disable_vq_and_reset)(struct virtqueue *vq);
 	int (*enable_vq_after_reset)(struct virtqueue *vq);
+
+	void (*get_extended_features)(struct virtio_device *vdev,
+					      u64 *features);
 };
 
 /**

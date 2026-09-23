@@ -418,8 +418,6 @@ struct v4l2_ioctl_ops {
 				  struct v4l2_create_buffers *b);
 	int (*vidioc_prepare_buf)(struct file *file, void *priv,
 				  struct v4l2_buffer *b);
-	int (*vidioc_remove_bufs)(struct file *file, void *priv,
-				  struct v4l2_remove_buffers *d);
 
 	int (*vidioc_overlay)(struct file *file, void *priv, unsigned int i);
 	int (*vidioc_g_fbuf)(struct file *file, void *priv,
@@ -452,13 +450,20 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_enum_output)(struct file *file, void *priv,
 				  struct v4l2_output *a);
 	int (*vidioc_g_output)(struct file *file, void *priv, unsigned int *i);
-	int (*vidioc_s_output)(struct file *file, void *priv, unsigned int i);
+	int (*vidioc_s_output)(struct file *file, void *priv, unsigned int i);/* Control handling */
+	int (*vidioc_queryctrl)(struct file *file, void *fh,
+				struct v4l2_queryctrl *a);
 
-		/* Control handling */
+/* Control handling */
 	int (*vidioc_query_ext_ctrl)(struct file *file, void *priv,
-				     struct v4l2_query_ext_ctrl *a);
-	int (*vidioc_g_ext_ctrls)(struct file *file, void *priv,
+				     struct v4l2_query_ext_ctrl *a);int (*vidioc_g_ctrl)(struct file *file, void *fh,
+			     struct v4l2_control *a);int (*vidioc_s_ctrl)(struct file *file, void *fh,
+			     struct v4l2_control *a);
+
+int (*vidioc_g_ext_ctrls)(struct file *file, void *priv,
 				  struct v4l2_ext_controls *a);
+
+
 	int (*vidioc_s_ext_ctrls)(struct file *file, void *priv,
 				  struct v4l2_ext_controls *a);
 	int (*vidioc_try_ext_ctrls)(struct file *file, void *priv,
@@ -577,6 +582,9 @@ struct v4l2_ioctl_ops {
 	/* For other private ioctls */
 	long (*vidioc_default)(struct file *file, void *priv,
 			       bool valid_prio, unsigned int cmd, void *arg);
+
+	int (*vidioc_remove_bufs)(struct file *file, void *priv,
+					  struct v4l2_remove_buffers *d);
 };
 
 

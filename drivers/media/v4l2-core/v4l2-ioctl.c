@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/rodin_abi66.h>
 #include <linux/version.h>
 
 #include <linux/v4l2-subdev.h>
@@ -2236,7 +2237,7 @@ static int v4l_remove_bufs(const struct v4l2_ioctl_ops *ops,
 {
 	struct v4l2_remove_buffers *remove = arg;
 
-	if (ops->vidioc_remove_bufs)
+	if (!rodin_66_module_ops(ops) && ops->vidioc_remove_bufs)
 		return ops->vidioc_remove_bufs(file, NULL, remove);
 
 	return -ENOTTY;

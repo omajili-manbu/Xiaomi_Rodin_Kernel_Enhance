@@ -77,6 +77,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/device.h>
+#include <linux/rodin_abi66.h>
 #include <linux/err.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
@@ -815,7 +816,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 		if (!r_evt->report)
 			return -ENOMEM;
 
-		if (ee->ops->is_notify_supported) {
+		if (!rodin_66_module_ops(ee->ops) && ee->ops->is_notify_supported) {
 			int supported = 0;
 
 			for (id = 0; id < r_evt->num_sources; id++) {

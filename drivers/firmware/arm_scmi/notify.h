@@ -52,8 +52,7 @@ struct scmi_protocol_handle;
  *	    process context.
  */
 struct scmi_event_ops {
-	bool (*is_notify_supported)(const struct scmi_protocol_handle *ph,
-				    u8 evt_id, u32 src_id);
+
 	int (*get_num_sources)(const struct scmi_protocol_handle *ph);
 	int (*set_notify_enabled)(const struct scmi_protocol_handle *ph,
 				  u8 evt_id, u32 src_id, bool enabled);
@@ -61,6 +60,9 @@ struct scmi_event_ops {
 				    u8 evt_id, ktime_t timestamp,
 				    const void *payld, size_t payld_sz,
 				    void *report, u32 *src_id);
+
+	bool (*is_notify_supported)(const struct scmi_protocol_handle *ph,
+					    u8 evt_id, u32 src_id);
 };
 
 /**

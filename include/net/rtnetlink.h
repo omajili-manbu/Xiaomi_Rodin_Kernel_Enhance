@@ -142,7 +142,6 @@ static inline struct net *rtnl_newlink_peer_net(struct rtnl_newlink_params *p)
  */
 struct rtnl_link_ops {
 	struct list_head	list;
-	struct srcu_struct	srcu;
 
 	const char		*kind;
 
@@ -155,7 +154,6 @@ struct rtnl_link_ops {
 	void			(*setup)(struct net_device *dev);
 
 	bool			netns_refund;
-	const u16		peer_type;
 	unsigned int		maxtype;
 	const struct nla_policy	*policy;
 	int			(*validate)(struct nlattr *tb[],
@@ -200,6 +198,10 @@ struct rtnl_link_ops {
 	int			(*fill_linkxstats)(struct sk_buff *skb,
 						   const struct net_device *dev,
 						   int *prividx, int attr);
+
+	struct srcu_struct	srcu;
+
+	const u16		peer_type;
 };
 
 int rtnl_link_register(struct rtnl_link_ops *ops);

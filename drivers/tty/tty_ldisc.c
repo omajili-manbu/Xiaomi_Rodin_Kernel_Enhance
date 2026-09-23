@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
+#include <linux/rodin_abi66.h>
 #include <linux/tty_driver.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -545,7 +546,7 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 		goto out;
 	}
 
-	if (tty->ops->ldisc_ok) {
+	if (!rodin_66_module_ops(tty->ops) && tty->ops->ldisc_ok) {
 		retval = tty->ops->ldisc_ok(tty, disc);
 		if (retval)
 			goto out;
