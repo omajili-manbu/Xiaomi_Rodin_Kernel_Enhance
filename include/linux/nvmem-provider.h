@@ -167,6 +167,14 @@ _Static_assert(__builtin_offsetof(struct nvmem_config, compat) == 136, "rodin nv
 _Static_assert(__builtin_offsetof(struct nvmem_config, base_dev) == 144, "rodin nvmem_config 6.6 ABI: base_dev");
 _Static_assert(__builtin_offsetof(struct nvmem_config, fixup_dt_cell_info) == 152, "rodin nvmem_config 6.6 ABI: fixup_dt_cell_info");
 _Static_assert(sizeof(struct nvmem_config) == 160, "rodin nvmem_config: 152 (6.6) + 8 tail");
+/* rodin r10: everything before the 6.18-only fixup_dt_cell_info member is the
+ * 6.6 footprint - module-built configs are exactly this big, so the kernel
+ * must never read past it on a module-built object. */
+#define RODIN_66_NVMEM_CONFIG_SIZE 152
+_Static_assert(__builtin_offsetof(struct nvmem_config, fixup_dt_cell_info) ==
+	       RODIN_66_NVMEM_CONFIG_SIZE,
+	       "rodin nvmem_config: 6.6 footprint must end where the 6.18 tail begins");
+
 
 
 /**

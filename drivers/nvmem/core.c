@@ -905,16 +905,12 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 {
 	struct nvmem_device *nvmem;
 	int rval;
-
-	/* rodin: module callers build nvmem_config with the 6.6 layout whose
-	 * tail has no fixup_dt_cell_info; never let slab/stack tail garbage
-	 * become a callback. */
-	if (is_module_text_address(_RET_IP_)) {
-		struct nvmem_config rodin_cfg = *config;
-
-		rodin_cfg.fixup_dt_cell_info = NULL;
-		config = &rodin_cfg;
-	}
+	/* rodin r10: 6.6-built configs end at the 6.6 footprint, they have no
+	 * fixup_dt_cell_info member at all. Never read past that footprint for
+	 * a module caller - the r8 shadow copy that used to hide this was UB
+	 * (block-scoped object escaping its block) and the optimiser deleted
+	 * the copy, handing modules an uninitialised stack frame. */
+	bool rodin_from_module = is_module_text_address(_RET_IP_);
 
 	if (!config->dev)
 		return ERR_PTR(-EINVAL);
@@ -951,7 +947,9 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	kref_init(&nvmem->refcnt);
 	INIT_LIST_HEAD(&nvmem->cells);
-	nvmem->fixup_dt_cell_info = config->fixup_dt_cell_info;
+	/* rodin r10: kernel-built configs only (see rodin_from_module). */
+	if (!rodin_from_module)
+		nvmem->fixup_dt_cell_info = config->fixup_dt_cell_info;
 
 	nvmem->owner = config->owner;
 	if (!nvmem->owner && config->dev->driver)
@@ -1109,13 +1107,17 @@ struct nvmem_device *devm_nvmem_register(struct device *dev,
 {
 	struct nvmem_device *nvmem;
 	int ret;
+	/* rodin r10: nvmem_register() can no longer recognise a module caller
+	 * once this function sits in between (_RET_IP_ is kernel text by then),
+	 * so sanitise here instead. The shadow object must live in the function
+	 * scope: a block-scoped one ends its lifetime before nvmem_register()
+	 * reads it, which makes the whole copy dead code (silently deleted).
+	 * Only the 6.6 footprint is copied, the 6.18-only tail stays zeroed. */
+	struct nvmem_config rodin_cfg;
 
-	/* rodin: module -> devm -> nvmem_register hides the module caller
-	 * behind kernel text, so guard here too. */
 	if (is_module_text_address(_RET_IP_)) {
-		struct nvmem_config rodin_cfg = *config;
-
-		rodin_cfg.fixup_dt_cell_info = NULL;
+		memset(&rodin_cfg, 0, sizeof(rodin_cfg));
+		memcpy(&rodin_cfg, config, RODIN_66_NVMEM_CONFIG_SIZE);
 		config = &rodin_cfg;
 	}
 
