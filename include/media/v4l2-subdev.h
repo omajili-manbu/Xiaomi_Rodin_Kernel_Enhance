@@ -940,13 +940,15 @@ struct v4l2_subdev_ops {
  *	these ops.
  */
 struct v4l2_subdev_internal_ops {
-	int (*init_state)(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *state);
+
 	int (*registered)(struct v4l2_subdev *sd);
 	void (*unregistered)(struct v4l2_subdev *sd);
 	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	void (*release)(struct v4l2_subdev *sd);
+
+	int (*init_state)(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state);
 };
 
 /* Set this flag if this subdev is a i2c device. */

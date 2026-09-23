@@ -13,6 +13,7 @@
 #define __LINUX_POWER_SUPPLY_H__
 
 #include <linux/device.h>
+#include <linux/rodin_abi66.h>
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/rwsem.h>
@@ -286,10 +287,20 @@ _Static_assert(__builtin_offsetof(struct power_supply_config, no_wakeup_source) 
 struct power_supply_desc {
 	const char *name;
 	enum power_supply_type type;
-	u8 charge_behaviours;
-	u32 charge_types;
-	u32 usb_types;
-	const enum power_supply_property *properties;
+	/*
+	 * 6.6 ABI 槽位（含其后 4 字节空洞）：6.6 此处是
+	 *   const enum power_supply_usb_type *usb_types;   （@16，指针/列表语义）
+	 *   size_t num_usb_types;                          （@24）
+	 * 6.18 把 usb_types 改成 u32 位图并删掉 num_usb_types。预编译模块表仍按
+	 * 6.6 写"指针 + 长度"，故按 6.6 保留三槽（名字带 __rodin_66_，内核不直接
+	 * 引用）；内核读点走 power_supply_usb_types() 折算。
+	 */
+	u32 __rodin_66_usb_types_pad;
+	const void *__rodin_66_usb_types;
+	size_t __rodin_66_num_usb_types;
+
+const enum power_supply_property *properties;
+
 	size_t num_properties;
 
 	/*
@@ -311,18 +322,24 @@ struct power_supply_desc {
 	 */
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
-	void (*external_power_changed)(struct power_supply *psy);
+	void (*external_power_changed)(struct power_supply *psy);void (*set_charged)(struct power_supply *psy);
 
-	/*
+/*
 	 * Set if thermal zone should not be created for this power supply.
 	 * For example for virtual supplies forwarding calls to actual
 	 * sensors or other supplies.
 	 */
 	bool no_thermal;
+
 	/* For APM emulation, think legacy userspace. */
 	int use_for_apm;
 
 	ANDROID_KABI_RESERVE(1);
+
+	u32 usb_types;                 /* 6.18 位图语义（内核自身用；模块表无此槽位） */
+	u8 charge_behaviours;
+
+	u32 charge_types;
 };
 
 struct power_supply_ext {
@@ -1079,5 +1096,32 @@ static inline int power_supply_charge_types_parse(unsigned int available_types, 
 	return -EOPNOTSUPP;
 }
 #endif
+
+
+/*
+ * 6.6 ABI：6.6 的 struct power_supply_desc 用"enum 列表 + 长度"描述支持的 USB 类型
+ * （const enum power_supply_usb_type *usb_types; size_t num_usb_types;），6.18 改成
+ * u32 位图。预编译模块表是 6.6 布局 ⇒ 内核读位图字段会越过模块表。此处统一折算：
+ * 模块表 ⇒ 遍历 6.6 的 enum 列表拼位图；内核表 ⇒ 直接读 6.18 位图字段。
+ */
+static inline u32 power_supply_usb_types(const struct power_supply_desc *desc)
+{
+	u32 mask = 0;
+	size_t i;
+
+	if (!desc)
+		return 0;
+	if (!rodin_66_module_ops(desc))
+		return desc->usb_types;
+
+	for (i = 0; i < desc->__rodin_66_num_usb_types && i < 32; i++) {
+		const u32 *t = desc->__rodin_66_usb_types;
+
+		if (!t)
+			break;
+		mask |= BIT(t[i]);
+	}
+	return mask;
+}
 
 #endif /* __LINUX_POWER_SUPPLY_H__ */

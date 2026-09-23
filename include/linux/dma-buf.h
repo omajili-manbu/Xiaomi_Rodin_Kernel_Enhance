@@ -38,6 +38,17 @@ struct dma_buf_attachment;
  * @vunmap: [optional] unmaps a vmap from the buffer
  */
 struct dma_buf_ops {
+	/*
+	 * 6.6 ABI 布局：6.6 的 struct dma_buf_ops 首字段是 bool cache_sgt_mapping
+	 * （占 8 字节），6.18 把它连同 sgt 缓存逻辑一起删除。厂商预编译模块按 6.6
+	 * 布局静态构造 ops 表，缺这个首字段会使每个回调槽位与内核的字段名错开一
+	 * 位：实测 system_heap_buf_ops 的 0x20 槽（模块的 unpin = NULL）被内核当
+	 * map_dma_buf 读 ⇒ dma_buf_export() WARN_ON(!ops->map_dma_buf) ⇒ -EINVAL。
+	 * 内核自身不读该字段（6.18 无缓存语义），此处仅作布局对齐。见
+	 * tools/ko_defdata_audit.py。
+	 */
+	bool cache_sgt_mapping;
+
 	/**
 	 * @attach:
 	 *
@@ -572,6 +583,8 @@ struct dma_buf_attach_ops {
  * @dmabuf: buffer for this attachment.
  * @dev: device attached to the buffer.
  * @node: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
+ * @sgt: cached mapping of the attachment (6.6 ABI: 内核 6.18 已不使用)
+ * @dir: direction of the cached mapping (6.6 ABI: 内核 6.18 已不使用)
  * @peer2peer: true if the importer can handle peer resources without pages.
  * @priv: exporter specific attachment data.
  * @importer_ops: importer operations for this attachment, if provided
@@ -593,6 +606,17 @@ struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
 	struct device *dev;
 	struct list_head node;
+	/*
+	 * 6.6 ABI 布局：6.6 在此处有 sgt/dir（sgt 缓存用）。6.18 删掉两字段并把
+	 * 其后字段整体前移 8/16 字节，而 6.6 模块仍按老偏移读写 attach->priv(64)、
+	 * attach->importer_ops(48)、attach->importer_priv(56)、attach->dma_map_attrs(72)
+	 * ⇒ 内核写 importer_priv 会落进模块的 importer_ops，模块写 priv 会落进内核
+	 * 的 dma_map_attrs。内核 6.18 已完全不读写 sgt/dir（grep 为零），恢复它们
+	 * 只影响布局，不引入行为。
+	 */
+	struct sg_table *sgt;
+	enum dma_data_direction dir;
+
 	bool peer2peer;
 	const struct dma_buf_attach_ops *importer_ops;
 	void *importer_priv;

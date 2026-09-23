@@ -66,8 +66,6 @@ struct pinmux_ops {
 				    unsigned int selector,
 				    const char * const **groups,
 				    unsigned int *num_groups);
-	bool (*function_is_gpio) (struct pinctrl_dev *pctldev,
-				  unsigned int selector);
 	int (*set_mux) (struct pinctrl_dev *pctldev, unsigned int func_selector,
 			unsigned int group_selector);
 	int (*gpio_request_enable) (struct pinctrl_dev *pctldev,
@@ -81,6 +79,9 @@ struct pinmux_ops {
 				   unsigned int offset,
 				   bool input);
 	bool strict;
+
+	bool (*function_is_gpio) (struct pinctrl_dev *pctldev,
+					  unsigned int selector);
 };
 
 #endif /* __LINUX_PINCTRL_PINMUX_H */
