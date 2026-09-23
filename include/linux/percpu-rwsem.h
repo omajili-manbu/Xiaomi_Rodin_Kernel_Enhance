@@ -25,6 +25,13 @@ struct percpu_rw_semaphore {
 void _trace_android_vh_pcpu_rwsem_lock_acquired(struct percpu_rw_semaphore *sem);
 void _trace_android_vh_pcpu_rwsem_lock_released(struct percpu_rw_semaphore *sem);
 
+/* rodin r12: 6.6 名字的 vendor hook 声明（实现见 lib/compat-6.6-core.c） */
+void _trace_android_vh_record_pcpu_rwsem_starttime(
+		struct percpu_rw_semaphore *sem, unsigned long settime);
+
+void _trace_android_vh_record_pcpu_rwsem_rdheld_starttime(
+		struct percpu_rw_semaphore *sem, unsigned long settime);
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define __PERCPU_RWSEM_DEP_MAP_INIT(lockname)	.dep_map = { .name = #lockname },
 #else

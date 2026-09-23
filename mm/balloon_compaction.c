@@ -253,6 +253,9 @@ const struct movable_operations balloon_mops = {
 	.isolate_page = balloon_page_isolate,
 	.putback_page = balloon_page_putback,
 };
+/* rodin r12: 6.6 这里有 EXPORT_SYMBOL_GPL(balloon_mops)，移植时丢了；
+ * virtio_balloon.ko（system_dlkm，在 modules.load 里）导入它。 */
+EXPORT_SYMBOL_GPL(balloon_mops);
 
 static int __init balloon_init(void)
 {

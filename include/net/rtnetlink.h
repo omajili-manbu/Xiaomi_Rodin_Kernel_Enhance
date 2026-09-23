@@ -51,6 +51,9 @@ struct rtnl_msg_handler {
 	int flags;
 };
 
+/* rodin r12: 6.18 把 rtnl_unregister 改成了 static，这里恢复 6.6 的声明（can-gw.ko 导入该符号） */
+int rtnl_unregister(int protocol, int msgtype);
+
 void rtnl_unregister_all(int protocol);
 
 int __rtnl_register_many(const struct rtnl_msg_handler *handlers, int n);

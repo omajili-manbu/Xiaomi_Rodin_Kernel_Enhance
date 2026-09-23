@@ -756,6 +756,10 @@ int dma_buf_vmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map);
 void dma_buf_vunmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map);
 long dma_buf_set_name(struct dma_buf *dmabuf, const char *name);
 int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags);
+/* rodin r12: 6.6 的 MTK 扩展声明（实现见 drivers/dma-buf/dma-buf.c） */
+int dma_buf_get_each(int (*callback)(const struct dma_buf *dmabuf,
+		     void *private), void *private);
+
 struct dma_buf *dma_buf_iter_begin(void);
 struct dma_buf *dma_buf_iter_next(struct dma_buf *dmbuf);
 
