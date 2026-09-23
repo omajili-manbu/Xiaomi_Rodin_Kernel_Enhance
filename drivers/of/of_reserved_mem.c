@@ -286,6 +286,38 @@ void __init fdt_scan_reserved_mem_reg_nodes(void)
 static int __init __reserved_mem_alloc_size(unsigned long node, const char *uname);
 
 /*
+ * rodin r14 诊断：动态 reserved-mem 分配失败时列出请求区间内的 memblock 区域。
+ * 只走失败路径，正常启动零开销。
+ */
+static void __init rodin_66_rmem_dump(const char *uname, phys_addr_t start,
+				      phys_addr_t end, phys_addr_t size)
+{
+	phys_addr_t lo = start, hi = end ? end : MEMBLOCK_ALLOC_ANYWHERE;
+	int i, n = 0;
+
+	pr_err("rodin: rmem alloc failed '%s' size=0x%llx start=%pa end=%pa bottom_up=%d\n",
+	       uname, (unsigned long long)size, &start, &end,
+	       (int)memblock_bottom_up());
+
+	for (i = 0; i < memblock.memory.cnt && n < 16; i++) {
+		struct memblock_region *r = &memblock.memory.regions[i];
+		phys_addr_t rend;
+
+		if (r->base + r->size <= lo || r->base >= hi)
+			continue;
+		rend = r->base + r->size - 1;
+		pr_err("rodin:   memory[%d] %pa..%pa %s%s%s\n", i, &r->base,
+		       &rend,
+		       memblock_is_reserved(r->base) ? "RESERVED" : "free",
+		       memblock_is_nomap(r) ? " nomap" : "",
+		       memblock_is_memory(r->base) ? "" : " !memory");
+		n++;
+	}
+	if (!n)
+		pr_err("rodin:   no memblock memory region overlaps the range\n");
+}
+
+/*
  * fdt_scan_reserved_mem() - scan a single FDT node for reserved memory
  */
 int __init fdt_scan_reserved_mem(void)
@@ -477,6 +509,15 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 	}
 
 	if (base == 0) {
+		/*
+		 * rodin r14: 6.18 把动态 reserved-mem 的分配从 fdt_init_reserved_mem()
+		 * 提前到了 scan 期。真机上 'mkp-kernel-code-protection-memory'
+		 * (alloc-ranges=<0 0x40000000 0 0x10000>, size=0x10000, 无 reg)
+		 * 在这里失败，mkp.ko 拿不到 memory-region ⇒ 代码保护静默失效
+		 * （6.6 同一节点成功落在 0x40000000）。失败时打印请求区间与占用者，
+		 * 一次启动即可定位，不必再试探。
+		 */
+		rodin_66_rmem_dump(uname, start, end, size);
 		pr_err("failed to allocate memory for node '%s': size %lu MiB\n",
 		       uname, (unsigned long)(size / SZ_1M));
 		return -ENOMEM;

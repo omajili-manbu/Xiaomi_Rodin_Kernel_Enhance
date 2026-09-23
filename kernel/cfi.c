@@ -11,20 +11,40 @@
 
 bool cfi_warn __ro_after_init = IS_ENABLED(CONFIG_CFI_PERMISSIVE);
 
+/* rodin: 逐站点普查的站点表容量 */
+#define RODIN_CFI_MAX_SITES	256
+
 enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 				      unsigned long *target, u32 type)
 {
 	/*
 	 * rodin: 预编译 6.6 模块的回调带 6.6 的 KCFI 类型哈希，与 6.18 的类型
-	 * 哈希天然不同，每次间接调用都会触发。这里把"一行普查"（用于离线枚举
-	 * 全部漂移点）与"完整栈"分开限频：前者 60/分钟，后者仍只打前 3 条，
-	 * 避免一次 probe 的级联把 ramoops 刷爆。
+	 * 哈希天然不同，每次间接调用都会触发。
+	 *
+	 * 这里是**逐站点普查**：同一个 brk 站点只打一次完整行（含整栈），最多
+	 * 256 个站点，之后回退到限流。r13 真机上限 60 行/分钟被 of_iommu_xlate
+	 * 一个站点打满，后面的漂移点被整条吃掉 —— 逐站点计数保证一次启动就能把
+	 * 全部间接调用漂移点枚举干净。
 	 */
-	static DEFINE_RATELIMIT_STATE(cfi_line_rs, 60 * HZ, 60);
-	static DEFINE_RATELIMIT_STATE(cfi_trace_rs, 60 * HZ, 3);
-	bool show_trace = cfi_warn && __ratelimit(&cfi_trace_rs);
+	static unsigned long rodin_cfi_sites[RODIN_CFI_MAX_SITES];
+	static atomic_t rodin_cfi_sites_nr = ATOMIC_INIT(0);
+	static DEFINE_RATELIMIT_STATE(cfi_rs, 60 * HZ, 60);
+	bool census_hit = false;
+	int nr, i;
 
-	if (cfi_warn && !__ratelimit(&cfi_line_rs))
+	if (cfi_warn) {
+		nr = atomic_read(&rodin_cfi_sites_nr);
+		for (i = 0; i < nr && i < RODIN_CFI_MAX_SITES; i++)
+			if (rodin_cfi_sites[i] == addr)
+				break;
+		if (i == nr && nr < RODIN_CFI_MAX_SITES) {
+			rodin_cfi_sites[nr] = addr;
+			atomic_inc(&rodin_cfi_sites_nr);
+			census_hit = true;
+		}
+	}
+
+	if (!census_hit && !__ratelimit(&cfi_rs))
 		return BUG_TRAP_TYPE_WARN;
 
 	if (target)
@@ -35,7 +55,7 @@ enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 		       (void *)addr);
 
 	if (cfi_warn) {
-		if (show_trace)
+		if (census_hit)
 			__warn(NULL, 0, (void *)addr, 0, regs, NULL);
 		return BUG_TRAP_TYPE_WARN;
 	}
