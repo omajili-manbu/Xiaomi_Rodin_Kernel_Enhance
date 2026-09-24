@@ -3357,6 +3357,82 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	return 0;
 }
 
+/*
+ * RODIN: modules that are built into this image, but that the vendor ramdisk
+ * and dlkm still ship (and load) as .ko.  Loading them fails -- "exports
+ * duplicate symbol ..." for the ones that export symbols, duplicate module
+ * name for the rest -- and the vendor first-stage init treats that as fatal
+ * (exit 127).  Report a successful load without doing anything: the code is
+ * already in the image and its initcalls ran long before userspace exists.
+ *
+ * Every entry is guarded by the very CONFIG that builds the module in, so the
+ * list cannot drift from the configuration: flipping a module back to =m
+ * removes its entry by itself.  Keep it sorted by subsystem.
+ */
+static const char *const rodin_builtin_modules[] = {
+#if IS_ENABLED(CONFIG_ZRAM)
+	"zram",
+#endif
+#if IS_ENABLED(CONFIG_ZSMALLOC)
+	"zsmalloc",
+#endif
+#if IS_ENABLED(CONFIG_MTD)
+	"mtd",
+#endif
+#if IS_ENABLED(CONFIG_MTD_BLKDEVS)
+	"mtd_blkdevs",
+#endif
+#if IS_ENABLED(CONFIG_MTD_BLOCK)
+	"mtdblock",
+#endif
+#if IS_ENABLED(CONFIG_MTD_BLOCK2MTD)
+	"block2mtd",
+#endif
+#if IS_ENABLED(CONFIG_MTD_OOPS)
+	"mtdoops",
+#endif
+#if IS_ENABLED(CONFIG_MTD_OF_PARTS)
+	"ofpart",
+#endif
+#if IS_ENABLED(CONFIG_MTD)
+	"chipreg",		/* chipreg.o is obj-$(CONFIG_MTD) */
+#endif
+#if IS_ENABLED(CONFIG_ARM_DSU_PMU)
+	"arm_dsu_pmu",
+#endif
+	NULL,
+};
+
+/*
+ * Compare module names with '-' and '_' treated alike: kbuild sanitises the
+ * name it writes into .modinfo ("industrialio_triggered_buffer" for
+ * industrialio-triggered-buffer.ko), callers may pass either form.
+ */
+static bool rodin_module_name_eq(const char *a, const char *b)
+{
+	for (; *a && *b; a++, b++) {
+		char ca = *a == '-' ? '_' : *a;
+		char cb = *b == '-' ? '_' : *b;
+
+		if (ca != cb)
+			return false;
+	}
+	return *a == *b;
+}
+
+/* noinline: keeps the table walk visible in vmlinux for the build gates. */
+static noinline bool rodin_skip_builtin_module(const char *name)
+{
+	const char *const *p;
+
+	if (!name)
+		return false;
+	for (p = rodin_builtin_modules; *p; p++)
+		if (rodin_module_name_eq(name, *p))
+			return true;
+	return false;
+}
+
 /* Module within temporary copy, this doesn't do any allocation  */
 static int early_mod_check(struct load_info *info, int flags)
 {
@@ -3430,6 +3506,14 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = early_mod_check(info, flags);
 	if (err)
 		goto free_copy;
+	/*
+	 * RODIN: some of what the vendor ramdisk/dlkm loads is built into this
+	 * image; report success instead of failing the load.
+	 */
+	if (rodin_skip_builtin_module(info->name)) {
+		pr_warn("rodin: %s is built-in, skipping load\n", info->name);
+		goto free_copy;
+	}
 
 	/* Figure out module layout, and allocate all the memory. */
 	mod = layout_and_allocate(info, flags);
