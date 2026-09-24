@@ -32,12 +32,18 @@
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-integrity.h>
+#include <linux/err.h>
+#include <linux/fs.h>
+#include <linux/list.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/mutex.h>
+#include <linux/printk.h>
 #include <linux/scatterlist.h>
 #include <linux/shrinker.h>
+#include <linux/slab.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
 
@@ -485,3 +491,95 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	return bsg_setup_queue_k618(dev, name, NULL, job_fn, timeout, dd_job_size);
 }
 EXPORT_SYMBOL_GPL(bsg_setup_queue);
+
+/* ---- 6.6 holder 式 bdev 开关对：blkdev_get_by_path/get_by_dev/blkdev_put ---- */
+/*
+ * 6.18 删除了这套 API（改 bdev_file_open_* 返回 struct file * 作句柄，
+ * bdev_fput 释放）。用 6.18 导出 API 重建该对：每次 open 产出一个 file 引用，
+ * blkdev_put(bdev) 反查并 fput。反查表按 bdev 指针建链表 —— 6.6 语义下 holder
+ * 为 NULL 即非独占打开，同一 bdev 并发多次 open 合法（用户仅 block2mtd/
+ * bootmonitor/zram 三个模块，线性扫描足矣，不值得为 O(1) 换单槽映射把合法
+ * 的二次 open 变 -EBUSY）。holder 参数有意忽略：claim 已绑定在 file 上；
+ * 6.6 写模式下的 bdev_read_only() 检查在 6.18 文件打开路径已包含。
+ */
+struct cp_bdev_open {
+	struct list_head list;
+	struct block_device *bdev;
+	struct file *bdev_file;
+};
+
+static LIST_HEAD(cp_bdev_opens);
+static DEFINE_MUTEX(cp_bdev_lock);
+
+struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
+					void *holder,
+					const struct blk_holder_ops *hops);
+struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
+				       void *holder,
+				       const struct blk_holder_ops *hops);
+void blkdev_put(struct block_device *bdev, void *holder);
+
+static struct block_device *cp_bdev_open(struct file *file)
+{
+	struct cp_bdev_open *e;
+
+	if (IS_ERR(file))
+		return ERR_CAST(file);
+
+	e = kmalloc(sizeof(*e), GFP_KERNEL);
+	if (!e) {
+		bdev_fput(file);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	e->bdev_file = file;
+	e->bdev = file_bdev(file);
+
+	mutex_lock(&cp_bdev_lock);
+	list_add(&e->list, &cp_bdev_opens);
+	mutex_unlock(&cp_bdev_lock);
+
+	return e->bdev;
+}
+
+struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
+					void *holder,
+					const struct blk_holder_ops *hops)
+{
+	return cp_bdev_open(bdev_file_open_by_path(path, mode, holder, hops));
+}
+EXPORT_SYMBOL(blkdev_get_by_path);
+
+struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
+				       void *holder,
+				       const struct blk_holder_ops *hops)
+{
+	return cp_bdev_open(bdev_file_open_by_dev(dev, mode, holder, hops));
+}
+EXPORT_SYMBOL(blkdev_get_by_dev);
+
+void blkdev_put(struct block_device *bdev, void *holder)
+{
+	struct cp_bdev_open *e, *found = NULL;
+	struct file *file = NULL;
+
+	mutex_lock(&cp_bdev_lock);
+	list_for_each_entry(e, &cp_bdev_opens, list) {
+		if (e->bdev == bdev) {
+			found = e;
+			file = e->bdev_file;
+			list_del(&e->list);
+			break;
+		}
+	}
+	mutex_unlock(&cp_bdev_lock);
+
+	if (!found) {
+		pr_warn("blkdev_put: no 6.6-compat open for that device\n");
+		return;
+	}
+
+	kfree(found);
+	bdev_fput(file);
+}
+EXPORT_SYMBOL(blkdev_put);
