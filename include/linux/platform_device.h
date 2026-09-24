@@ -260,6 +260,20 @@ struct platform_driver {
 	ANDROID_KABI_RESERVE(1);
 };
 
+#ifdef CONFIG_MODULE_FORCE_LOAD
+/*
+ * rodin: 6.6 blob 在 remove 与 shutdown 之间有 remove_new，driver 因此落在
+ * 48。漂移回 40 即 platform_driver_register 读到 name=NULL 的崩点重演。
+ */
+static_assert(offsetof(struct platform_driver, remove) == 8);
+static_assert(offsetof(struct platform_driver, remove_new) == 16);
+static_assert(offsetof(struct platform_driver, shutdown) == 24);
+static_assert(offsetof(struct platform_driver, suspend) == 32);
+static_assert(offsetof(struct platform_driver, resume) == 40);
+static_assert(offsetof(struct platform_driver, driver) == 48,
+	      "rodin: platform_driver must keep the 6.6 blob layout");
+#endif
+
 #define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
 				 driver))
 

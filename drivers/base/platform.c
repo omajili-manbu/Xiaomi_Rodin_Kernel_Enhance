@@ -1436,6 +1436,19 @@ static void platform_remove(struct device *_dev)
 		drv->remove_new(dev);
 		return;
 	}
+	/*
+	 * rodin: 6.6 blob 的 .remove 是旧式 int 返回原型（6.6 基树数百个
+	 * static int xxx_remove），按真实原型调用并还原 6.6 的返回值语义；
+	 * 内核自建驱动与 6.18 模块的 .remove 是 void 原型，走下方原路径。
+	 */
+	if (drv->remove && rodin_obj_is_legacy66(drv)) {
+		int (*remove_66)(struct platform_device *) = (void *)drv->remove;
+		int ret = remove_66(dev);
+
+		if (ret)
+			dev_warn(_dev, "remove callback returned a non-zero value. This will be ignored.\n");
+		return;
+	}
 #endif
 	if (drv->remove)
 		drv->remove(dev);
