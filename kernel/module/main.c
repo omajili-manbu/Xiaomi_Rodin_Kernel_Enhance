@@ -3637,6 +3637,9 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_ARM_DSU_PMU)
 	"arm_dsu_pmu",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_TIMER)
+	"timer-mediatek",
+#endif
 	NULL,
 };
 
