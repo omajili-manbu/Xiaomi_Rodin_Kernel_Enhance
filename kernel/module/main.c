@@ -3997,6 +3997,96 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_USB_USBNET)
 	"usbnet",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MMC_CQHCI)
+	"cqhci",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"emi",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"emi_fake_eng",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"emi_mpu",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"emi_slb",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_I2C_MT65XX)
+	"i2c_mt65xx",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_REGULATOR_MT6315)
+	"mt6315_regulator",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_REGULATOR_MT6316)
+	"mt6316_regulator",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_MT6363)
+	"mt6363_regulator",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_MT6368)
+	"mt6368_regulator",
+#endif
+#if IS_ENABLED(CONFIG_MEDIATEK_MT6681_AUXADC)
+	"mt6681_auxadc",
+#endif
+#if IS_ENABLED(CONFIG_MFD_MT6681)
+	"mt6681_core",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_MT6681)
+	"mt6681_regulator",
+#endif
+#if IS_ENABLED(CONFIG_MT6685_AUDCLK)
+	"mt6685_audclk",
+#endif
+#if IS_ENABLED(CONFIG_MFD_MT6685)
+	"mt6685_core",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DCM_MT6899)
+	"mt6899_dcm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DCM_COMMON)
+	"mtk_dcm",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MMC_DEBUG)
+	"mtk_mmc_dbg",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_KEYBOARD_MTK_PMIC)
+	"mtk_pmic_keys",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_SMI)
+	"mtk_smi",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_SMI)
+	"mtk_smi_dbg",
+#endif
+#if IS_ENABLED(CONFIG_MFD_MTK_SPMI_PMIC)
+	"mtk_spmi_pmic",
+#endif
+#if IS_ENABLED(CONFIG_MEDIATEK_SPMI_PMIC_ADC)
+	"mtk_spmi_pmic_adc",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PHY_MTK_UFS)
+	"phy_mtk_ufs",
+#endif
+#if IS_ENABLED(CONFIG_RTC_DRV_MT6685)
+	"rtc_mt6685",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"slc_parity",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"smpu",
+#endif
+#if IS_ENABLED(CONFIG_MTK_EMI)
+	"smpu_hook_v1",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SPMI_MTK_PMIF)
+	"spmi_mtk_mpu",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SPMI_MTK_PMIF)
+	"spmi_mtk_pmif",
+#endif
 	NULL,
 };
 

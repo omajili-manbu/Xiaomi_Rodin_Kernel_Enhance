@@ -57,3 +57,15 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma-buf/heaps/
 obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/adaptor/wlan_page_pool/
 
 endif
+# ---- stage2 batch 1 (P0 底座残余) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mfd/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iio/adc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/rtc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/keyboard/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mmc/host/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/phy/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/i2c/busses/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/spmi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/memory/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/smi/
