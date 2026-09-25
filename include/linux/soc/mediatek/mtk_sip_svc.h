@@ -27,5 +27,51 @@
 
 /* IOMMU related SMC call */
 #define MTK_SIP_KERNEL_IOMMU_CONTROL	MTK_SIP_SMC_CMD(0x514)
+/* rodin r25: vendor sources (iommu_secure.c) call the same id by this
+ * vendor-side name; alias instead of duplicating the id. */
+#define MTK_IOMMU_SECURE_CONTROL		MTK_SIP_KERNEL_IOMMU_CONTROL
 
+
+/* rodin r25: vendor SMC ids (from MTK_kernel_device_modules
+ * include/linux/soc/mediatek/mtk_sip_svc.h). The 6.18 upstream header resolves
+ * first for the builtin vendor modules and lacked them; values are MTK's. */
+#ifndef MTK_SIP_VCOREFS_CONTROL
+#define MTK_SIP_VCOREFS_CONTROL		MTK_SIP_SMC_CMD(0x506)
+#endif
+#ifndef MTK_SIP_KERNEL_DEVMPU_VIO_GET
+#define MTK_SIP_KERNEL_DEVMPU_VIO_GET	MTK_SIP_SMC_CMD(0x264)
+#endif
+#ifndef MTK_SIP_KERNEL_DEVMPU_PERM_GET
+#define MTK_SIP_KERNEL_DEVMPU_PERM_GET	MTK_SIP_SMC_CMD(0x265)
+#endif
+#ifndef MTK_SIP_KERNEL_DEVMPU_VIO_CLR
+#define MTK_SIP_KERNEL_DEVMPU_VIO_CLR	MTK_SIP_SMC_CMD(0x268)
+#endif
+#ifndef MTK_SIP_KERNEL_DAPC_PERM_GET
+#define MTK_SIP_KERNEL_DAPC_PERM_GET	MTK_SIP_SMC_CMD(0x26B)
+#endif
+#ifndef MTK_SIP_KERNEL_CLR_SRAMROM_VIO
+#define MTK_SIP_KERNEL_CLR_SRAMROM_VIO	MTK_SIP_SMC_CMD(0x26C)
+#endif
+#ifndef MTK_SIP_TINYSYS_VCP_CONTROL
+#define MTK_SIP_TINYSYS_VCP_CONTROL	MTK_SIP_SMC_CMD(0x52C)
+#endif
+#ifndef MTK_SIP_KERNEL_DAPC_MMUP_CONTROL
+#define MTK_SIP_KERNEL_DAPC_MMUP_CONTROL	MTK_SIP_SMC_CMD(0x52E)
+#endif
+#ifndef MTK_SIP_KERNEL_DAPC_SUBSYS_GET
+#define MTK_SIP_KERNEL_DAPC_SUBSYS_GET	MTK_SIP_SMC_CMD(0x531)
+#endif
+#ifndef MTK_SIP_KERNEL_RGU_CONTROL
+#define MTK_SIP_KERNEL_RGU_CONTROL	MTK_SIP_SMC_CMD(0x53A)
+#endif
+#ifndef MTK_SIP_TINYSYS_SSPM_CONTROL
+#define MTK_SIP_TINYSYS_SSPM_CONTROL	MTK_SIP_SMC_CMD(0x53C)
+#endif
+#ifndef MTK_SIP_KERNEL_HWCCF_CONTROL
+#define MTK_SIP_KERNEL_HWCCF_CONTROL	MTK_SIP_SMC_CMD(0x540)
+#endif
+#ifndef MTK_SIP_KERNEL_WDT
+#define MTK_SIP_KERNEL_WDT		MTK_SIP_SMC_CMD(0x200)
+#endif
 #endif

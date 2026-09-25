@@ -1076,6 +1076,9 @@ EXPORT_SYMBOL_GPL(_trace_android_vh_record_pcpu_rwsem_rdheld_starttime);
  * 这里用逐位实现（反射多项式 0x8408），并已数值验证与树内表逐字节一致：
  * 256 项表全同 + 4096 字节随机数据在 init=0x0000/0xffff/0x1d0f 下结果全同。
  */
+/* rodin r25: MAC802154 内建（=y）后 select CRC_CCITT=y，vmlinux 自带真表实现，
+ * 这里必须让位（否则链接撞名）；=m/未开时（纯 blob 场景）仍由本文件提供。 */
+#if !IS_ENABLED(CONFIG_CRC_CCITT)
 /* 声明（6.6 在 <linux/crc-ccitt.h> 里，这里只补 crc_ccitt 本身）*/
 u16 crc_ccitt(u16 crc, const u8 *buffer, size_t len);
 
@@ -1091,4 +1094,5 @@ u16 crc_ccitt(u16 crc, const u8 *buffer, size_t len)
 	return crc;
 }
 EXPORT_SYMBOL(crc_ccitt);
+#endif /* !IS_ENABLED(CONFIG_CRC_CCITT) */
 
