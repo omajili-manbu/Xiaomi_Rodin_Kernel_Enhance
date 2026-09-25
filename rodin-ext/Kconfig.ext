@@ -1,0 +1,40 @@
+# r24/r25: batched mount dir - only the Kconfig/源码 of the current batch
+# are hooked into the 6.18 build (整棵 vendor Kconfig 会让 conf 静默失败, 见 r24 报告).
+# r25: sources go through the $(KCONFIG_EXT_PREFIX) drivers/ symlink mirror so
+# vendor sub-Kconfigs' internal $(KCONFIG_EXT_PREFIX) sources resolve too.
+
+config DEVICE_MODULES_ALLOW_BUILTIN
+	bool "allow builtin drivers into kernel image"
+	default y
+	help
+	  All modules are default built as kernel modules.
+	  Set DEVICE_MODULES_ALLOW_BUILTIN=y to build modules
+	  into the kernel image.
+	  If unsure, say N.
+
+# ---- r24 batch 1 ----
+source "$(KCONFIG_EXT_PREFIX)drivers/clocksource/Kconfig"
+# ---- r25 batch 2 (P0-core) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/aee/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/monitor_hang/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sda/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/log_store/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprintk/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/tinysys_scmi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mminfra/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vcp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mkp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/iommu/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/clk/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/soc/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/watchdog/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/nvmem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/regulator/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/mailbox/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/interconnect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/pinctrl/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/char/hw_random/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/iommu/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/dma-buf/heaps/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/rpmsg/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/gpu/drm/mediatek/Kconfig"

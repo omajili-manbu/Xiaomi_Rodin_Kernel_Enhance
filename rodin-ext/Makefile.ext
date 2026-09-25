@@ -1,0 +1,59 @@
+# r24/r25: batched mount dir - only the current batch's vendor subtrees are
+# built into the kernel image. See file header comments in git history for
+# the two r24 traps (no global LINUXINCLUDE prepend; per-subtree mounting).
+#
+# Path semantics: included from kernel drivers/Makefile via
+#   include $(srctree)/$(KCONFIG_EXT_PREFIX)Makefile.ext
+# so ../ relative to drivers/ = kernel tree root.
+
+ifeq ($(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN),y)
+
+# vendor code carries pre-6.12 style (non-static fns w/o prototypes);
+# keep only the two noisy warning classes from blocking the build.
+# These reach vendor submakes folded into the exported KBUILD_CFLAGS, and
+# DEVICE_MODULES_PATH/MTK_PLATFORM ride the top-level command line, so no
+# export is needed here. Never use a bare `export`: make expands EVERY
+# recursive variable (incl. Makefile.lib's size_append/if_changed family)
+# each time it builds a child's environment - r25 measured ~15x slowdown
+# (26s per .o from 7 $(shell dec_size) loops over the target's dep list).
+subdir-ccflags-y += -Wno-missing-prototypes -Wno-error=array-bounds
+# devmod-only headers (mtk-cmdq-ext/mtk_tinysys_ipi/devapc_public, mt-plat/*):
+# appended AFTER the kernel's own -I list, so kernel headers still win
+# for any same-named file (r24 trap was prepending, this is appending).
+subdir-ccflags-y += -I$(DEVICE_MODULES_PATH)/include \
+		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include
+MTK_PLATFORM ?= mt6899
+KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin
+
+# ---- r24 batch 1 (MTK systimer) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clocksource/
+# ---- r25 batch 2 (P0-core 35) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/aee/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/monitor_hang/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sda/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/log_store/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtprintk/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/tinysys_scmi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mminfra/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vcp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mkp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clk/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/rpmsg/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/soc/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/watchdog/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/nvmem/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/regulator/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mailbox/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/interconnect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pinctrl/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/mediatek/dummy_drm/
+# ---- r25 batch 2.5 (IOMMU family backport) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma-buf/heaps/
+# kmod repo: wlan_page_pool (Kbuild patched to honor ALLOW_BUILTIN)
+# one more ../ than the devmod lines: KMOD_REL_DIR already carries the
+# first hop, and obj paths resolve relative to drivers/ (sub-make cwd).
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/adaptor/wlan_page_pool/
+
+endif
