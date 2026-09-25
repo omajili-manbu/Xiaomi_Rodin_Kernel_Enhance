@@ -4087,6 +4087,63 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_SPMI_MTK_PMIF)
 	"spmi_mtk_pmif",
 #endif
+#if IS_ENABLED(CONFIG_MTK_BUS_PARITY_CHECK)
+	"bus_parity",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CACHE_PARITY_CHECK)
+	"cache_parity",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_ADSP)
+	"clk_mt6899_adsp",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_CAM)
+	"clk_mt6899_cam",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_IMG)
+	"clk_mt6899_img",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_INFRA_INFRACFG_AO_REG)
+	"clk_mt6899_infracfg_ao",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_MDPSYS)
+	"clk_mt6899_mdpsys",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_MMSYS)
+	"clk_mt6899_mmsys",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_PERI)
+	"clk_mt6899_peri",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MT6899_VCODEC)
+	"clk_mt6899_vcodec",
+#endif
+#if IS_ENABLED(CONFIG_MTK_BUS_PARITY_CHECK)
+	"dbg_error_flag",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LAST_BUS)
+	"last_bus",
+#endif
+#if IS_ENABLED(CONFIG_INTERCONNECT_MTK_MMQOS_COMMON)
+	"mmqos_common",
+#endif
+#if IS_ENABLED(CONFIG_INTERCONNECT_MTK_MMQOS_MT6899)
+	"mmqos_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DVFSRC)
+	"mtk_dvfsrc",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_REGULATOR_MTK_DVFSRC)
+	"mtk_dvfsrc_regulator",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DVFSRC)
+	"mtk_dvfsrc_start",
+#endif
+#if IS_ENABLED(CONFIG_INTERCONNECT_MTK_EMI)
+	"mtk_emi",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SYSTRACKER_WATCHPOINT)
+	"systracker",
+#endif
 	NULL,
 };
 
