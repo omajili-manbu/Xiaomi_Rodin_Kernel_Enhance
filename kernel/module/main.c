@@ -3952,8 +3952,50 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_PRINTK)
 	"mtk_printk_ctrl",
 #endif
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+#if IS_ENABLED(CONFIG_USB_NET_AQC111)
+	"aqc111",
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_AX8817X)
+	"asix",
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_AX88179_178A)
+	"ax88179_178a",
+#endif
+#if IS_ENABLED(CONFIG_BT_BCM)
+	"btbcm",
+#endif
+#if IS_ENABLED(CONFIG_BT_QCA)
+	"btqca",
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_CDC_EEM)
+	"cdc_eem",
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_CDCETHER)
+	"cdc_ether",
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_CDC_NCM)
+	"cdc_ncm",
+#endif
+#if IS_ENABLED(CONFIG_BT_HCIUART)
+	"hci_uart",
+#endif
+#if IS_ENABLED(CONFIG_MII)
+	"mii",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PINCTRL_MTK_V2)
 	"pinctrl-mtk-v2",
+#endif
+#if IS_ENABLED(CONFIG_USB_RTL8152)
+	"r8152",
+#endif
+#if IS_ENABLED(CONFIG_USB_RTL8153_ECM)
+	"r8153_ecm",
+#endif
+#if IS_ENABLED(CONFIG_USB_RTL8150)
+	"rtl8150",
+#endif
+#if IS_ENABLED(CONFIG_USB_USBNET)
+	"usbnet",
 #endif
 	NULL,
 };
