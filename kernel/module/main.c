@@ -4225,6 +4225,12 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_USB_BOOST)
 	"usb_boost",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_RPMB)
+	"rpmb",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_RPMB)
+	"rpmb_mtk",
+#endif
 	NULL,
 };
 

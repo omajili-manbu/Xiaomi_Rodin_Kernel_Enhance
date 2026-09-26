@@ -80,3 +80,6 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/spi/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/typec/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/subpmic/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dvfsrc/
+
+# ---- rpmb 微批(方案C: vendor 专用符号 DEVICE_MODULES_RPMB,内核 CONFIG_RPMB 不动) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/rpmb/

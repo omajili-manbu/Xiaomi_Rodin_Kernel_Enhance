@@ -1114,3 +1114,5 @@ CONFIG_MTK_TYPEC_WATER_DETECT=y
 CONFIG_USB_POWER_DELIVERY=y
 CONFIG_MTK_DVFSRC_HELPER=y
 CONFIG_XMEXT_TI_GAUGE=y
+# rodin rpmb micro-batch: vendor rpmb/rpmb-mtk builtin (kernel CONFIG_RPMB intentionally =n)
+CONFIG_DEVICE_MODULES_RPMB=y
