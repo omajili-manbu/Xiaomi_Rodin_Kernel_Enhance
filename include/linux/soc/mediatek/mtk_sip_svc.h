@@ -86,4 +86,8 @@
 /* rodin stage2 batch4: vendor SIP ID needed by cmdq mailbox ext */
 #define MTK_SIP_CMDQ_CONTROL	MTK_SIP_SMC_CMD(0x518)
 #endif
+#ifndef MTK_SIP_KERNEL_PCIE_CONTROL
+/* rodin b2: vendor SIP ID needed by pcie-mediatek-gen3 */
+#define MTK_SIP_KERNEL_PCIE_CONTROL	MTK_SIP_SMC_CMD(0x52F)
+#endif
 #endif

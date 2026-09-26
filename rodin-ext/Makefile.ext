@@ -106,3 +106,6 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/teeperf/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/devfreq/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
+
+# ---- B2 点修批(pcie-mediatek-gen3) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/

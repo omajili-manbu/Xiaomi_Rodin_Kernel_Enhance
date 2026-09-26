@@ -93,3 +93,4 @@ config SND_SOC_MTK_SMART_PHONE
 	help
 	  Mediatek PCM operation which is specific for smart phone product.
 
+source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"
