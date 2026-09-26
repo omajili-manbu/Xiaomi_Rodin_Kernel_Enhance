@@ -109,3 +109,6 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
 
 # ---- B2 点修批(pcie-mediatek-gen3) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/
+
+# ---- stage2 B2 ffa_v11(trusted_mem 目录挂载,ffa_v11.o 由 DEVICE_MODULES_ARM_FFA_TRANSPORT 门控) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/trusted_mem/

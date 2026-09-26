@@ -93,4 +93,22 @@ config SND_SOC_MTK_SMART_PHONE
 	help
 	  Mediatek PCM operation which is specific for smart phone product.
 
+# ---- stage2 B2 ffa_v11 (vendor FFA v1.1 fork; kernel CONFIG_ARM_FFA_TRANSPORT
+# must stay =n: kernel arm_ffa and this fork both define ffa_bus_type etc.) ----
+config DEVICE_MODULES_ARM_FFA_TRANSPORT
+	bool "vendor ffa_v11 (FF-A v1.1 fork) builtin gate (rodin inline)"
+	help
+	  Rodin-only gate for drivers/misc/mediatek/trusted_mem/ffa_v11 and the
+	  tmem_ffa build family. Kept separate from the kernel's
+	  CONFIG_ARM_FFA_TRANSPORT (=n) because both implementations export
+	  ffa_bus_type/ffa_driver_register; enabling both breaks vmlinux link.
+
+config DEVICE_MODULES_TMEM_FFA
+	bool "vendor tmem_ffa (trusted_mem FFA variant) builtin (rodin inline)"
+	depends on DEVICE_MODULES_ARM_FFA_TRANSPORT
+	help
+	  Builds the trusted_mem FFA-variant driver into the image. The device
+	  blob lives in vendor_dlkm; flip to =y in the vendor_dlkm stage.
+
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/trusted_mem/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"

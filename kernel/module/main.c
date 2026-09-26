@@ -4375,6 +4375,9 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_PCIE_MEDIATEK_GEN3)
 	"pcie_mediatek_gen3",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ARM_FFA_TRANSPORT)
+	"ffa_v11",
+#endif
 	NULL,
 };
 
