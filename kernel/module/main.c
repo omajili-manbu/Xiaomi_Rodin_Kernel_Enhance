@@ -4144,6 +4144,87 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_SYSTRACKER_WATCHPOINT)
 	"systracker",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SERIAL_8250_MT6577)
+	"8250_mtk",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER)
+	"adapter_class",
+#endif
+#if IS_ENABLED(CONFIG_XMEXT_TI_GAUGE)
+	"bq28z610",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER)
+	"charger_class",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SUBPMIC_MISC)
+	"extdev_io_class",
+#endif
+#if IS_ENABLED(CONFIG_IIO_TRIGGERED_BUFFER)
+	"industrialio_triggered_buffer",
+#endif
+#if IS_ENABLED(CONFIG_IIO_KFIFO_BUF)
+	"kfifo_buf",
+#endif
+#if IS_ENABLED(CONFIG_MFD_MT6375)
+	"mt6375",
+#endif
+#if IS_ENABLED(CONFIG_MEDIATEK_MT6375_ADC)
+	"mt6375_adc",
+#endif
+#if IS_ENABLED(CONFIG_CHARGER_MT6375)
+	"mt6375_charger",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER)
+	"mtk_charger_algorithm_class",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_charger_framework",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DVFSRC_HELPER)
+	"mtk_dvfsrc_helper",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_UART_APDMA)
+	"mtk_uart_apdma",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_USB_MTU3)
+	"mtu3",
+#endif
+#if IS_ENABLED(CONFIG_MTK_USB_TYPEC_MUX)
+	"mux_switch",
+#endif
+#if IS_ENABLED(CONFIG_TCPC_CLASS)
+	"pd_dbg_info",
+#endif
+#if IS_ENABLED(CONFIG_TYPEC_MUX_PS5170)
+	"ps5170",
+#endif
+#if IS_ENABLED(CONFIG_TCPC_CLASS)
+	"rt_pd_manager",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SPI_MT65XX)
+	"spi_mt65xx",
+#endif
+#if IS_ENABLED(CONFIG_TCPC_CLASS)
+	"tcpc_class",
+#endif
+#if IS_ENABLED(CONFIG_TCPC_MT6375)
+	"tcpc_mt6375",
+#endif
+#if IS_ENABLED(CONFIG_TCPC_CLASS)
+	"tcpci_late_sync",
+#endif
+#if IS_ENABLED(CONFIG_TYPEC_MUX_DP_SELECTOR)
+	"usb_dp_selector",
+#endif
+#if IS_ENABLED(CONFIG_MTK_USB_META)
+	"usb_meta",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_USB_XHCI_MTK)
+	"xhci_mtk_hcd_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_USB_BOOST)
+	"usb_boost",
+#endif
 	NULL,
 };
 

@@ -1197,6 +1197,29 @@ static void remove_config(struct usb_composite_dev *cdev,
 	}
 }
 
+/*
+ * rodin: 6.18 upstream dropped the usb_remove_config export (helper
+ * remove_config became file-private). Vendor gadget drivers call it from
+ * their built-in path (usb_meta guards its 6.6 copy with
+ * !IS_BUILTIN(CONFIG_MTK_USB_META) and expects the kernel to provide this),
+ * so restore the 6.6 wrapper on top of the internal helpers.
+ */
+void usb_remove_config(struct usb_composite_dev *cdev,
+		      struct usb_configuration *config)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cdev->lock, flags);
+
+	if (cdev->config == config)
+		reset_config(cdev);
+
+	spin_unlock_irqrestore(&cdev->lock, flags);
+
+	remove_config(cdev, config);
+}
+EXPORT_SYMBOL_GPL(usb_remove_config);
+
 /*-------------------------------------------------------------------------*/
 
 /* We support strings in multiple languages ... string descriptor zero

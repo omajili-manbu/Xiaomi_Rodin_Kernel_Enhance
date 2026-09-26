@@ -74,4 +74,12 @@
 #ifndef MTK_SIP_KERNEL_WDT
 #define MTK_SIP_KERNEL_WDT		MTK_SIP_SMC_CMD(0x200)
 #endif
+#ifndef MTK_SIP_KERNEL_USB_CONTROL
+/* rodin stage2: vendor SIP IDs needed by built-in vendor drivers
+ * (values from the 6.6 vendor header; upstream keeps a smaller set) */
+#define MTK_SIP_KERNEL_USB_CONTROL	MTK_SIP_SMC_CMD(0x527)
+#endif
+#ifndef MTK_SIP_KERNEL_SPI_CONTROL
+#define MTK_SIP_KERNEL_SPI_CONTROL	MTK_SIP_SMC_CMD(0x542)
+#endif
 #endif
