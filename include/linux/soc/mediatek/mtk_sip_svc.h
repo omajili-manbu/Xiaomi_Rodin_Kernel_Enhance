@@ -82,4 +82,8 @@
 #ifndef MTK_SIP_KERNEL_SPI_CONTROL
 #define MTK_SIP_KERNEL_SPI_CONTROL	MTK_SIP_SMC_CMD(0x542)
 #endif
+#ifndef MTK_SIP_CMDQ_CONTROL
+/* rodin stage2 batch4: vendor SIP ID needed by cmdq mailbox ext */
+#define MTK_SIP_CMDQ_CONTROL	MTK_SIP_SMC_CMD(0x518)
+#endif
 #endif

@@ -4231,6 +4231,144 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_RPMB)
 	"rpmb_mtk",
 #endif
+#if IS_ENABLED(CONFIG_CHARGER_BQ25985)
+	"bq25985_charger",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CLKBUF_CTRL)
+	"clkbuf",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"cmdq_test",
+#endif
+#if IS_ENABLED(CONFIG_HL7603_BOOST)
+	"hl7603",
+#endif
+#if IS_ENABLED(CONFIG_LEDS_AW21024)
+	"leds_aw21024",
+#endif
+#if IS_ENABLED(CONFIG_LEDS_MTK)
+	"leds_mtk",
+#endif
+#if IS_ENABLED(CONFIG_MMEVENT)
+	"mme",
+#endif
+#if IS_ENABLED(CONFIG_MMPROFILE)
+	"mmprofile",
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_MTK_SMART_PHONE)
+	"mtk_afe_external",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CMDQ_MBOX_EXT)
+	"mtk_cmdq_drv_ext",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DRAMC)
+	"mtk_dramc",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DVFSRC_DEVFREQ)
+	"mtk_dvfsrc_devfreq",
+#endif
+#if IS_ENABLED(CONFIG_MTK_HW_SEMAPHORE)
+	"mtk_hw_semaphore",
+#endif
+#if IS_ENABLED(CONFIG_MTK_I3C_I2C_WRAP)
+	"mtk_i3c_i2c_wrap",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_I3C_MASTER_MT69XX)
+	"mtk_i3c_master_mt69xx",
+#endif
+#if IS_ENABLED(CONFIG_INTERCONNECT_MTK_EXTENSION)
+	"mtk_icc_core",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDEBUG)
+	"mtk_mmdebug_vcp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDVFS)
+	"mtk_mmdvfs",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDVFS)
+	"mtk_mmdvfs_debug",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDVFS)
+	"mtk_mmdvfs_ftrace",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDVFS)
+	"mtk_mmdvfs_v3",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMINFRA)
+	"mtk_mminfra_debug",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMINFRA)
+	"mtk_mminfra_imax",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER)
+	"mtk_pd_adapter",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER)
+	"mtk_pd_charging",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SLBC)
+	"mtk_slbc",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SOCINFO)
+	"mtk_socinfo",
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_MTK_SMART_PHONE)
+	"mtk_sp_spk_amp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SWPM_PERF_ARMV8_PMU)
+	"mtk_swpm_perf_arm_pmu",
+#endif
+#if IS_ENABLED(CONFIG_MT6681_EFUSE)
+	"nvmem_mt6681_efuse",
+#endif
+#if IS_ENABLED(CONFIG_XM_SINGLE_PD_MANAGER)
+	"pd_single_cp_manager",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PHY_MTK_PCIE)
+	"phy_mtk_pcie",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PHY_MTK_XSPHY)
+	"phy_mtk_xsphy",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PID_MAP)
+	"pidmap",
+#endif
+#if IS_ENABLED(CONFIG_PMIC_LBAT_SERVICE)
+	"pmic_lbat_service",
+#endif
+#if IS_ENABLED(CONFIG_PMIC_LBAT_SERVICE)
+	"pmic_lvsys_notify",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PWM_MTK_DISP)
+	"pwm_mtk_disp",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_RESET_TI_SYSCON)
+	"reset_ti_syscon",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_REGULATOR_RT4803)
+	"rt4803",
+#endif
+#if IS_ENABLED(CONFIG_RT4831A_I2C)
+	"rt4831a_drv",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_RT5133)
+	"rt5133_regulator",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_REGULATOR_RT6160)
+	"rt6160_regulator",
+#endif
+#if IS_ENABLED(CONFIG_XMEXT_SC858X_CHG_PUMP)
+	"sc858x_charger",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SLBC_IPI)
+	"slbc_ipi",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SLBC_TRACE)
+	"slbc_trace",
+#endif
+#if IS_ENABLED(CONFIG_TEE_PERF_SUPPORT)
+	"teeperf",
+#endif
 	NULL,
 };
 

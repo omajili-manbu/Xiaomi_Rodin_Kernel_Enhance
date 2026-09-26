@@ -62,3 +62,34 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/typec/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/subpmic/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/dvfsrc/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/char/rpmb/Kconfig"
+
+# ---- stage2 batch4 ----
+source "$(KCONFIG_EXT_PREFIX)drivers/leds/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cmdq/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mme/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/swpm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/hw_sem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/i3c_i2c_wrap/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/i3c/master/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtk-interconnect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmdebug/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pidmap/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/power_throttling/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/slbc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/gate_ic/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/clkbuf/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/reset/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/tee/teeperf/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/devfreq/Kconfig"
+
+config DEVICE_MODULES_PWM_MTK_DISP
+	tristate "MediaTek display PWM driver (rodin inline: vendor pwm/Kconfig redefines menuconfig PWM)"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+
+config SND_SOC_MTK_SMART_PHONE
+	tristate "Mediatek Smart Phone PCM Operation (rodin inline: vendor sound Kconfig has kernel-clashing SND_SOC_MT8188)"
+	help
+	  Mediatek PCM operation which is specific for smart phone product.
+

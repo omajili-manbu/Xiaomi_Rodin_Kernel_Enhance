@@ -83,3 +83,26 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dvfsrc/
 
 # ---- rpmb 微批(方案C: vendor 专用符号 DEVICE_MODULES_RPMB,内核 CONFIG_RPMB 不动) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/rpmb/
+
+# ---- stage2 batch4: B1 余量(leds/cmdq/mmdvfs/slbc/swpm/i3c/interconnect/pwm/tee 等) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/leds/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/clkbuf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cmdq/mailbox/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mme/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmp/dummy/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmdvfs/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/swpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/hw_sem/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/i3c_i2c_wrap/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/i3c/master/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtk-interconnect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmdebug/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pidmap/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/power_throttling/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/slbc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/gate_ic/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pwm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/teeperf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/devfreq/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
