@@ -102,4 +102,8 @@
 /* rodin b3c: vendor SIP ID needed by scp_dvfs (6.6 vendor header 0x232) */
 #define MTK_SIP_SCP_DVFS_CONTROL	MTK_SIP_SMC_CMD(0x232)
 #endif
+#ifndef MTK_SIP_KERNEL_SLBC_CONTROL
+/* rodin b3d: vendor SIP ID needed by slbc_mt6899 (6.6 vendor header 0x53E) */
+#define MTK_SIP_KERNEL_SLBC_CONTROL	MTK_SIP_SMC_CMD(0x53E)
+#endif
 #endif

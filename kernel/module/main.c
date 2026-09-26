@@ -4492,6 +4492,24 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_TINYSYS_SCP_SUPPORT)
 	"scp",
 #endif
+#if IS_ENABLED(CONFIG_MTK_CMDQ_MBOX_EXT)
+	"cmdq_platform_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_LEDS_MTK_PWM)
+	"leds_mtk_pwm",
+#endif
+#if IS_ENABLED(CONFIG_MEDIATEK_MT6375_AUXADC)
+	"mt6375_auxadc",
+#endif
+#if IS_ENABLED(CONFIG_HW_RANDOM_SECURE)
+	"sec_rng",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SLBC_MT6899)
+	"slbc_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_TINYSYS_SSPM_SUPPORT)
+	"sspm_v3",
+#endif
 	NULL,
 };
 

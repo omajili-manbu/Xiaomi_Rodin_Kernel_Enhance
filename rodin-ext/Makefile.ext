@@ -87,6 +87,8 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/subpmic/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dvfsrc/
 
 # ---- rpmb 微批(方案C: vendor 专用符号 DEVICE_MODULES_RPMB,内核 CONFIG_RPMB 不动) ----
+# ---- B3d: hw_random 挂载(批1 遗漏;HW_RANDOM_SECURE=y 一直 inert) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/hw_random/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/rpmb/
 
 # ---- stage2 batch4: B1 余量(leds/cmdq/mmdvfs/slbc/swpm/i3c/interconnect/pwm/tee 等) ----
@@ -105,6 +107,7 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmdebug/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pidmap/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/power_throttling/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/slbc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sspm/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/gate_ic/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pwm/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/
