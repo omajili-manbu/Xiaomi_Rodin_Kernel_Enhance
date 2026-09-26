@@ -21,7 +21,8 @@ subdir-ccflags-y += -Wno-missing-prototypes -Wno-error=array-bounds
 # appended AFTER the kernel's own -I list, so kernel headers still win
 # for any same-named file (r24 trap was prepending, this is appending).
 subdir-ccflags-y += -I$(DEVICE_MODULES_PATH)/include \
-		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include
+		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include \
+								-I$(DEVICE_MODULES_PATH)/include/uapi
 MTK_PLATFORM ?= mt6899
 KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin
 
@@ -46,7 +47,11 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/regulator/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mailbox/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/interconnect/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pinctrl/mediatek/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/mediatek/dummy_drm/
+# ---- B3c: mediatek/ 整目录挂载(dummy_drm 子目录由 DUMMY=m 门控保持 inert) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/panel/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mdp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/scp/
 # ---- r25 batch 2.5 (IOMMU family backport) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iommu/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/iommu/

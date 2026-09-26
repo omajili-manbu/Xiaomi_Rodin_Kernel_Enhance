@@ -4423,6 +4423,75 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_SCSI_UFS_MEDIATEK)
 	"ufs_mediatek_mod",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"drm_display_helper",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"drm_dma_helper",
+#endif
+#if IS_ENABLED(CONFIG_LEDS_MTK_DISP)
+	"leds_mtk_disp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MDP_DUMMY)
+	"mdp_drv_dummy",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK)
+	"mediatek_drm",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK)
+	"mtk_disp_notify",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_disp_sec",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DPC)
+	"mtk_dpc_v1",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MML)
+	"mtk_mml",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MML)
+	"mtk_mml_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK)
+	"mtk_panel_ext",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK)
+	"mtk_sync",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DPC)
+	"mtk_vdisp_v1",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_CPHY_VDO)
+	"panel_alpha_jdi_nt36672e_cphy_vdo",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_120HZ)
+	"panel_alpha_jdi_nt36672e_vdo_120hz",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_120HZ_THRESHOLD)
+	"panel_alpha_jdi_nt36672e_vdo_120hz_threshold",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_60HZ)
+	"panel_alpha_jdi_nt36672e_vdo_60hz",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_NT37801_CMD_120HZ)
+	"panel_nt37801_cmd_120hz",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_O10_36_02_0B_DSC_VDO)
+	"panel_o10_36_02_0b_dsc_vdo",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_O10_42_02_0A_DSC_VDO)
+	"panel_o10_42_02_0a_dsc_vdo",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_TRULY_NT35595_CMD)
+	"panel_truly_nt35595_cmd",
+#endif
+#if IS_ENABLED(CONFIG_DRM_PANEL_TRULY_TD4330_CMD)
+	"panel_truly_td4330_cmd",
+#endif
+#if IS_ENABLED(CONFIG_MTK_TINYSYS_SCP_SUPPORT)
+	"scp",
+#endif
 	NULL,
 };
 

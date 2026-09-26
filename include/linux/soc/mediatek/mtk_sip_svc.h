@@ -94,4 +94,12 @@
 /* rodin b3a: vendor SIP ID needed by adsp_core (6.6 vendor header 0x52B) */
 #define MTK_SIP_KERNEL_ADSP_CONTROL	MTK_SIP_SMC_CMD(0x52B)
 #endif
+#ifndef MTK_SIP_TINYSYS_SCP_CONTROL
+/* rodin b3c: vendor SIP ID needed by scp rv helper (6.6 vendor header 0x528) */
+#define MTK_SIP_TINYSYS_SCP_CONTROL	MTK_SIP_SMC_CMD(0x528)
+#endif
+#ifndef MTK_SIP_SCP_DVFS_CONTROL
+/* rodin b3c: vendor SIP ID needed by scp_dvfs (6.6 vendor header 0x232) */
+#define MTK_SIP_SCP_DVFS_CONTROL	MTK_SIP_SMC_CMD(0x232)
+#endif
 #endif
