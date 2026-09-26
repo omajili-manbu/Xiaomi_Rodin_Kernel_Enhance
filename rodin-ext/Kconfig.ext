@@ -111,4 +111,8 @@ config DEVICE_MODULES_TMEM_FFA
 	  blob lives in vendor_dlkm; flip to =y in the vendor_dlkm stage.
 
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/trusted_mem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/adsp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/blocktag/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/extcon/Kconfig"
+
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"

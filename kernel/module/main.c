@@ -4378,6 +4378,39 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_ARM_FFA_TRANSPORT)
 	"ffa_v11",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"adsp",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"blocktag",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"extcon_mtk_usb",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mt6375_battery",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_battery_manager",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_chg_type_det",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_low_battery_throttling",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_pep",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_pep20",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_pep40",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
+	"mtk_pep45",
+#endif
 	NULL,
 };
 

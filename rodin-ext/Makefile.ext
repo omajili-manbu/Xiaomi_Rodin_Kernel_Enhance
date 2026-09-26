@@ -112,3 +112,7 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/
 
 # ---- stage2 B2 ffa_v11(trusted_mem 目录挂载,ffa_v11.o 由 DEVICE_MODULES_ARM_FFA_TRANSPORT 门控) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/trusted_mem/
+# ---- stage2 B3a(adsp/blocktag/extcon 新挂载;power/supply 纯翻) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/adsp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/blocktag/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/extcon/

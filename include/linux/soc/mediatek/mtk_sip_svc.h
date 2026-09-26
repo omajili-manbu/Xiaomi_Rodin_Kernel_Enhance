@@ -90,4 +90,8 @@
 /* rodin b2: vendor SIP ID needed by pcie-mediatek-gen3 */
 #define MTK_SIP_KERNEL_PCIE_CONTROL	MTK_SIP_SMC_CMD(0x52F)
 #endif
+#ifndef MTK_SIP_KERNEL_ADSP_CONTROL
+/* rodin b3a: vendor SIP ID needed by adsp_core (6.6 vendor header 0x52B) */
+#define MTK_SIP_KERNEL_ADSP_CONTROL	MTK_SIP_SMC_CMD(0x52B)
+#endif
 #endif
