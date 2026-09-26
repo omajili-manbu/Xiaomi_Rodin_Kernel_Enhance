@@ -108,6 +108,15 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pidmap/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/power_throttling/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/slbc/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sspm/
+
+# ---- stage3 S3b: vendor_boot misc batch (mdpm MUST be in the same batch as
+# pbm: pbm/Makefile switches its mdpm include by CONFIG_MTK_MDPM) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/performance/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/et/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mdpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pbm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/masp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/kshrink_slabd/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/gate_ic/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pwm/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/

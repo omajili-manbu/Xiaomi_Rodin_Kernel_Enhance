@@ -4522,6 +4522,27 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_SYSCON_REBOOT_MODE)
 	"syscon_reboot_mode",
 #endif
+#if IS_ENABLED(CONFIG_KSHRINK_SLABD)
+	"kshrink_slabd",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LOAD_TRACKER)
+	"load_track",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ET)
+	"mtk_et",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MDPM)
+	"mtk_mdpm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PBM)
+	"mtk_pbm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SECURITY_SW_SUPPORT)
+	"sec",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LOAD_TRACKER)
+	"uload_ind",
+#endif
 	NULL,
 };
 
