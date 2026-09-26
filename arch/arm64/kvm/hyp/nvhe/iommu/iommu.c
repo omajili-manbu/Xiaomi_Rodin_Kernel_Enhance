@@ -871,9 +871,9 @@ size_t kvm_iommu_map_sg(pkvm_handle_t domain_id, unsigned long iova, struct kvm_
 		goto out_put_domain;
 
 	while (nent--) {
-		phys = sg->phys;
-		pgsize = sg->pgsize;
-		pgcount = sg->pgcount;
+		phys = READ_ONCE(sg->phys);
+		pgsize = READ_ONCE(sg->pgsize);
+		pgcount = READ_ONCE(sg->pgcount);
 
 		if (__builtin_mul_overflow(pgsize, pgcount, &size) ||
 		    iova + size < iova)

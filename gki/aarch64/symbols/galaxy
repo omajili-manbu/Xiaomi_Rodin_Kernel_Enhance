@@ -10,6 +10,7 @@
   crypto_acomp_decompress
   crypto_alloc_acomp
   device_match_name
+  device_pm_wait_for_dev
   __devm_alloc_percpu
   devm_clk_get_optional_enabled_with_rate
   dummy_irq_chip
@@ -288,3 +289,4 @@
   sha256
   vfs_iter_read
   vfs_iter_write
+  wake_up_var
