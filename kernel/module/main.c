@@ -4510,6 +4510,18 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_TINYSYS_SSPM_SUPPORT)
 	"sspm_v3",
 #endif
+#if IS_ENABLED(CONFIG_MTK_BATTERY_OC_POWER_THROTTLING)
+	"mtk_battery_oc_throttling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DYNAMIC_LOADING_POWER_THROTTLING)
+	"mtk_dynamic_loading_throttling",
+#endif
+#if IS_ENABLED(CONFIG_REBOOT_MODE)
+	"reboot_mode",
+#endif
+#if IS_ENABLED(CONFIG_SYSCON_REBOOT_MODE)
+	"syscon_reboot_mode",
+#endif
 	NULL,
 };
 
