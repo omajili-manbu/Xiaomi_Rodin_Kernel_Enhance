@@ -281,10 +281,6 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 	napi_gro_flush_618(napi, flush_old);
 }
 EXPORT_SYMBOL(napi_gro_flush);
-
-/* cpufreq: 6.6 generic attr array (mediatek-cpufreq-hw) */
-struct freq_attr *cpufreq_generic_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
+/* rodin compat-hardening: cpufreq_generic_attr moved to native
+ * drivers/cpufreq/cpufreq.c (stage3 audit) - the 6.6 blob consumer
+ * (mediatek-cpufreq-hw) is a skipped built-in and never loads */

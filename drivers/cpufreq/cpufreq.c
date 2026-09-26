@@ -3097,3 +3097,12 @@ bool cpufreq_ready_for_eas(const struct cpumask *cpu_mask)
 module_param(off, int, 0444);
 module_param_string(default_governor, default_governor, CPUFREQ_NAME_LEN, 0444);
 core_initcall(cpufreq_core_init);
+
+/* rodin compat-hardening: 6.6 removed-name re-export moved here from
+ * lib/compat-6.6-net.c (stage3 audit) so the built-in mediatek-cpufreq-hw
+ * binds a native definition instead of a compat-layer object */
+struct freq_attr *cpufreq_generic_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+};
+EXPORT_SYMBOL_GPL(cpufreq_generic_attr);

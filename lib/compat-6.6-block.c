@@ -167,10 +167,11 @@ void blk_queue_max_secure_erase_sectors(struct request_queue *q, unsigned int ma
 void blk_queue_max_write_zeroes_sectors(struct request_queue *q, unsigned int max_write_zeroes_sectors);
 void blk_queue_max_zone_append_sectors(struct request_queue *q, unsigned int max_zone_append_sectors);
 void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
-bool mmc_can_gpio_cd(struct mmc_host *host);
+/* rodin compat-hardening: mmc_can_gpio_cd shim removed (stage3 audit) -
+ * built-in mtk-mmc/mtk-sd now call the native mmc_host_can_gpio_cd();
+ * the 6.6 blob (mtk-mmc) is a skipped built-in and never loads */
 void blk_queue_logical_block_size(struct request_queue *q, unsigned int size)
-{
-	q->limits.logical_block_size = size;
+{	q->limits.logical_block_size = size;
 
 	if (q->limits.physical_block_size < size)
 		q->limits.physical_block_size = size;
@@ -342,12 +343,6 @@ struct scatterlist *sg_next(struct scatterlist *sg)
 	return sg_next_618(sg);
 }
 EXPORT_SYMBOL(sg_next);
-
-bool mmc_can_gpio_cd(struct mmc_host *host)
-{
-	return mmc_host_can_gpio_cd(host);
-}
-EXPORT_SYMBOL(mmc_can_gpio_cd);
 
 /* 6.6 blk_mq_init_queue(set): 6.18 renamed to blk_mq_alloc_queue */
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
