@@ -116,3 +116,6 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/trusted_mem/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/adsp/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/blocktag/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/extcon/
+# ---- stage2 B3b(mtk-mmc/ufs 族/mediatek-cpufreq-hw;纯翻+新挂载) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/ufs/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/cpufreq/

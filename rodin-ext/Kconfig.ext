@@ -114,5 +114,8 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/trusted_mem/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/adsp/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/blocktag/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/extcon/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/ufs/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/cpufreq/Kconfig"
+
 
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"

@@ -4411,6 +4411,18 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
 	"mtk_pep45",
 #endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_ARM_MEDIATEK_CPUFREQ_HW)
+	"mediatek_cpufreq_hw",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MMC_MTK_PRO)
+	"mtk_mmc",
+#endif
+#if IS_ENABLED(CONFIG_SCSI_UFS_MEDIATEK_DBG)
+	"ufs_mediatek_dbg",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SCSI_UFS_MEDIATEK)
+	"ufs_mediatek_mod",
+#endif
 	NULL,
 };
 
