@@ -4552,6 +4552,57 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_GENERIC_ADC_THERMAL)
 	"thermal_generic_adc",
 #endif
+#if IS_ENABLED(CONFIG_MTK_NET_CCMNI)
+	"ccmni",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_IRQ)
+	"gz_irq_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ENABLE_GENIEZONE)
+	"gz_trusty_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_IOMMU_MISC_TEST)
+	"iommu_engine",
+#endif
+#if IS_ENABLED(CONFIG_MTK_IOMMU_MISC_TEST)
+	"iommu_test",
+#endif
+#if IS_ENABLED(CONFIG_MTK_JPEG)
+	"jpeg_driver",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CCU_RPROC)
+	"mtk_ccuv",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CM_IPI)
+	"mtk_cm_ipi",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CM_MGR)
+	"mtk_cm_mgr",
+#endif
+#if IS_ENABLED(CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM)
+	"mtk_sec_heap",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_VIDEO_MEDIATEK_VCODEC)
+	"mtk_vcodec_common",
+#endif
+#if IS_ENABLED(CONFIG_MTK_NET_RPS)
+	"rps_perf",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX)
+	"snd_soc_aw882xx",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SND_SOC_MEDIATEK)
+	"snd_soc_mtk_common",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_TMEM_FFA)
+	"tmem_ffa",
+#endif
+#if IS_ENABLED(CONFIG_MTK_VDEC_FMT)
+	"vdec_fmt",
+#endif
+#if IS_ENABLED(CONFIG_MTK_WIDEVINE_DRM)
+	"widevine_driver",
+#endif
 	NULL,
 };
 

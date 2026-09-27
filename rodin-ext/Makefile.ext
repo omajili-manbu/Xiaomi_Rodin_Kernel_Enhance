@@ -138,3 +138,20 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/ufs/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/cpufreq/
 # ---- stage4 batch4-1(bootprof 新挂载 mtprof; 同目录 irq_monitor(MTK_IRQ_MONITOR) 保持 =n) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtprof/
+
+# ---- stage4 batch4-2 (B2 点修; trusted_mem/heaps/iommu/common 已挂载只翻 CONFIG) ----
+# jpeg/vdec_fmt/widevine_drm/cm_mgr/rps/ccmni = 新目录; geniezone=父目录
+# (父 Makefile 经 obj-$(CONFIG_MTK_ENABLE_GENIEZONE) += gz-trusty/ 下探,
+#  4-5 建 gz_main_mod 时免双下探); pa_combine=aw882xx 门补丁; mtk-vcodec=仅 common
+# (V1/V2 平台块 =n, dec/enc 片段变量不物化); ccusys=kmod mtkcam 首挂.
+# mtk-soc-offload-common 顺延 4-5: 29 个无守卫 audiodsp-common 导入(audio_dsp 不挂).
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/jpeg/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vdec_fmt/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/widevine_drm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cm_mgr/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/geniezone/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/rps/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccmni/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/pa_combine/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-vcodec/
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/ccusys/

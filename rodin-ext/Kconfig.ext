@@ -134,3 +134,47 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/scp/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"
 # ---- stage4 batch4-1(bootprof 新挂载 mtprof; thermal_generic_adc 内核树 B0 翻=y) ----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprof/Kconfig"
+# ---- stage4 batch4-2 (B2 点修 16+连带 iommu_engine; offload-common 顺延 4-5) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/jpeg/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vdec_fmt/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/widevine_drm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cm_mgr/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/geniezone/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/rps/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/media/platform/mtk-vcodec/Kconfig"
+
+config DEVICE_MODULES_SND_SOC_MEDIATEK
+	tristate "vendor snd-soc-mtk-common builtin gate (rodin inline: vendor sound Kconfig has kernel-clashing per-chip symbols)"
+	help
+	  Rodin-only gate for sound/soc/mediatek/common snd-soc-mtk-common.
+	  The vendor definition lives in the unsourced sound/soc/mediatek/Kconfig
+	  (promptless, selected by per-chip configs that clash with kernel ones).
+
+config MTK_NET_CCMNI
+	tristate "MediaTek CCMNI driver (rodin inline: vendor def depends MTK_CCCI_DEVICES which is not mounted)"
+	help
+	  Ladder key read directly by ccmni/Makefile (CCCI_CCMNI_OBJ). Defining
+	  it inline drops the MTK_CCCI_DEVICES dependency; the ccci family lands
+	  in batch 4-3 and may add its own definition later.
+
+config DEVICE_MODULES_SND_SOC_AW882XX
+	tristate "Awinic AW882XX Smart PA builtin gate (rodin inline: pa_combine Makefile was obj-m hardcode)"
+	help
+	  Rodin-only gate patching pa_combine/Makefile obj-m += snd-soc-aw882xx.o
+	  into obj-$(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX). MIEV telemetry
+	  calls compile out with CONFIG_MIEV unset (miev blob stays closed).
+
+config MTK_CCU_RPROC
+	tristate "MediaTek CCU driver (rodin inline: vendor def depends RPMSG_MTK_CCD which lands in batch 4-4)"
+	help
+	  Gate read by kmod mtkcam/ccusys Kbuild. Vendor definition lives in the
+	  unsourced devmod remoteproc/Kconfig behind RPMSG_MTK_CCD; defined here
+	  without it so mtk_ccuv can be built-in ahead of the camera family.
+
+config DEVICE_MODULES_VIDEO_MEDIATEK_VCODEC
+	tristate "vendor mtk-vcodec builtin gate (rodin inline: vendor def lives in unsourced media/platform Kconfig)"
+	depends on VIDEO_DEV
+	help
+	  Builds mtk-vcodec-common only (mtk-vcodec-dec/enc are fragments
+	  consumed by V1/V2 platform blocks, both =n; dec-v2 lands in batch
+	  4-3/4-7 behind CONFIG_VIDEO_MEDIATEK_VCODEC_V2).
