@@ -71,6 +71,14 @@
 #ifndef MTK_SIP_KERNEL_HWCCF_CONTROL
 #define MTK_SIP_KERNEL_HWCCF_CONTROL	MTK_SIP_SMC_CMD(0x540)
 #endif
+#ifndef MTK_SIP_KERNEL_DAPC_CAM_CONTROL
+/* rodin stage4 batch4-4: vendor SIP IDs needed by built-in camera drivers
+ * (mtk_cam-seninf-pkvm.c / mtk_cam-hsf.c)；值取自 6.6 vendor 头 */
+#define MTK_SIP_KERNEL_DAPC_CAM_CONTROL	MTK_SIP_SMC_CMD(0x52D)
+#endif
+#ifndef MTK_SIP_KERNEL_ISP_CONTROL
+#define MTK_SIP_KERNEL_ISP_CONTROL	MTK_SIP_SMC_CMD(0x541)
+#endif
 #ifndef MTK_SIP_KERNEL_WDT
 #define MTK_SIP_KERNEL_WDT		MTK_SIP_SMC_CMD(0x200)
 #endif

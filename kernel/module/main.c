@@ -4705,6 +4705,63 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
 	"touch_boost",
 #endif
+#if IS_ENABLED(CONFIG_MI_CAMLOG)
+	"cam_log",
+#endif
+#if IS_ENABLED(CONFIG_MTK_V4L2_LENS)
+	"camera_af_media",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CAMERA_DPE_ISP8)
+	"camera_dpe_isp8",
+#endif
+#if IS_ENABLED(CONFIG_MTK_V4L2_CAM_CAL)
+	"camera_eeprom_v4l2",
+#endif
+#if IS_ENABLED(CONFIG_RPMSG_MTK_CCD)
+	"ccd_rpmsg",
+#endif
+#if IS_ENABLED(CONFIG_MTK_V4L2_IMGSENSOR)
+	"imgsensor_isp8",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CCD_REMOTEPROC)
+	"mtk_ccd_remoteproc",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_HCP_ISP8)
+	"mtk_hcp_isp8",
+#endif
+#if IS_ENABLED(CONFIG_MTK_IMGSYS_FRM_SYNC_ISP8)
+	"mtk_img_frm_sync",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_IMGSYS_CMDQ_ISP8)
+	"mtk_imgsys_cmdq_isp8",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_IMGSYS_8)
+	"mtk_imgsys_isp8",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_IMGSYS)
+	"mtk_imgsys_v4l2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MBRAINK_BRIDGE)
+	"mtk_mbraink_bridge",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CAMERA_ISP_PDA_SUPPORT)
+	"pda_drv_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_V4L2_IMGSENSOR)
+	"imgsensor_glue_isp8",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_CAMSYS)
+	"mtk_cam_isp8",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_IPESYS)
+	"mtk_ipesys_me",
+#endif
+#if IS_ENABLED(CONFIG_MTK_IPS_HELPER)
+	"mtk_ips_helper",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MMDVFS)
+	"mtk_mmdvfs_v3_start",
+#endif
 	NULL,
 };
 

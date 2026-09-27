@@ -232,3 +232,76 @@ config MTK_POWERHAL_CPU_CTRL
 	  performance/Makefile 原以 MTK_PERFORMANCE_MODULE 同时编
 	  mtk_perf_ioctl/mtk_ioctl_touch_boost/mtk_ioctl_powerhal/touch_boost/ 与
 	  powerhal_cpu_ctrl/。后者闭包含闭源 metis/mi_schedule ⇒ 拆出独立门默认 n。
+
+# ---- stage4 batch4-4 (相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + 拉入提供者 mbraink_bridge = 19 件) ----
+# source：devmod media/platform/mtk-isp/Kconfig 是扁平文件（18 个 config，无子 source），
+# 经已有 rodin-ext/drivers/media 符号链接可达；提供 VIDEO_MTK_ISP_* 全部相机门。
+source "$(KCONFIG_EXT_PREFIX)drivers/media/platform/mtk-isp/Kconfig"
+
+# --- rodin inline 门（vendor 定义位置不可直接 source：带子 source / 与内核同名面重叠 /
+#     定义在未挂载树）---
+
+config MTK_CAMERA_ISP_SUPPORT
+	tristate "Camera ISP Driver Support (rodin inline: vendor cameraisp/Kconfig 带 9 个子 source)"
+	help
+	  dpe 家族的父门。设备真值 =m。本批只由 camera_dpe_isp8 消费。
+
+config MTK_CAMERA_ISP_PDA_SUPPORT
+	tristate "[PDA] Phase Distortion point Accelerator (rodin inline: vendor cameraisp/pda/Kconfig)"
+	help
+	  pda_drv_mt6899 的门。设备真值 =m。
+
+config MTK_V4L2_IMGSENSOR
+	tristate "MediaTek v4l2 image sensor support (rodin inline: vendor imgsensor/Kconfig 带子 source)"
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select I2C
+	help
+	  imgsensor_isp8 + imgsensor-glue_isp8 的门（src-isp8/Kbuild）。设备真值 =m。
+
+config MTK_V4L2_LENS
+	tristate "Mediatek V4L2 lens driver (rodin inline: vendor lens/Kconfig 全族未挂载)"
+	help
+	  camera_af_media 的门（lens/vcm/v4l2/media/Makefile）。设备真值 =m。
+
+config MTK_V4L2_CAM_CAL
+	tristate "MTK camera cal driver (rodin inline: vendor devmod cam_cal/Kconfig；构建入口在 kmod)"
+	help
+	  camera_eeprom_v4l2 的门（kmod mtkcam/cam_cal 的 obj-m 硬编补丁后读它）。设备真值 =m。
+
+config MTK_IPS_HELPER
+	tristate "MTK IPS Helper debugging Support (rodin inline: vendor ips/Kconfig)"
+	help
+	  mtk-ips-helper 的门。设备真值 =m。
+
+config MI_CAMLOG
+	tristate "Camera Camlog Driver Support (rodin inline: vendor cam_log/Kconfig; Makefile obj-m 硬编)"
+	help
+	  cam_log 的门。设备真值 =m。
+
+config MTK_CCD_REMOTEPROC
+	tristate "MediaTek CCD driver (rodin inline: vendor def 在 devmod remoteproc/Kconfig 的 if REMOTEPROC 内)"
+	help
+	  mtk_ccd_remoteproc 的门。设备真值 =m。不 source 该文件是为了避免
+	  与内核树自身 drivers/remoteproc/Kconfig 的 menu 双定义。
+
+config MTK_CAMERA_DPE_ISP8
+	tristate "[DPE] Depth Engine ISP8 (rodin inline: 定义在 kmod mtkcam/mtk-dpe/Kconfig)"
+	depends on MTK_CAMERA_ISP_SUPPORT
+	help
+	  camera_dpe_isp8 的门。同目录 7SP/7S 门保持未定义。
+
+config MTK_MBRAINK_BRIDGE
+	tristate "MTK MBRAINK BRIDGE support (rodin inline: vendor def depends MTK_MBRAINK=主体属 4-5)"
+	help
+	  mtk_mbraink_bridge 的门（devmod mbraink/bridge）。去 depends 的依据＝设备 blob
+	  闭包实测对 mbraink 主体零引用（仅注册 ops 面），可独立编。本批拉入它是因为
+	  imgsys/cmdq 的 imgsys2mbrain_notify_hw_time_info 唯一提供者就是它。
+
+config BUILD_XIAOMI_CAMERA_IMAGE_NAMES
+	string "Xiaomi camera image name (rodin inline: 设备真值在 devmod kernel/configs/rodin.config)"
+	default "rodin"
+	help
+	  cam_cal custom/Kbuild 的 ifeq 读它决定 -DRODIN_CAM。设备真值 ="rodin"，
+	  vendor 树里无 Kconfig 定义（只由 config fragment 注入），故此处补上。

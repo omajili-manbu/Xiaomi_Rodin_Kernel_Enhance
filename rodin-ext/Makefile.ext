@@ -154,7 +154,7 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/rps/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccmni/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/pa_combine/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-vcodec/
-obj-y += ../$(KMOD_REL_DIR)/mtkcam/ccusys/
+# rodin batch4-4: ccusys/ 由 mtkcam/ 父目录统一下潜（同门等价，避免双编）
 
 # ---- stage4 batch4-3 (33 件：GPU/perf/thermal/振动器/jpeg/mae/dec-v2/pmsr/sapu/met/gz 闭包) ----
 # 说明：gpu/mediatek 父 Makefile 在 MTK_GPU_SUPPORT 非空时无条件下潜
@@ -173,5 +173,32 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/qos/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pgboost/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmsr/v3/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/mediatek/
-obj-y += ../$(KMOD_REL_DIR)/mtkcam/mtk-mae/
+# rodin batch4-4: mtk-mae/ 由 mtkcam/ 父目录统一下潜（同门等价，避免双编）
 obj-y += ../$(KMOD_REL_DIR)/met_drv_v3/common/
+
+# ---- stage4 batch4-4 (相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + 拉入 mbraink_bridge = 19 件) ----
+# 说明（全部实测）：
+# * camsys 只直挂 isp8/（父 Kbuild 的 obj-y += isp7_1/isp7s/isp7sp/ 无条件，会连带 3 个非设备平台）；
+#   isp8/Kbuild 的 unit_test/ 已摘（设备无 cam-isp8-ut.ko）。
+# * imgsys 挂父目录：common←VIDEO_MTK_ISP_IMGSYS、imgsys/isp8←_IMGSYS_8、
+#   imgsys/cmdq/isp8←_IMGSYS_CMDQ_ISP8；71/7s/7sp 与 cmdq/legacy 各自门保持 =n。
+# * mtk-hcp 挂父目录：legacy←VIDEO_MTK_ISP_HCP(=n)、isp8←_HCP_ISP8(=y)。
+# * imgsensor 挂父目录但父 Kbuild 已改为只编 src-isp8/（设备只有 isp8 版两件 blob）。
+# * cam_cal 挂父目录：Kbuild 的 obj-m 硬编已改成 obj-$(CONFIG_MTK_V4L2_CAM_CAL)。
+# * lens/vcm/v4l2 只挂 media/（父 Makefile 的 MTK_V4L2_LENS 门会带 16 个 vcm，多数属 4-5）。
+# * mbraink 挂父目录：父 Makefile 的 bridge/ 已改由 MTK_MBRAINK_BRIDGE 门控，
+#   MTK_MBRAINK(主体)=n ⇒ 只编 bridge/，父 Makefile 的 -I 集合照常生效。
+# 相机族整挂 mtkcam 父目录（父 Kbuild 的 subdir-ccflags-y 提供两个关键 -I：
+#   -I<mtkcam>/  → camsys/common/mtk_cam-fmt.h
+#   -I<mtkcam>/include/ → linux/platform_data/mtk_ccd.h、uapi/linux/mtk_ccd_controls.h、
+#                          linux/platform_data/mtk_ccd_controls.h、mtk_camera-v4l2-controls-common.h
+# 直接挂子目录会绕开这两个 -I（首轮编译实测 6 个缺头）。父 Kbuild 已打布局补丁（P14）。
+# 原先的单件挂载行（4-2 的 ccusys、4-3 的 mtk-mae）一并删除：父 Kbuild 的
+# obj-$(CONFIG_MTK_CCU_RPROC) += ccusys/ 与 obj-$(CONFIG_MTK_CAMERA_MAE_SUPPORT) += mtk-mae/
+# 是同门等价行，重复挂载会双编。
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ips/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cam_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/media/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mbraink/
+# 注：mmdvfs 目录批 4 已挂载，本批只恢复其 obj 行的 mtk-mmdvfs-v3-start.o（vendor 补丁 P2）
