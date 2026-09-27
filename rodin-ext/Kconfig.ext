@@ -132,3 +132,5 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/scp/Kconfig"
 
 
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"
+# ---- stage4 batch4-1(bootprof 新挂载 mtprof; thermal_generic_adc 内核树 B0 翻=y) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprof/Kconfig"

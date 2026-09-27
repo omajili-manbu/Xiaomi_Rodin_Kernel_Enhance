@@ -4546,6 +4546,12 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_TIPC_DIAG)
 	"diag",
 #endif
+#if IS_ENABLED(CONFIG_MTPROF)
+	"bootprof",
+#endif
+#if IS_ENABLED(CONFIG_GENERIC_ADC_THERMAL)
+	"thermal_generic_adc",
+#endif
 	NULL,
 };
 
