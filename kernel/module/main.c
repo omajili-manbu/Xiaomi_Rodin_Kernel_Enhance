@@ -4543,6 +4543,9 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_LOAD_TRACKER)
 	"uload_ind",
 #endif
+#if IS_ENABLED(CONFIG_TIPC_DIAG)
+	"diag",
+#endif
 	NULL,
 };
 
