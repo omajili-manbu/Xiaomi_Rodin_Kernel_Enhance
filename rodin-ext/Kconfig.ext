@@ -178,3 +178,57 @@ config DEVICE_MODULES_VIDEO_MEDIATEK_VCODEC
 	  Builds mtk-vcodec-common only (mtk-vcodec-dec/enc are fragments
 	  consumed by V1/V2 platform blocks, both =n; dec-v2 lands in batch
 	  4-3/4-7 behind CONFIG_VIDEO_MEDIATEK_VCODEC_V2).
+
+# ---- stage4 batch4-3 (GPU/perf/thermal/振动器/pmsr/sapu/met/mae/dec-v2) ----
+# 源门（vendor Kconfig 直接 source；其内部嵌套 source 由 rodin-ext symlink 镜像解析）
+source "$(KCONFIG_EXT_PREFIX)drivers/input/misc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/gpu/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cg_ppt/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/qos/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pgboost/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmsr/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/thermal/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/apusys/Kconfig"
+
+# --- rodin inline 门（vendor 定义位置不可直接 source 的）---
+
+config MTK_SENSOR_SUPPORT
+	tristate "MediaTek sensor framework gate (rodin inline: sensor/Kconfig sources 1.0/2.0 全族，2.0/Kconfig 又 source nanohub/sensorhub/test/lsm6dsm 四个未挂子树)"
+	help
+	  hf_manager 的门（sensor/2.0/core/Makefile）。父 sensor/2.0/Makefile 的
+	  `obj-y += core/` 是无条件行，其余子目录各有自己的门且保持未定义(=n)。
+
+config DEVICE_MODULES_VIDEO_MEDIATEK_JPEG
+	tristate "vendor mtk-jpeg builtin gate (rodin inline: vendor def 在未 source 的 media/platform/Kconfig，带 4 条内核侧 depends)"
+	help
+	  mtk-jpeg 的门。vendor 定义 depends on MTK_IOMMU_V1||DEVICE_MODULES_MTK_IOMMU、
+	  VIDEO_DEV、ARCH_MEDIATEK、DEVICE_MODULES_MTK_SMI 并 select
+	  VIDEOBUF2_DMA_CONTIG/V4L2_MEM2MEM_DEV——前者本树已 =y、select 目标内核侧已 =y，
+	  故内联定义（同 4-2 的 VIDEO_MEDIATEK_VCODEC 手法）。
+
+config MTK_CAMERA_MAE_SUPPORT
+	tristate "MediaTek MAE (rodin inline: vendor def 在 kmod mtkcam/mtk-mae/Kconfig)"
+	select V4L2_MEM2MEM_DEV
+	help
+	  kmod mtk-mae Kbuild 读此门，同门编 mtk_mae + mtk_mae_isp8 两件
+	  （两者都有设备 blob，必须同批同跳）。
+
+config MTK_MET
+	tristate "MET profile (rodin inline: vendor def 在 devmod drivers/misc/mediatek/Kconfig 顶层，source 整棵有 conf 静默失败前科)"
+	help
+	  kmod met_drv_v3/common/Kbuild 读此门。设备 met.ko 实测来自 met_drv_v3
+	  （blob strings 证据：../vendor/mediatek/kernel_modules/met_drv_v3/common/...）。
+
+config VIDEO_MEDIATEK_VCODEC_ENC_V2
+	bool "Video Vcodec ENC V2 (rodin 拆分: vendor 把 dec/enc v2 写在同一个 ifeq 块)"
+	help
+	  vendor mtk-vcodec/Makefile 的 V2 块同时编 mtk-vcodec-dec-v2.o 与
+	  mtk-vcodec-enc-v2.o。enc-v2 的符号闭包压在 perf/sched 簇（含闭源
+	  metis/mi_schedule），本批只能收 dec-v2；拆分门默认 n，enc-v2 顺延。
+
+config MTK_POWERHAL_CPU_CTRL
+	tristate "vendor powerhal_cpu_ctrl (rodin 拆分: vendor 用 MTK_PERFORMANCE_MODULE 一门编 5 件)"
+	help
+	  performance/Makefile 原以 MTK_PERFORMANCE_MODULE 同时编
+	  mtk_perf_ioctl/mtk_ioctl_touch_boost/mtk_ioctl_powerhal/touch_boost/ 与
+	  powerhal_cpu_ctrl/。后者闭包含闭源 metis/mi_schedule ⇒ 拆出独立门默认 n。

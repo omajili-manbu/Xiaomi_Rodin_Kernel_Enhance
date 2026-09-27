@@ -155,3 +155,23 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccmni/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/pa_combine/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-vcodec/
 obj-y += ../$(KMOD_REL_DIR)/mtkcam/ccusys/
+
+# ---- stage4 batch4-3 (33 件：GPU/perf/thermal/振动器/jpeg/mae/dec-v2/pmsr/sapu/met/gz 闭包) ----
+# 说明：gpu/mediatek 父 Makefile 在 MTK_GPU_SUPPORT 非空时无条件下潜
+# ged/hal/gpufreq/gpu_bm/gpu_iommu/gpueb/gpu_pdma 七个子目录——gpu_iommu/gpu_pdma 由
+# mt6989/mt6991 门保持 inert；平台目录下潜只在 MTK_GPU_VERSION 非空时发生（本树无该
+# 平台目录，defconfig 刻意不设）。pmsr 只挂 v3/（父 Makefile 在 MTK_PMSR=y 时还会编
+# pmsr.o/twam/v2 三个设备无 blob 的物件）。eccci 族移出本批（=y 分支布局与 =m 出货
+# 不一致，见 4-3 计划 §0.3）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/misc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sensor/2.0/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cg_ppt/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-jpeg/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/sapu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/qos/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pgboost/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmsr/v3/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/mediatek/
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/mtk-mae/
+obj-y += ../$(KMOD_REL_DIR)/met_drv_v3/common/

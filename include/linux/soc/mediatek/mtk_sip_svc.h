@@ -106,4 +106,8 @@
 /* rodin b3d: vendor SIP ID needed by slbc_mt6899 (6.6 vendor header 0x53E) */
 #define MTK_SIP_KERNEL_SLBC_CONTROL	MTK_SIP_SMC_CMD(0x53E)
 #endif
+#ifndef MTK_SIP_KERNEL_GPUEB_CONTROL
+/* rodin 4-3: vendor SIP ID needed by gpueb_debug (6.6 vendor header 0x530) */
+#define MTK_SIP_KERNEL_GPUEB_CONTROL	MTK_SIP_SMC_CMD(0x530)
+#endif
 #endif

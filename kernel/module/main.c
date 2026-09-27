@@ -4603,6 +4603,108 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_WIDEVINE_DRM)
 	"widevine_driver",
 #endif
+#if IS_ENABLED(CONFIG_AAC_VIBRATOR)
+	"aac_haptic",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CMDQ_MBOX_EXT)
+	"cmdq_sec_drv",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_SUPPORT)
+	"ged",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_VIRTIO_IPC)
+	"gz_ipc_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_TZ_SYSTEM)
+	"gz_tz_system",
+#endif
+#if IS_ENABLED(CONFIG_INPUT_AW_HAPTIC)
+	"haptic",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SENSOR_SUPPORT)
+	"hf_manager",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MET)
+	"met",
+#endif
+#if IS_ENABLED(CONFIG_MTK_BATTERY_PERCENT_THROTTLING)
+	"mtk_bp_thl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CG_PEAK_POWER_THROTTLING)
+	"mtk_cg_peak_power_throttling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GHPM_SUPPORT)
+	"mtk_ghpm_swwa",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_SUPPORT)
+	"mtk_gpu_hal",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_POWER_THROTTLING)
+	"mtk_gpu_power_throttling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_SUPPORT)
+	"mtk_gpu_qos",
+#endif
+#if IS_ENABLED(CONFIG_MTK_TINYSYS_GPUEB_SUPPORT)
+	"mtk_gpueb",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_MT6899_SUPPORT)
+	"mtk_gpufreq_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GPU_SUPPORT)
+	"mtk_gpufreq_wrapper",
+#endif
+#if IS_ENABLED(CONFIG_DMABUF_HEAPS_DEBUG)
+	"mtk_heap_debug",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
+	"mtk_ioctl_powerhal",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
+	"mtk_ioctl_touch_boost",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_VIDEO_MEDIATEK_JPEG)
+	"mtk_jpeg",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CAMERA_MAE_SUPPORT)
+	"mtk_mae",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CAMERA_MAE_SUPPORT)
+	"mtk_mae_isp8",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PEAK_POWER_BUDGET)
+	"mtk_peak_power_budget",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
+	"mtk_perf_ioctl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_QOS_FRAMEWORK)
+	"mtk_qos",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MEDIATEK_VCODEC_V2)
+	"mtk_vcodec_dec_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PGBOOST)
+	"pgboost",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PMSR)
+	"pmsr_v3",
+#endif
+#if IS_ENABLED(CONFIG_MTK_APUSYS_SUPPORT)
+	"sapu",
+#endif
+#if IS_ENABLED(CONFIG_SIH_VIBRATOR)
+	"si_haptic",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_THERMAL)
+	"thermal_interface",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_THERMAL)
+	"thermal_trace",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
+	"touch_boost",
+#endif
 	NULL,
 };
 
