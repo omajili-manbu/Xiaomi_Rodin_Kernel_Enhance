@@ -1300,3 +1300,33 @@ CONFIG_DEVICE_MODULES_MEDIATEK_MT6577_AUXADC=m
 # 批4-3b 追加：audio_ipi 内建（mtk-usip.o 的 audio_send_ipi_msg 提供者；
 # 设备 blob=audio_ipi.ko，闭包自足、零导出重叠，本批随 eccci 一起拉入）
 CONFIG_MTK_AUDIO_IPI=y
+
+# ---- stage4 batch4-5 round A (19 件翻门批：thermal7/power_throttling2/cm_mgr/gz3/fhctl/sensorhub/btcvsd/regulator2/nvmem) ----
+# 设备真值(mgk_64_k66_defconfig)：本块各门设备侧均为 =m（SAP_SUPPORT=y 除外），按内建计划翻 =y。
+# MTK_MD_THERMAL=y 同时激活已内建 thermal_trace.o 的 md_* tracepoint 段（md_cooling_all 的提供者）。
+# MTK_TINYSYS_SAP_SUPPORT=y 激活已内建 scp 的 sap.o（sap_enabled/sap_ipidev → sensorhub 消费）。
+CONFIG_MTK_SOC_THERMAL_LVTS=y
+CONFIG_MTK_PMIC_THERMAL=y
+CONFIG_MTK_MD_THERMAL=y
+CONFIG_MTK_CHARGER_THERMAL=y
+CONFIG_MTK_BACKLIGHT_THERMAL=y
+CONFIG_MTK_BOARD_THERMAL=y
+CONFIG_MTK_VTSKIN_THERMAL=y
+CONFIG_MTK_CPU_POWER_THROTTLING=y
+CONFIG_MTK_MD_POWER_THROTTLING=y
+CONFIG_MTK_CM_MGR_MT6899=y
+CONFIG_MTK_GZ_MAIN=y
+CONFIG_MTK_GZ_LOG=y
+CONFIG_MTK_GZ_VIRTIO=y
+CONFIG_COMMON_CLK_MTK_FREQ_HOPPING=y
+CONFIG_MTK_SENSORHUB=y
+CONFIG_MTK_TINYSYS_SAP_SUPPORT=y
+CONFIG_DEVICE_MODULES_SND_SOC_MTK_BTCVSD=y
+CONFIG_REGULATOR_SGM38121=y
+CONFIG_REGULATOR_WL2866D=y
+CONFIG_MT635X_EFUSE=y
+
+# ---- stage4 batch4-5 round A 补门（首轮 regen 被依赖静默丢弃的 3 件）----
+CONFIG_HAVE_MTK_GZ_LOG=y
+CONFIG_MEDIATEK_MT635X_AUXADC=y
+CONFIG_MTK_PMIC_THERMAL=y

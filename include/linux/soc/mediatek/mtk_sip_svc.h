@@ -93,6 +93,10 @@
 #ifndef MTK_SIP_CMDQ_CONTROL
 /* rodin stage2 batch4: vendor SIP ID needed by cmdq mailbox ext */
 #define MTK_SIP_CMDQ_CONTROL	MTK_SIP_SMC_CMD(0x518)
+#ifndef MTK_SIP_AUDIO_CONTROL
+#define MTK_SIP_AUDIO_CONTROL	MTK_SIP_SMC_CMD(0x517) /* rodin: 批4-5 mtk-btcvsd 消费（vendor 侧同宏 0x517） */
+#endif
+
 #endif
 #ifndef MTK_SIP_KERNEL_PCIE_CONTROL
 /* rodin b2: vendor SIP ID needed by pcie-mediatek-gen3 */

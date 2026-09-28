@@ -4783,6 +4783,63 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
 	"ccci_util_lib",
 #endif
+#if IS_ENABLED(CONFIG_MTK_BACKLIGHT_THERMAL)
+	"backlight_cooling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_BOARD_THERMAL)
+	"board_temp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CHARGER_THERMAL)
+	"charger_cooling",
+#endif
+#if IS_ENABLED(CONFIG_COMMON_CLK_MTK_FREQ_HOPPING)
+	"fhctl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_LOG)
+	"gz_log_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_MAIN)
+	"gz_main_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GZ_VIRTIO)
+	"gz_virtio_mod",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MD_THERMAL)
+	"md_cooling_all",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SND_SOC_MTK_BTCVSD)
+	"mtk_btcvsd",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CM_MGR_MT6899)
+	"mtk_cm_mgr_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CPU_POWER_THROTTLING)
+	"mtk_cpu_power_throttling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MD_POWER_THROTTLING)
+	"mtk_md_power_throttling",
+#endif
+#if IS_ENABLED(CONFIG_MT635X_EFUSE)
+	"nvmem_mt635x_efuse",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PMIC_THERMAL)
+	"pmic_temp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SENSORHUB)
+	"sensorhub",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_SGM38121)
+	"sgm38121",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SOC_THERMAL_LVTS)
+	"soc_temp_lvts",
+#endif
+#if IS_ENABLED(CONFIG_MTK_VTSKIN_THERMAL)
+	"vtskin_temp",
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_WL2866D)
+	"wl2866d",
+#endif
 	NULL,
 };
 

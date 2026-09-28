@@ -187,6 +187,9 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cg_ppt/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/qos/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pgboost/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmsr/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sensor/2.0/sensorhub/Kconfig"
+#   (批4-5: sensorhub 拉入——vendor sensor/2.0/Kconfig 会 source 四个未挂子树，
+#    故只单 source sensorhub/Kconfig；其 obj 行在已挂载的 sensor/2.0/Makefile)
 source "$(KCONFIG_EXT_PREFIX)drivers/thermal/mediatek/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/apusys/Kconfig"
 
@@ -322,3 +325,10 @@ config MTK_AUDIO_IPI
 	  其内的 DEVICE_MODULES_VHOST_ADSP/ADSP_VOIP_LEGACY 一并引入）。依赖去掉的
 	  依据＝实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（链接期自足），
 	  adsp/include 等 -I 在 vendor Makefile 里本就是无条件行。
+
+# --- rodin inline 门（批4-5 轮A）---
+config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
+	tristate "ALSA BT SCO CVSD/MSBC (rodin inline: vendor def 在未 source 的 sound/soc/mediatek/Kconfig)"
+	help
+	  mtk-btcvsd.o 的门（sound/soc/mediatek/common/Makefile，目录 4-3 已挂）。
+	  批4-5 轮B 若 source sound/soc/mediatek/Kconfig 需删除本 inline 定义防重定义。
