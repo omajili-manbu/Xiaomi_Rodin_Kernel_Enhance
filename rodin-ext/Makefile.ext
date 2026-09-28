@@ -127,6 +127,38 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/teeperf/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/devfreq/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
+# ---- stage4 batch4-5 轮C（usb/met/零散 39 件）----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mddp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/power/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vmm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mcupm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmstat/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/elliptic/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmic_protect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/nfc/nxp-i2c/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/nfc/p73-spi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/flashlight/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/flashlight/v4l2/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/ois/dw9781c/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/ois/dw9781d/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main2_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main3_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main4_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/sub_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/c2k_usb/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_rndis/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_logger/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_offload/
+obj-y += ../$(KMOD_REL_DIR)/met_drv_v3/met_api/ # rodin: 批4-5 真身路径（default/ 是 32 行 stub，禁入）
+
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/mt6899/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/audio_dsp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/vow/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vow/ver02/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/ultrasound/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/
+
 
 # ---- B2 点修批(pcie-mediatek-gen3) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/
@@ -156,7 +188,6 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cm_mgr/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/geniezone/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/rps/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccmni/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/pa_combine/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-vcodec/
 # rodin batch4-4: ccusys/ 由 mtkcam/ 父目录统一下潜（同门等价，避免双编）
 

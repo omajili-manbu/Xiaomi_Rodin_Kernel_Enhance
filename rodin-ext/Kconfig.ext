@@ -326,6 +326,108 @@ config MTK_AUDIO_IPI
 	  依据＝实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（链接期自足），
 	  adsp/include 等 -I 在 vendor Makefile 里本就是无条件行。
 
+# ---- stage4 batch4-5 轮C source（vendor 各目录 Kconfig）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mddp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmstat/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmic_protect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vmm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mcupm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/flashlight/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/flashlight/v4l2/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/nfc/nxp-i2c/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/nfc/p73-spi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_offload/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_rndis/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_logger/Kconfig"
+
+config MTK_PLAT_POWER_6893
+	tristate "Platform power specified macro (rodin inline: vendor def 在未 source 的 drivers/misc/mediatek/Kconfig)"
+	help
+	  mcupm/v1 下钻门（vendor 命名为 6893，实为 v1 tinysys 平台开关；6.6 设备真值 y）。
+
+# --- rodin inline 门（批4-5 轮B：声卡大簇；vendor 定义在未 source 的 sound/soc/{mediatek,codecs}/Kconfig）---
+config DEVICE_MODULES_SND_SOC_MT6899
+	tristate "ASoC support for Mediatek MT6899 chip (rodin inline)"
+	depends on ARCH_MEDIATEK
+	select SND_SOC_MTK_SRAM
+	select SND_SOC_MTK_SMART_PHONE
+	help
+	  snd-soc-mt6899-afe 聚合门（sound/soc/mediatek/mt6899/Makefile）。
+
+config DEVICE_MODULES_SND_SOC_MT6899_MT6368
+	tristate "ASoC MT6899 with MT6368 codec (rodin inline)"
+	depends on DEVICE_MODULES_SND_SOC_MT6899
+	help
+	  mt6899-mt6368 machine driver 门。
+
+config SND_SOC_MTK_SRAM
+	tristate "Mediatek Audio SRAM Management (rodin inline)"
+	help
+	  mtk-sram-manager.o 门（common/Makefile）：mtk_audio_sram_init/get_size 提供者，
+	  snd_soc_mt6899_afe 的消费面。设备无独立 blob（聚合在 snd_soc_mtk_common 内）。
+
+config SND_SOC_MTK_AUDIO_DSP
+	tristate "MTK audio DSP platform (rodin inline)"
+	help
+	  snd-soc-audiodsp-common 聚合门（audio_dsp/Makefile）。
+
+config SND_SOC_MTK_OFFLOAD
+	tristate "MTK audio offload (rodin inline)"
+	help
+	  mtk-soc-offload-common.o 门（audio_dsp/Makefile）。
+
+config SND_SOC_MT6368
+	tristate "MediaTek MT6368 Codec driver (rodin inline)"
+	help
+	  snd-soc-mt6368.o 门（codecs/Makefile）。
+
+config SND_SOC_MT6368_ACCDET
+	tristate "MediaTek MT6368 ACCDET driver (rodin inline)"
+	depends on MFD_MTK_SPMI_PMIC
+	help
+	  mt6368-accdet.o 门（codecs/Makefile）。
+
+config SND_SOC_RT5512
+	tristate "Mediatek RT5512 speaker amplifier (rodin inline)"
+	depends on I2C
+	help
+	  snd-soc-rt5512.o + richtek_spm_cls.o 门（codecs/Makefile → richtek/）。
+
+config SND_SOC_TFA9874
+	tristate "NXP TFA9874 speaker amplifier (rodin inline)"
+	depends on I2C
+	help
+	  snd-soc-tfa98xx.o 门（codecs/Makefile → tfa98xx/）。
+
+config USB_SWITCH_ET7480
+	tristate "TYPE-C switch ET7480 (rodin inline)"
+	depends on I2C
+	help
+	  et7480.o 门（codecs/Makefile → et7480/；vendor Makefile 是无条件 obj-m，本批加门）。
+
+config MTK_ULTRASND_PROXIMITY
+	tristate "MTK ultrasound proximity (rodin inline)"
+	help
+	  mtk-scp-ultra 门（ultrasound/ultra_{common,scp}/Makefile）。
+
+config MTK_VOW_SUPPORT
+	tristate "MediaTek VOW support (rodin inline)"
+	help
+	  mtk-vow.o（drivers/misc/mediatek/vow/ver02/）与 mtk-scp-vow.o（sound/soc/mediatek/vow/）共同门。
+
+config MTK_VOW_DUAL_MIC_SUPPORT
+	bool "MediaTek VOW dual mic support (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+
+config MTK_VOW_MAX_PDK_NUMBER
+	int "MediaTek VOW MAX PDK model support (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+	default 0
+
+config MTK_VOW_DSP_VERSION
+	string "MediaTek VOW DSP Version (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+
 # --- rodin inline 门（批4-5 轮A）---
 config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
 	tristate "ALSA BT SCO CVSD/MSBC (rodin inline: vendor def 在未 source 的 sound/soc/mediatek/Kconfig)"
