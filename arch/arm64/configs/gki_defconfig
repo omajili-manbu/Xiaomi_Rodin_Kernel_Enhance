@@ -1388,3 +1388,24 @@ CONFIG_MAC80211=y
 # CONFIG_MTK_CONN_LTE_IDC_SUPPORT is not set
 # 设备真值 =y（connectivity/Kconfig 的 GPS 总开关，mgk defconfig =y）
 CONFIG_MTK_GPS_SUPPORT=y
+# ---- stage4 batch4-7 (杂项簇 16 件: lpm 族/ssc/wla/atf/pwm/irtx/adsp_v2/mtk_aov) ----
+# 设备真值 mgk_64_k66_defconfig：以下全 =m；翻 =y = 本批内建形态。
+CONFIG_MTK_LOW_POWER_MODULE=y
+CONFIG_MTK_LPM_MT6899=y
+CONFIG_MTK_CPU_IDLE_GOV=y
+CONFIG_MTK_SYS_RES_DBG_SUPPORT=y
+CONFIG_MTK_SWPM_MT6899=y
+CONFIG_MTK_SSC_MODULE=y
+CONFIG_MTK_SSC_DBG_V2=y
+CONFIG_MTK_WLA=y
+CONFIG_MTK_ADSP_V2=y
+CONFIG_MTK_ATF_LOGGER=y
+CONFIG_MTK_PWM=y
+CONFIG_MTK_IRTX_PWM_SUPPORT=y
+CONFIG_VIDEO_MTK_ISP_AOV=y
+# 设备真值 =n / 无 blob 出货（显式记账，压回设备形态）
+# CONFIG_MTK_SSC_DBG_V1 is not set
+# CONFIG_MTK_ADSP_V1 is not set
+# CONFIG_MTK_SWPM_ISP is not set
+# 未定义≡n（刻意不 inline，见 rodin-ext/Kconfig.ext 批4-7 块）：
+#   MTK_LPM_GS_DUMP_SUPPORT（设备显式 n）、MTK_CPU_IDLE_IPI_SUPPORT（default n，blob 符号实锤）

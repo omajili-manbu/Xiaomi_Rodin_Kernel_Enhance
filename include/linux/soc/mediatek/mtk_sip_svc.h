@@ -132,3 +132,21 @@
 #define MTK_SIP_KERNEL_CCCI_CONTROL	MTK_SIP_SMC_CMD(0x505)
 #endif
 #endif
+#ifndef MTK_SIP_MTK_LPM_CONTROL
+/* rodin 4-7: vendor SIP ID needed by the built-in lpm family
+ * (lpm_module/lpm_plat/mtk_cpupm_dbg/lpm_logger/lpm_dbg_cpuidle_control；
+ * 值取自 6.6 vendor 头 include/linux/soc/mediatek/mtk_sip_svc.h = 0x507) */
+#define MTK_SIP_MTK_LPM_CONTROL	MTK_SIP_SMC_CMD(0x507)
+#endif
+#ifndef MTK_SIP_MTK_SSC_CONTROL
+/* rodin 4-7: vendor SIP ID needed by mtk-ssc (6.6 vendor 头 = 0x529) */
+#define MTK_SIP_MTK_SSC_CONTROL	MTK_SIP_SMC_CMD(0x529)
+#endif
+#ifndef MTK_SIP_KERNEL_ATF_DEBUG
+/* rodin 4-7: vendor SIP ID needed by atf_logger/tfa_debug (6.6 vendor 头 = 0x204) */
+#define MTK_SIP_KERNEL_ATF_DEBUG	MTK_SIP_SMC_CMD(0x204)
+#endif
+#ifndef MTK_SIP_KERNEL_TIME_SYNC
+/* rodin 4-7: vendor SIP ID needed by atf_logger/tfa_debug (6.6 vendor 头 = 0x202) */
+#define MTK_SIP_KERNEL_TIME_SYNC	MTK_SIP_SMC_CMD(0x202)
+#endif

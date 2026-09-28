@@ -5047,6 +5047,54 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_COMBO_WIFI)
 	"wmt_chrdev_wifi_connac2",
 #endif
+#if IS_ENABLED(CONFIG_MTK_ADSP_V2)
+	"adsp_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ATF_LOGGER)
+	"atf_logger",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CPU_IDLE_GOV)
+	"lpm_gov_MHSP",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MTK_ISP_AOV)
+	"mtk_aov",
+#endif
+#if IS_ENABLED(CONFIG_MTK_IRTX_PWM_SUPPORT)
+	"mtk_irtx_pwm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LOW_POWER_MODULE)
+	"mtk_lpm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LPM_MT6899)
+	"mtk_lpm_dbg_mt6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PWM)
+	"mtk_pwm",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SSC_MODULE)
+	"mtk_ssc",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SSC_DBG_V2)
+	"mtk_ssc_dbg_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SWPM_MT6899)
+	"mtk_swpm_cpu_dbg_v6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_WLA)
+	"wla_v1",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LOW_POWER_MODULE)
+	"mtk_lpm_dbg_common_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_LOW_POWER_MODULE)
+	"mtk_lpm_plat_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_SWPM_MT6899)
+	"mtk_swpm_dbg_v6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_WLA)
+	"wla_v1_dbg",
+#endif
 	NULL,
 };
 

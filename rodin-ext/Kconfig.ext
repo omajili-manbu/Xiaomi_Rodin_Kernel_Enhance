@@ -438,3 +438,59 @@ config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
 # --- 批4-6 source（连接/wlan 簇）---
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/connectivity/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/conn_scp/Kconfig"
+# --- 批4-7 inline 门（杂项簇：lpm/swpm dbg/ssc/wla/atf/irtx/pwm + mtk_aov）---
+# vendor 定义在未 source 的 {lpm,ssc,wla,irtx,pwm}/Kconfig 与 drivers/misc/mediatek/Kconfig；
+# pwm/Kconfig redefines menuconfig PWM 不可整棵 source（4-5 先例），lpm/Kconfig 的
+# MTK_LPM_MODULE_NAME 引用未定义 MTK_PLATFORM 字符串符号 ⇒ 一律 inline。
+# 设备真值（devmod arch/arm64/configs/mgk_64_k66_defconfig）：这些门全 =m，翻 =y 即内建形态。
+# 刻意不定义的（未定义 ≡ n，与设备一致）：
+#   MTK_LPM_GS_DUMP_SUPPORT   设备 defconfig 显式 =n
+#   MTK_CPU_IDLE_IPI_SUPPORT  default n；blob lpm-gov-MHSP.ko 无 update_ipi_history 符号实锤
+#   MTK_LPM_MODULE_NAME       仅用于 =m 的 ko 命名（=y 走 Makefile 字面名 mtk-lpm.o）
+config MTK_LOW_POWER_MODULE
+	tristate "MediaTek Low Power Module (rodin inline)"
+	help
+	  mtk-lpm 家族总门（vendor def 在 lpm/Kconfig）。
+
+config MTK_LPM_DBG_COMMON
+	bool "MediaTek LPM common debug (rodin inline)"
+
+config MTK_LPM_MT6899
+	tristate "LPM platform MT6899 (rodin inline)"
+	depends on MTK_LOW_POWER_MODULE
+	select MTK_LPM_DBG_COMMON
+
+config MTK_CPU_IDLE_GOV
+	tristate "MediaTek cpuidle governor (rodin inline)"
+
+config MTK_CPU_IDLE_GOV_VERSION
+	string
+	default "MHSP"
+
+config MTK_SYS_RES_DBG_SUPPORT
+	tristate "LPM system resource debug support (rodin inline)"
+
+config MTK_SSC_MODULE
+	tristate "MediaTek Shared S-RAM Control (rodin inline)"
+
+config MTK_SSC_DBG_V1
+	tristate "SSC debug v1 (rodin inline; 设备 =m 但无此 blob 出货，保持 n)"
+	depends on MTK_SSC_MODULE
+
+config MTK_SSC_DBG_V2
+	tristate "SSC debug v2 (rodin inline)"
+	depends on MTK_SSC_MODULE
+
+config MTK_WLA
+	tristate "MediaTek Work Load Aware (rodin inline)"
+
+config MTK_ATF_LOGGER
+	tristate "atf logger kernel driver (rodin inline: vendor def 在 mediatek/Kconfig)"
+	depends on HAVE_ARM_SMCCC && ARCH_MEDIATEK && OF
+
+config MTK_PWM
+	tristate "MediaTek PWM driver (rodin inline: vendor pwm/Kconfig redefines menuconfig PWM，不可 source)"
+
+config MTK_IRTX_PWM_SUPPORT
+	tristate "MediaTek PWM IR transmitter (rodin inline: vendor def 在 irtx/Kconfig)"
+	depends on RC_CORE && ARCH_MEDIATEK && MTK_PWM

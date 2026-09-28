@@ -276,3 +276,15 @@ obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/data_link/
 obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_scp/
 obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_pwr/
 obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/mi_gps_pwr/
+# ---- stage4 batch4-7 (lpm/swpm dbg/ssc/wla/atf/irtx/pwm + mtk_aov) ----
+# swpm/ 与 adsp/ 已在 B1/B3a 挂载：swpm 只翻 MTK_SWPM_MT6899 门、adsp 只翻 MTK_ADSP_V2 门。
+# lpm/ssc/wla/atf/irtx/pwm 为 devmod 杂项目录整挂（内部全部 CONFIG 门控，翻门才编）。
+# mtk_aov 走 kmod 叶子直挂（wlan_page_pool 先例）；devmod apusys/Makefile 里的 apu_aov 是
+# 另一个模块（MTK_APUSYS_SUPPORT 门，4-8 的事），勿混。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ssc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/wla/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/atf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/irtx/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pwm/
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/scpsys/mtk-aov/
