@@ -118,4 +118,10 @@
 /* rodin 4-3: vendor SIP ID needed by gpueb_debug (6.6 vendor header 0x530) */
 #define MTK_SIP_KERNEL_GPUEB_CONTROL	MTK_SIP_SMC_CMD(0x530)
 #endif
+#ifndef MTK_SIP_KERNEL_CCCI_CONTROL
+/* rodin 4-3b: vendor SIP ID needed by the built-in eccci family
+ * (md_sys1_platform/ccci_fsm/ccci_fsm_scp_c/ccci_hif_ccif/ccci_dpmaif_com；
+ * 值取自 6.6 vendor 头 include/linux/soc/mediatek/mtk_sip_svc.h = 0x505) */
+#define MTK_SIP_KERNEL_CCCI_CONTROL	MTK_SIP_SMC_CMD(0x505)
+#endif
 #endif

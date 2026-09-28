@@ -4762,6 +4762,27 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_MMDVFS)
 	"mtk_mmdvfs_v3_start",
 #endif
+#if IS_ENABLED(CONFIG_MTK_AUDIO_IPI)
+	"audio_ipi",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MEDIATEK_MT6577_AUXADC)
+	"ccci_auxadc",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	"ccci_ccif",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	"ccci_dpmaif",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	"ccci_fsm_scp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	"ccci_md_all",
+#endif
+#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	"ccci_util_lib",
+#endif
 	NULL,
 };
 

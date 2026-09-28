@@ -305,3 +305,20 @@ config BUILD_XIAOMI_CAMERA_IMAGE_NAMES
 	help
 	  cam_cal custom/Kbuild 的 ifeq 读它决定 -DRODIN_CAM。设备真值 ="rodin"，
 	  vendor 树里无 Kconfig 定义（只由 config fragment 注入），故此处补上。
+
+# ---- stage4 batch4-3b (eccci 族) ----
+# eccci/Kconfig = MTK_ECCI_DRIVER(tristate, depends MTK_CCCI_DEVICES, select
+#   MTK_NET_CCMNI/PAGE_POOL) + MTK_ECCI_CLDMA/CCIF/C2K/C2K_USB + DEBUG_LOG；
+# ccci_util/Kconfig = menuconfig MTK_CCCI_DEVICES + MTK_MD1_SUPPORT(int)。
+# 两份都是扁平文件（无子 source）。MTK_NET_CCMNI 仍用上面的 rodin inline 定义
+# （ccmni/Kconfig 未 source；eccci/Kconfig 仅 select 它）。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/eccci/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/ccci_util/Kconfig"
+
+config MTK_AUDIO_IPI
+	tristate "MTK audio ipi support (rodin inline: vendor def depends MTK_AUDIODSP_SUPPORT||MTK_SCP_AUDIO)"
+	help
+	  批 4-3b 拉入的门。vendor 定义在 audio_ipi/Kconfig（未 source，避免与
+	  其内的 DEVICE_MODULES_VHOST_ADSP/ADSP_VOIP_LEGACY 一并引入）。依赖去掉的
+	  依据＝实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（链接期自足），
+	  adsp/include 等 -I 在 vendor Makefile 里本就是无条件行。

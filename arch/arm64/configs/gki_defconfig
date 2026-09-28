@@ -1280,3 +1280,23 @@ CONFIG_MTK_MBRAINK_BRIDGE=y
 CONFIG_RPMSG_MTK_CCD=y
 CONFIG_MTK_CCD_REMOTEPROC=y
 CONFIG_BUILD_XIAOMI_CAMERA_IMAGE_NAMES="rodin"
+
+# ---- stage4 batch4-3b (eccci 族 6 件) ----
+# 设备真值(mgk_64_k66_defconfig)：MTK_CCCI_DEVICES=y / MTK_MD1_SUPPORT=25 /
+# MTK_ECCI_DRIVER=m / MTK_ECCI_C2K=y / MTK_ECCI_C2K_USB=m /
+# DEVICE_MODULES_MEDIATEK_MT6577_AUXADC=m。
+# 本批只把 ECCCI 驱动门翻 =y（内建）；C2K_USB/AUXADC 保持 =m —— 它们在本批只作
+# 源码门（IS_ENABLED / ifneq(...,n) 对 =m 同样成立）：C2K_USB 门内提供
+# ccci_c2k_set_usb_callback 等（设备 c2k_usb.ko 的消费面，必须编），AUXADC 门决定
+# ccci_auxadc 成员是否入 ccci 家族（=m 时编、=y 时会把 vendor iio 的 mt6577_auxadc
+# 驱动也编成内建，设备无该 blob）。
+CONFIG_MTK_CCCI_DEVICES=y
+CONFIG_MTK_MD1_SUPPORT=25
+CONFIG_MTK_ECCCI_DRIVER=y
+CONFIG_MTK_ECCCI_C2K=y
+CONFIG_MTK_ECCCI_C2K_USB=m
+CONFIG_DEVICE_MODULES_MEDIATEK_MT6577_AUXADC=m
+
+# 批4-3b 追加：audio_ipi 内建（mtk-usip.o 的 audio_send_ipi_msg 提供者；
+# 设备 blob=audio_ipi.ko，闭包自足、零导出重叠，本批随 eccci 一起拉入）
+CONFIG_MTK_AUDIO_IPI=y

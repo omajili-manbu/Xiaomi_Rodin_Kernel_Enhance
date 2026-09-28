@@ -22,7 +22,11 @@ subdir-ccflags-y += -Wno-missing-prototypes -Wno-error=array-bounds
 # for any same-named file (r24 trap was prepending, this is appending).
 subdir-ccflags-y += -I$(DEVICE_MODULES_PATH)/include \
 		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include \
+		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include/mt-plat \
 								-I$(DEVICE_MODULES_PATH)/include/uapi
+# mt-plat/ 那一行是批 4-3b 补的：5 处 vendor 文件用无前缀写法 #include
+# <mtk_ccci_common.h>（该头在 include/mt-plat/ 下），CCCI 门翻 =y 后
+# sound/soc/mediatek/common/mtk-usip.o 首次进入构建图即触发缺头。
 MTK_PLATFORM ?= mt6899
 KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin
 
@@ -202,3 +206,19 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cam_log/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/media/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mbraink/
 # 注：mmdvfs 目录批 4 已挂载，本批只恢复其 obj 行的 mtk-mmdvfs-v3-start.o（vendor 补丁 P2）
+
+# ---- stage4 batch4-3b (eccci 族 6 件：ccci_md_all/ccci_dpmaif/ccci_util_lib/
+# ccci_auxadc/ccci_ccif/ccci_fsm_scp) ----
+# 布局补丁（vendor P1-P3）：eccci/{,hif/,fsm/}Makefile 的 =y 分支已改为复用 =m 的
+# 模块切分（原 =y 聚合 ccci_all/ccci_fsm_all/ccci_hif_all/ccci_port/udc 与设备 blob
+# 名不匹配且丢 dpmaif）；CCCI_KMODULE_ENABLE 在 =y 下也定义（设备真值）。
+# cldma 不编（设备三分区无 cldma blob）。ccci_util/ 无布局差异，纯翻配置。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/eccci/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccci_util/
+
+# ---- stage4 batch4-3b 追加：audio_ipi 拉入（跨批提供者）----
+# 依据：CCCI 门翻 =y 后 sound/soc/mediatek/common/mtk-usip.o 首次进图，它对
+# audio_send_ipi_msg 是无守卫调用，唯一提供者=audio_ipi（设备 audio_ipi.ko）。
+# 闭包实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（自足）、与其它设备
+# blob 零导出重叠、10 个源文件 6.18 语法 0 错 ⇒ 直接内建，不改一行源码。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/audio_ipi/
