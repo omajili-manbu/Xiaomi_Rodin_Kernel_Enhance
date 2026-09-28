@@ -5002,6 +5002,51 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN)
 	"usb_offload",
 #endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_BT)
+	"bt_drv_6899",
+#endif
+#if IS_ENABLED(CONFIG_CFG80211)
+	"cfg80211",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO)
+	"connadp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO)
+	"connfem",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO)
+	"conninfra",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CONN_SCP)
+	"connscp",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO)
+	"fmradio_drv_connac2x",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_GPS)
+	"gps_drv_dl_v051",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_GPS)
+	"gps_pwr",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_GPS)
+	"gps_scp",
+#endif
+#if IS_ENABLED(CONFIG_MAC80211)
+	"mac80211",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_GPS)
+	"mi_gps_pwr",
+#endif
+#if IS_ENABLED(CONFIG_MTK_WIFI_THERMAL)
+	"wifi_cooling",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_WIFI)
+	"wlan_drv_gen4m_6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_COMBO_WIFI)
+	"wmt_chrdev_wifi_connac2",
+#endif
 	NULL,
 };
 

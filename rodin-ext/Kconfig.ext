@@ -434,3 +434,7 @@ config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
 	help
 	  mtk-btcvsd.o 的门（sound/soc/mediatek/common/Makefile，目录 4-3 已挂）。
 	  批4-5 轮B 若 source sound/soc/mediatek/Kconfig 需删除本 inline 定义防重定义。
+
+# --- 批4-6 source（连接/wlan 簇）---
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/connectivity/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/conn_scp/Kconfig"

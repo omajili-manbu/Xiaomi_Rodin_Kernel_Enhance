@@ -253,3 +253,26 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccci_util/
 # 闭包实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（自足）、与其它设备
 # blob 零导出重叠、10 个源文件 6.18 语法 0 错 ⇒ 直接内建，不改一行源码。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/audio_ipi/
+
+# ---- stage4 batch4-6 (连接/wlan 簇 15 件) ----
+# kmod Kbuild 布局补丁（P1-P11）：conninfra/btif/fmradio/adaptor 的 =m 分支补真实语义
+# 门行（obj-$(CONFIG_MTK_COMBO*)）；gen4m 入口 =y 走 Kbuild.6899（设备芯片
+# CONNAC2X2_SOC7_0/axi）；adaptor 补 CONNAC_VER/MODULE_NAME 兜底 + 树内 -I（$(TOP)/vendor
+# 在树内布局不存在）；btif 的 CONN_INFRA_SRC 等三行覆盖树内路径；gps data_link 入口
+# 门控 v051 下钻；gps_scp/gps_pwr/mi_gps_pwr/connfem 补 obj-门行。
+# 刻意不翻 CONFIG_WLAN_DRV_BUILD_IN：vendor 该分支挂 wmt_drv/（设备无此 blob）且
+# export WLAN_CHIP_ID=6765（错芯片），设备 =m 出货形态才是基准（4-3b §24 精神）。
+# wifi_cooling 无需挂载（thermal/mediatek 4-3 已挂，纯翻 MTK_WIFI_THERMAL 门）。
+# cfg80211/mac80211 是内核树门（net/wireless、net/mac80211），gki_defconfig 翻 y。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/connectivity/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/conn_scp/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/conninfra/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/connfem/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/core/gen4m/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/adaptor/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/bt/mt66xx/6899/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/fmradio/Build/connac2x/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/data_link/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_scp/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_pwr/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/mi_gps_pwr/
