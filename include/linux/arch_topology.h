@@ -50,6 +50,12 @@ void topology_set_scale_freq_source(struct scale_freq_data *data, const struct c
 void topology_clear_scale_freq_source(enum scale_freq_source source, const struct cpumask *cpus);
 
 DECLARE_PER_CPU(unsigned long, hw_pressure);
+/* rodin 6.6-compat: 6.18 删除了 arch_scale_thermal_pressure() 与 thermal_load_avg()，
+ * 但 6.6 vendor 驱动（sched/fair.c、sched/eas/eas_plus.c、sched/sugov/nonlinear_opp_cap.c、
+ * sched/sched_trace.h）直接读 per-CPU thermal_pressure。符号已由
+ * drivers/base/arch_topology.c 的 compat 段定义并 EXPORT（与 hw_pressure 同步更新），
+ * 这里只补回被删的声明。 */
+DECLARE_PER_CPU(unsigned long, thermal_pressure);
 
 static inline unsigned long topology_get_hw_pressure(int cpu)
 {

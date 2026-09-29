@@ -302,3 +302,17 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/
 # 激活 midgard 的 mt6899 旋钮阶梯；CONFIG_MTK_GPU_VERSION 保持空（LD2.0，
 # 内建对象名 mali_kbase_mt6899_r49，与设备 blob 同名）。
 obj-y += ../$(KMOD_REL_DIR)/gpu/mt6899/
+# ---- stage4 batch4-9 (perf/sched 栈 18 件) ----
+# 五个 devmod 目录整挂（内部全部 CONFIG 门控，翻门才编）；sched/ 是本批唯一的
+# "完全未挂"目录（此前 Kconfig.ext 无 source 行、Makefile.ext 无 obj-y 行、无软链镜像）。
+# 注意 sched/common.o 同时被 scheduler 与 cpufreq_sugov_ext 两个模块引用：kbuild 各建
+# 一份（KBUILD_MODNAME 不同），不是重复定义。
+# hbt 走 kmod 叶子直挂（方式同 mtk_aov / mali：由 drivers/ 起算的相对路径，经内核树根的
+# MTK_kernel_modules-rodin 目录可达，无需新增软链镜像）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sched/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cache-auditor/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/perf_common/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/task_turbo/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cpufreq_lite/
+obj-y += ../$(KMOD_REL_DIR)/hbt_driver/
+

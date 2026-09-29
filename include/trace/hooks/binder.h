@@ -23,9 +23,13 @@ DECLARE_HOOK(android_vh_binder_transaction_init,
 DECLARE_HOOK(android_vh_binder_set_priority,
 	TP_PROTO(struct binder_transaction *t, struct task_struct *task),
 	TP_ARGS(t, task));
+/* rodin 6.9（D1）：本树 vendored 版本比 AOSP/6.6 旧 —— 少了 struct task_struct *task。
+ * task_turbo 的 probe_android_vh_binder_restore_priority 实质使用它（决定是否拆
+ * turbo/vip 继承），且全树**只有它**注册该钩子（内核+devmod+kmod+全部设备 blob 扫描
+ * 实证）⇒ 按 AOSP/6.6 形态补回，零连带。struct task_struct 前向声明本文件已有。 */
 DECLARE_HOOK(android_vh_binder_restore_priority,
-	TP_PROTO(struct binder_transaction *t),
-	TP_ARGS(t));
+	TP_PROTO(struct binder_transaction *t, struct task_struct *task),
+	TP_ARGS(t, task));
 DECLARE_HOOK(android_vh_binder_alloc_new_buf_locked,
 	TP_PROTO(size_t size, size_t *free_async_space, int is_async, bool *should_fail),
 	TP_ARGS(size, free_async_space, is_async, should_fail));

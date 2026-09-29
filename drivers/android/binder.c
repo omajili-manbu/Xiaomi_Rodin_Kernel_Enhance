@@ -4002,7 +4002,7 @@ static void binder_transaction(struct binder_proc *proc,
 			spin_unlock(&thread->prio_lock);
 		}
 		wake_up_interruptible_sync(&target_thread->wait);
-		trace_android_vh_binder_restore_priority(in_reply_to);
+		trace_android_vh_binder_restore_priority(in_reply_to, current);
 		binder_restore_priority(thread, &in_reply_to->saved_priority);
 		binder_free_transaction(in_reply_to);
 	} else if (!(t->flags & TF_ONE_WAY)) {
@@ -4147,7 +4147,7 @@ err_alloc_t_failed:
 
 	BUG_ON(thread->return_error.cmd != BR_OK);
 	if (in_reply_to) {
-		trace_android_vh_binder_restore_priority(in_reply_to);
+		trace_android_vh_binder_restore_priority(in_reply_to, current);
 		binder_restore_priority(thread, &in_reply_to->saved_priority);
 		binder_set_txn_from_error(in_reply_to, t_debug_id,
 				return_error, return_error_param);
@@ -5019,6 +5019,9 @@ retry:
 						 binder_stop_on_user_error < 2);
 		}
 		trace_android_vh_binder_before_restore_priority(NULL);
+		/* rodin 6.9（D1）：6.6 在此处也调该钩子（(NULL, current)，触发
+		 * binder_stop_turbo_inherit(current)），本树此前整处缺失 ⇒ 按 6.6 补回。 */
+		trace_android_vh_binder_restore_priority(NULL, current);
 		binder_restore_priority(thread, &proc->default_priority);
 	}
 

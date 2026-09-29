@@ -67,13 +67,14 @@ static int effective_prio(struct task_struct *p)
 
 void set_user_nice(struct task_struct *p, long nice)
 {
-	bool queued, running;
+	bool queued, running, allowed = false;
 	struct rq *rq;
 	int old_prio;
-	bool allowed = true;
 
-	trace_android_rvh_set_user_nice(p, &nice);
-	if (task_nice(p) == nice || nice < MIN_NICE || nice > MAX_NICE)
+	/* rodin 6.9（D2）：allowed 是 6.6 语义的"否决权"出参（6.6 core.c:7374）。
+	 * 默认 false ⇒ 越界/未变的 nice 修改照旧被拦；钩子置 true 可强制放行。 */
+	trace_android_rvh_set_user_nice(p, &nice, &allowed);
+	if ((task_nice(p) == nice || nice < MIN_NICE || nice > MAX_NICE) && !allowed)
 		return;
 	/*
 	 * We have to be careful, if called from sys_setpriority(),
@@ -84,9 +85,10 @@ void set_user_nice(struct task_struct *p, long nice)
 
 	update_rq_clock(rq);
 
-	trace_android_rvh_set_user_nice_locked(p, &nice, &allowed);
-	if (!allowed)
-		return;
+	/* rodin 6.9（D2）：_locked 变体按 6.6 形态回到两参；allowed 的否决判断已前移到
+	 * 上锁之前（与 6.6 一致）。本树无任何注册者使用 _locked，删除 !allowed 早退
+	 * 是行为中性的。 */
+	trace_android_rvh_set_user_nice_locked(p, &nice);
 
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still

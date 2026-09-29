@@ -5107,6 +5107,60 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR)
 	"mali_prot_alloc_mt6899_r49",
 #endif
+#if IS_ENABLED(CONFIG_MTK_SCHEDULER)
+	"scheduler",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CPUFREQ_SUGOV_EXT)
+	"cpufreq_sugov_ext",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CORE_CTL)
+	"mtk_core_ctl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_CPUQOS_V3)
+	"cpuqos_v3",
+#endif
+#if IS_ENABLED(CONFIG_MTK_FPSGO_V3)
+	"mtk_fpsgo",
+#endif
+#if IS_ENABLED(CONFIG_MTK_FRS)
+	"frs",
+#endif
+#if IS_ENABLED(CONFIG_MTK_GAME)
+	"mtk_game",
+#endif
+#if IS_ENABLED(CONFIG_MTK_POWERHAL_CPU_CTRL)
+	"powerhal_cpu_ctrl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERF_IOCTL_MAGT)
+	"mtk_perf_ioctl_magt",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PERF_COMMON)
+	"mtk_perf_common",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MBRAINK)
+	"mtk_mbraink",
+#endif
+#if IS_ENABLED(CONFIG_MTK_MBRAINK_MT6899)
+	"mtk_mbraink_v6899",
+#endif
+#if IS_ENABLED(CONFIG_MTK_TASK_TURBO)
+	"task_turbo",
+#endif
+#if IS_ENABLED(CONFIG_MEDIATEK_CPUFREQ_DEBUG_LITE)
+	"cpudvfs",
+#endif
+#if IS_ENABLED(CONFIG_VIDEO_MEDIATEK_VCODEC_ENC_V2)
+	"mtk_vcodec_enc_v2",
+#endif
+#if IS_ENABLED(CONFIG_MTK_C2PS)
+	"mtk_c2ps",
+#endif
+#if IS_ENABLED(CONFIG_MTK_C2PS)
+	"c2ps_perf_ioctl",
+#endif
+#if IS_ENABLED(CONFIG_MTK_HBT)
+	"hbt",
+#endif
 	NULL,
 };
 

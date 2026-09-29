@@ -1256,9 +1256,10 @@ CONFIG_DEVICE_MODULES_VIDEO_MEDIATEK_JPEG=y
 CONFIG_VIDEO_MEDIATEK_VCODEC_V2=y
 CONFIG_MTK_PERFORMANCE_MODULE=y
 CONFIG_MTK_CAMERA_MAE_SUPPORT=y
-# rodin: 以下两门默认 n（闭包压在 perf/sched 簇，见 Kconfig.ext 说明）
-# CONFIG_VIDEO_MEDIATEK_VCODEC_ENC_V2 is not set
-# CONFIG_MTK_POWERHAL_CPU_CTRL is not set
+# rodin 4-9：以下两门复活（4-3 的 default n 撤销）。闭包的 metis/mi_schedule 来自
+# 设备 blob 侧的 Xiaomi 私有补丁，源码内建后不再被引用（4-9 闭包实测对该件零影响）。
+CONFIG_VIDEO_MEDIATEK_VCODEC_ENC_V2=y
+CONFIG_MTK_POWERHAL_CPU_CTRL=y
 
 # ---- stage4 batch4-4 camera (19 件：相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + mbraink_bridge) ----
 CONFIG_VIDEO_MTK_ISP_CAMSYS=y
@@ -1446,3 +1447,49 @@ CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
 #   CONFIG_MALI_KUTF（见 Kconfig.ext 批4-8 块；设备亦无该键 ⇒ TEST_API 路径保留）
 #   CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER（设备无 mali_dmabuf_test_* blob）
 #   CONFIG_MTK_APUSYS_EDMA_SUPPORT / CONFIG_MTK_APUSYS_IVI（设备 =n）
+# ---- stage4 batch4-9 (perf/sched 栈 18 件 =y 内建) ----
+# 取值依据：vendor defconfig（mgk_64_k66_defconfig）+ 设备 blob 符号实证（设备真值）。
+# 25 件里 18 件纯源走 =y；6 件 .o_shipped 预编译件 + 1 件空壳留 blob（形态二）。
+# MAX_NR_CPUS 是本批关键项：sched/Kconfig 的 `int default "8"`（设备真值 = 默认值，
+# vendor defconfig 未设它）。**不要**用本树 CONFIG_NR_CPUS=32 —— c2ps 的
+# MAX_NUMBER_OF_CLUSTERS 直接等于它，32 会放大每核数组并让部分循环上界越过 nr_cpu_ids。
+CONFIG_MAX_NR_CPUS=8
+CONFIG_MTK_SCHEDULER=y
+CONFIG_MTK_EAS=y
+CONFIG_MTK_SCHED_VIP_TASK=y
+CONFIG_MTK_SCHED_UPDOWN_MIGRATE=y
+CONFIG_MTK_SCHED_BIG_TASK_ROTATE=y
+CONFIG_MTK_THERMAL_AWARE_SCHEDULING=y
+CONFIG_MTK_LEAKAGE_AWARE_TEMP=y
+CONFIG_MTK_NEWIDLE_BALANCE=y
+CONFIG_MTK_CORE_PAUSE=y
+CONFIG_MTK_SCHED_FAST_LOAD_TRACKING=y
+CONFIG_MTK_SCHED_GROUP_AWARE=y
+CONFIG_MTK_CPUFREQ_SUGOV_EXT=y
+CONFIG_MTK_OPP_CAP_INFO=y
+CONFIG_NONLINEAR_FREQ_CTL=y
+CONFIG_MTK_OPP_MIN=y
+CONFIG_MTK_GEARLESS_SUPPORT=y
+CONFIG_MTK_CORE_CTL=y
+CONFIG_MTK_CPUQOS_V3=y
+CONFIG_MTK_FPSGO_V3=y
+CONFIG_MTK_FRS=y
+CONFIG_MTK_GAME=y
+CONFIG_MTK_PERF_IOCTL_MAGT=y
+CONFIG_MTK_PERF_COMMON=y
+CONFIG_MTK_PERF_TRACKER=y
+CONFIG_MTK_TASK_TURBO=y
+CONFIG_MEDIATEK_CPUFREQ_DEBUG_LITE=y
+CONFIG_MTK_MBRAINK=y
+CONFIG_MTK_MBRAINK_MT6899=y
+CONFIG_MTK_C2PS=y
+CONFIG_MTK_HBT=y
+# mbraink v6899 的 dvfsrc_get_data（唯一真缺口，完整实现非降级）：
+#   mbraink_v6899_memory.c:168 真引用；提供者 dvfsrc/dvfsrc-mb.c:52 受
+#   `mtk-dvfsrc-helper-$(CONFIG_MTK_DVFSRC_MB) += dvfsrc-mb.o` 门控，而本树 .config
+#   **从未设置过**该键（不是被翻成 n）⇒ 常规 regen diff 看不见（配方 §70）。
+#   设备真值 =m（vendor defconfig:14）且设备 blob mtk-dvfsrc-helper.ko 定义该符号。
+CONFIG_MTK_DVFSRC_MB=y
+# 刻意不设（≡n，与设备一致）：MTK_LEAKAGE_HIT（设备 =m 但只在 GEARLESS!=y 时起作用，
+# 本树 GEARLESS=y ⇒ 死配置）；MTK_MBRAINK_MT8678（hypervisor 路径，设备不编）。
+

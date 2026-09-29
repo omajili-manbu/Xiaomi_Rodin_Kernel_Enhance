@@ -22,12 +22,19 @@ DECLARE_HOOK(android_vh_futex_sleep_start,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p));
 
+/*
+ * rodin 6.9 (批4-9 hook ABI 审计) — **刻意与 AOSP 上游分叉，换 LTS 基线时必须重查**：
+ * 唯一消费者是永久闭源 blob metis.ko 的 mi_do_futex(@0x1ec8)，其反汇编为
+ * `mov w19,w1 / cmp w19,#0x12 / b.hi(早退) / ldrsw [x9,x8,lsl#2]; br(按首参查跳表)`
+ * ⇒ 编译期首参就是 `int cmd`。AOSP f97958c0be81 (2026-03-23) 把 uaddr 插到首位后，
+ * metis 收到的"cmd"变成 uaddr 指针低 32 位 ⇒ 全部提前 return（钓子静默失效），
+ * 且极小概率触发野指针。故这里保留 6.6 的 3 参形态。
+ */
 DECLARE_HOOK(android_vh_do_futex,
-	TP_PROTO(u32 __user *uaddr,
-		 int cmd,
+	TP_PROTO(int cmd,
 		 unsigned int *flags,
 		 u32 __user *uaddr2),
-	TP_ARGS(uaddr, cmd, flags, uaddr2));
+	TP_ARGS(cmd, flags, uaddr2));
 DECLARE_HOOK(android_vh_futex_wait_start,
 	TP_PROTO(unsigned int flags,
 		 u32 bitset),

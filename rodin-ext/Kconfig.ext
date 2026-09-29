@@ -228,13 +228,20 @@ config VIDEO_MEDIATEK_VCODEC_ENC_V2
 	  vendor mtk-vcodec/Makefile 的 V2 块同时编 mtk-vcodec-dec-v2.o 与
 	  mtk-vcodec-enc-v2.o。enc-v2 的符号闭包压在 perf/sched 簇（含闭源
 	  metis/mi_schedule），本批只能收 dec-v2；拆分门默认 n，enc-v2 顺延。
+	  **4-9 已复活 =y**：闭包里的 metis/mi_schedule 是设备 blob 侧 Xiaomi 私有补丁
+	  的产物，源码内建后不再被引用。复活时必须在 mtk-vcodec/Makefile 里去掉 enc-v2
+	  对 v2/vcodec_dvfs.o 的重复引用（同列在 dec-v2/enc-v2 两条 objs ⇒ 18 个
+	  multiple definition）。
 
 config MTK_POWERHAL_CPU_CTRL
 	tristate "vendor powerhal_cpu_ctrl (rodin 拆分: vendor 用 MTK_PERFORMANCE_MODULE 一门编 5 件)"
 	help
 	  performance/Makefile 原以 MTK_PERFORMANCE_MODULE 同时编
 	  mtk_perf_ioctl/mtk_ioctl_touch_boost/mtk_ioctl_powerhal/touch_boost/ 与
-	  powerhal_cpu_ctrl/。后者闭包含闭源 metis/mi_schedule ⇒ 拆出独立门默认 n。
+	  powerhal_cpu_ctrl/。后者闭包含闭源 metis/mi_schedule ⇒ 4-3 拆出独立门默认 n。
+	  **4-9 已复活 =y**（同 enc-v2：闭包源头是 blob 侧私有补丁）。
+	  注意初始化级：MTK_PERF_COMMON=y 时源码走 late_initcall（IS_BUILTIN 分支），
+	  与设备 =m 的 module_init 不同 ⇒ 终验观察初始化时序。
 
 # ---- stage4 batch4-4 (相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + 拉入提供者 mbraink_bridge = 19 件) ----
 # source：devmod media/platform/mtk-isp/Kconfig 是扁平文件（18 个 config，无子 source），
@@ -549,3 +556,43 @@ config MALI_MEMORY_GROUP_MANAGER
 config MALI_PROTECTED_MEMORY_ALLOCATOR
 	bool "Mali protected memory allocator (rodin inline; 对象名 mali_prot_alloc_mt6899_r49)"
 	default n
+# ---- stage4 batch4-9: perf/sched 栈（18 件纯源 =y 内建）----
+# source 五棵 vendor Kconfig（经 rodin-ext/drivers/... 的符号链接镜像可达）：
+#   * sched/Kconfig —— 本批**必须** source：它是 MAX_NR_CPUS 的**唯一**定义处
+#     （`int "..." range 2 32 default "8"`；全树 grep 实证无第二处）。三个子代理
+#     曾把它误判为"缺失符号 blocker"，实际只是当时没被 source。**不要**改成本树
+#     CONFIG_NR_CPUS=32。同时提供 MTK_SCHEDULER / MTK_EAS / VIP / CORE_PAUSE / FLT /
+#     GROUP_AWARE / OPP_CAP_INFO / NONLINEAR_FREQ_CTL / GEARLESS / SUGOV / CORE_CTL。
+#   * 其余四棵是扁平 Kconfig（cache-auditor / perf_common / task_turbo /
+#     cpufreq_lite），内部无子 source，可直接 source。
+# mbraink/Kconfig **不可 source**：MTK_MBRAINK `select MTK_MBRAINK_BRIDGE` 而后者
+# `depends on MTK_MBRAINK` ⇒ kconfig 依赖环。主体两门在下方 inline 定义。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sched/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cache-auditor/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/perf_common/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/task_turbo/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cpufreq_lite/Kconfig"
+
+# --- rodin inline 门（vendor 无定义 / 定义位置不可 source）---
+# 设备真值（mgk_64_k66_defconfig）：MTK_MBRAINK=m、MTK_MBRAINK_MT6899=m。
+config MTK_MBRAINK
+	tristate "MTK MBRAINK support (rodin inline: vendor def 在 mbraink/Kconfig，select 环不可 source)"
+	help
+	  mbraink/Makefile 的 obj-$(CONFIG_MTK_MBRAINK) 门控主体 13 个 .c 与 modules/。
+	  （bridge/ 子目录是另一个门 MTK_MBRAINK_BRIDGE，见上。）
+
+config MTK_MBRAINK_MT6899
+	tristate "MTK MBRAINK for mt6899 (rodin inline)"
+	depends on MTK_MBRAINK
+	help
+	  mbraink/modules/Makefile 与 modules/v6899/Makefile 的门控（后者同时按
+	  CONFIG_MTK_SWPM_MODULE 多编 4 个 sys_res 文件，=m 写死门已改 filter y m）。
+
+config MTK_HBT
+	tristate "MTK HBT driver (rodin inline: vendor 两树均无 Kconfig 定义)"
+	help
+	  kmod hbt_driver/Kbuild 读此门（-DCONFIG_MTK_HBT 与 obj- 行）。设备 hbt.ko
+	  真实发货，但门由 MTK Android 构建层注入、不在 vendor defconfig 里，故此处补定义。
+	  注：同树 hbt_driver_cus/src/hbt.c 是 79 行残桩且被 Android.mk 反向守卫排除，
+	  真身 = hbt_driver/src/hbt.c（507 行，md5 与 _cus 下同名文件逐字节相同）。
+

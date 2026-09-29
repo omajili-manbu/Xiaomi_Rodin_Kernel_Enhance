@@ -83,13 +83,17 @@ DECLARE_RESTRICTED_HOOK(android_rvh_get_nohz_timer_target,
 	TP_PROTO(int *cpu, bool *done),
 	TP_ARGS(cpu, done), 1);
 
+/* rodin 6.9（D2）：本树把 `bool *allowed` 挂在了 *_locked 变体上，与 AOSP/6.6 相反
+ * （6.6：set_user_nice 带 allowed、_locked 不带）。*allowed 是"可否否决本次 nice 修改"
+ * 的出参，task_turbo 的 handler 实质写入它（越界且非 turbo 时置 false 否决）
+ * ⇒ 按 6.6 归位。全树只有 task_turbo 注册 ⇒ 零连带。 */
 DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice,
-	TP_PROTO(struct task_struct *p, long *nice),
-	TP_ARGS(p, nice), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice_locked,
 	TP_PROTO(struct task_struct *p, long *nice, bool *allowed),
 	TP_ARGS(p, nice, allowed), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice_locked,
+	TP_PROTO(struct task_struct *p, long *nice),
+	TP_ARGS(p, nice), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_setscheduler,
 	TP_PROTO(struct task_struct *p),

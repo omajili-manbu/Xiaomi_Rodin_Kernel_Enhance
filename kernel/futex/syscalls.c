@@ -123,7 +123,9 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 			return -ENOSYS;
 	}
 
-	trace_android_vh_do_futex(uaddr, cmd, &flags, uaddr2);
+	/* rodin 6.9 (D4)：退回 6.6 三参 ABI（首参是 int cmd）——
+	 * metis.ko 的 mi_do_futex 按首参查跳表，插 uaddr 会让它 100% 早退。 */
+	trace_android_vh_do_futex(cmd, &flags, uaddr2);
 	switch (cmd) {
 	case FUTEX_WAIT:
 		val3 = FUTEX_BITSET_MATCH_ANY;
