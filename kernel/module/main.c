@@ -5095,6 +5095,18 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_WLA)
 	"wla_v1_dbg",
 #endif
+#if IS_ENABLED(CONFIG_MTK_APUSYS_SUPPORT)
+	"apusys",
+#endif
+#if IS_ENABLED(CONFIG_MALI_MIDGARD)
+	"mali_kbase_mt6899_r49",
+#endif
+#if IS_ENABLED(CONFIG_MALI_MEMORY_GROUP_MANAGER)
+	"mali_mgm_mt6899_r49",
+#endif
+#if IS_ENABLED(CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR)
+	"mali_prot_alloc_mt6899_r49",
+#endif
 	NULL,
 };
 

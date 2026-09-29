@@ -494,3 +494,58 @@ config MTK_PWM
 config MTK_IRTX_PWM_SUPPORT
 	tristate "MediaTek PWM IR transmitter (rodin inline: vendor def 在 irtx/Kconfig)"
 	depends on RC_CORE && ARCH_MEDIATEK && MTK_PWM
+
+# ---- stage4 batch4-8: mali r49p1（kmod gpu/mt6899 叶子直挂）标准门 ----
+# 为什么不 source midgard/Kconfig：它的 `source "$(MALI_KCONFIG_EXT_PREFIX)…/platform/tests"`
+# 两行在前缀为空时会炸 kconfig，且其 depends/select 会牵动内核侧键（GPU_TRACEPTS 等本树无）。
+# 这里按 4-8 实行指南内联 11 个门，取值来自 vendor defconfig + blob 符号实证（device truth）。
+# 全部写成无 depends/select 的独立 bool —— 全树除 mali 源码外**零消费者**（已 grep 实证），
+# 因此不会产生门翻连带；midgard 侧其余 ~50 个 CONFIG_MALI_MTK_* 旋钮由 gpu/mt6899/Makefile
+# 的 export BUILD_RULE=OOT 阶梯 + Kbuild-mtk-custom-env 转 -D 供给，**刻意不进 kconfig**。
+# ⚠️ 刻意**不定义** CONFIG_MALI_KUTF：设备 .config 无该键 ⇒ auto.conf 缺席 ⇒
+#    midgard/Makefile:529 的 `ifneq ($(CONFIG_MALI_KUTF), n)` 为真 ⇒ MALI_KERNEL_TEST_API=1
+#    （设备 blob 的 __ksymtab 有 186 项，正是此形态）；定义成 n 会与设备反向。
+
+config MALI_MIDGARD
+	bool "Mali Midgard kbase (rodin inline; LD2.0 对象名 mali_kbase_mt6899_r49)"
+	default n
+
+config MALI_CSF_SUPPORT
+	bool "Mali CSF (Command Stream Frontend) support (rodin inline)"
+	default n
+
+config MALI_DEVFREQ
+	bool "Mali devfreq support (rodin inline)"
+	default n
+
+config MALI_REAL_HW
+	bool "Mali real hardware support (rodin inline)"
+	default n
+
+config MALI_DEBUG
+	bool "Mali debug support (rodin inline)"
+	default n
+
+config MALI_FENCE_DEBUG
+	bool "Mali fence debug (rodin inline)"
+	default n
+
+config LARGE_PAGE_SUPPORT
+	bool "Mali large page support (rodin inline)"
+	default n
+
+config MALI_TRACE_POWER_GPU_WORK_PERIOD
+	bool "Mali GPU work period trace (rodin inline)"
+	default n
+
+config MALI_BASE_MODULES
+	bool "Mali base modules (rodin inline)"
+	default n
+
+config MALI_MEMORY_GROUP_MANAGER
+	bool "Mali memory group manager (rodin inline; 对象名 mali_mgm_mt6899_r49)"
+	default n
+
+config MALI_PROTECTED_MEMORY_ALLOCATOR
+	bool "Mali protected memory allocator (rodin inline; 对象名 mali_prot_alloc_mt6899_r49)"
+	default n

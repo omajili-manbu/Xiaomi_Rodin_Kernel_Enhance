@@ -129,7 +129,9 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/devfreq/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
 # ---- stage4 batch4-5 轮C（usb/met/零散 39 件）----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mddp/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/power/
+# rodin 4-8: 原为「obj-y += .../apusys/power/」（4-5 轮C 挂载）。本批改为整挂 apusys/ 根目录，
+# 由 apusys/Makefile:215 的 obj-$(CONFIG_MTK_APUSYS_SUPPORT) += power/ 接管（同门等价），
+# 保留本行会**双编**同一个 apu_top（KBUILD_MODNAME 粘连 + 链接重定义）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vmm/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mcupm/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmstat/
@@ -203,7 +205,7 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/mediatek/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sensor/2.0/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cg_ppt/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-jpeg/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/sapu/
+# rodin 4-8: 同上，sapu/ 改由 apusys/Makefile:369 的下降沿接管（防双编）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/qos/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pgboost/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmsr/v3/
@@ -288,3 +290,27 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/atf/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/irtx/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pwm/
 obj-y += ../$(KMOD_REL_DIR)/mtkcam/scpsys/mtk-aov/
+
+# ---- stage4 batch4-8 (apusys + mali r49p1 三件) ----
+# apusys/ 整目录挂载（单模块多对象 110 个 .o）：本 Makefile 同时下降 power/（=apu_top）
+# 与 sapu/（=sapu），故上面两行单挂已删除；apu_aov.o 已在 vendor 侧停编（设备无该 blob）。
+# 平台 wildcard 三份（mt6893/mt6899/mt6991）全部保留 = 设备真值（blob 内有 mt6893_rproc_*
+# 局部符号实证，2026-09-29 复核推翻侦察期「mt6893 排除」的推断）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/
+# mali r49p1 三件走 kmod 叶子直挂（wlan_page_pool / mtk_aov 先例）。
+# 入口 gpu/mt6899/Makefile 里 export BUILD_RULE=OOT + MTK_PLATFORM=mt6899，
+# 激活 midgard 的 mt6899 旋钮阶梯；CONFIG_MTK_GPU_VERSION 保持空（LD2.0，
+# 内建对象名 mali_kbase_mt6899_r49，与设备 blob 同名）。
+obj-y += ../$(KMOD_REL_DIR)/gpu/mt6899/
+
+# ---- stage4 batch4-8 (apusys + mali r49p1 三件) ----
+# apusys/ 整目录挂载（单模块多对象 110 个 .o）：本 Makefile 同时下降 power/（=apu_top）
+# 与 sapu/（=sapu），故上面两行单挂已删除；apu_aov.o 已在 vendor 侧停编（设备无该 blob）。
+# 平台 wildcard 三份（mt6893/mt6899/mt6991）全部保留 = 设备真值（blob 内有 mt6893_rproc_*
+# 局部符号实证，2026-09-29 复核推翻侦察期「mt6893 排除」的推断）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/
+# mali r49p1 三件走 kmod 叶子直挂（wlan_page_pool / mtk_aov 先例）。
+# 入口 gpu/mt6899/Makefile 里 export BUILD_RULE=OOT + MTK_PLATFORM=mt6899，
+# 激活 midgard 的 mt6899 旋钮阶梯；CONFIG_MTK_GPU_VERSION 保持空（LD2.0，
+# 内建对象名 mali_kbase_mt6899_r49，与设备 blob 同名）。
+obj-y += ../$(KMOD_REL_DIR)/gpu/mt6899/

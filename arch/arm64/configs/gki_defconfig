@@ -1409,3 +1409,40 @@ CONFIG_VIDEO_MTK_ISP_AOV=y
 # CONFIG_MTK_SWPM_ISP is not set
 # 未定义≡n（刻意不 inline，见 rodin-ext/Kconfig.ext 批4-7 块）：
 #   MTK_LPM_GS_DUMP_SUPPORT（设备显式 n）、MTK_CPU_IDLE_IPI_SUPPORT（default n，blob 符号实锤）
+
+# ---- rodin stage4 batch4-8: apusys + mali r49p1 三件（=y 内建）----
+# 设备真值补漏（vendor defconfig mgk_64_k66_defconfig:340 两键均 =y，且 blob 实证：
+#   COMMON_DVFS ⇒ mali blob 有 mtk_dvfs_hint_26m_init/dvfs_hint_sc_base_reg_*；
+#   SWPM        ⇒ mali blob 有 mtk_mfg_counter_init/destroy、MTK_LTR_gpu_pmu_start_swpm。
+# 之前 .config 两键均未设（「从未设置过」的门，配方 21 盲区）⇒ mali 的
+# mali_kbase_config_mt6899.c:543 调用点守卫(单条件)与声明守卫(三条件)不一致而编不过。
+# 激活面预扫：全树仅两处消费者——devmod ged/Makefile:44（只加 -DENABLE_COMMON_DVFS
+# -DENABLE_TIMER_BACKUP 两个 -D，不增对象）、mali mtk_platform_common/Kbuild（+4 个 .o）。
+CONFIG_MTK_GPU_COMMON_DVFS_SUPPORT=y
+CONFIG_MTK_GPU_SWPM_SUPPORT=y
+# apusys 四个 bool 的设备真值 = vendor defconfig + blob 符号实证（apusys.ko 内有
+# mdla 181 / vpu 288 / debug / preempt 符号）⇒ 全 y。EDMA/IVI 设备 =n，保持不设。
+CONFIG_MTK_APUSYS_DEBUG=y
+CONFIG_MTK_APUSYS_RT_SUPPORT=y
+CONFIG_MTK_APUSYS_MDLA_SUPPORT=y
+CONFIG_MTK_APUSYS_VPU=y
+# VPU_DEBUG 也是设备真值：blob 里有 vpu_met_isr / vpu_met_pm_get / vpu_met_pm_put
+# 三个符号（vpu_met.o 只在 CONFIG_MTK_APUSYS_VPU_DEBUG=y 时进 apusys-objs）。
+CONFIG_MTK_APUSYS_VPU_DEBUG=y
+# mali 11 门（rodin-ext/Kconfig.ext 内联定义）；值来自设备物证：
+# CSF=306 符号/JM=0、DEVFREQ/MEMTRACK/SYSFS/GPUEB_IRQ/HWCNT 全在。
+CONFIG_MALI_MIDGARD=y
+CONFIG_MALI_CSF_SUPPORT=y
+CONFIG_MALI_DEVFREQ=y
+CONFIG_MALI_REAL_HW=y
+CONFIG_MALI_DEBUG=y
+CONFIG_MALI_FENCE_DEBUG=y
+CONFIG_LARGE_PAGE_SUPPORT=y
+CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD=y
+CONFIG_MALI_BASE_MODULES=y
+CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+# 刻意不设（≡n，与设备一致）：
+#   CONFIG_MALI_KUTF（见 Kconfig.ext 批4-8 块；设备亦无该键 ⇒ TEST_API 路径保留）
+#   CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER（设备无 mali_dmabuf_test_* blob）
+#   CONFIG_MTK_APUSYS_EDMA_SUPPORT / CONFIG_MTK_APUSYS_IVI（设备 =n）
