@@ -67,6 +67,7 @@
 #include "io.c"
 #include "iommu.c"
 #include "jump_label.c"
+#include "kfifo.c"
 #include "kunit.c"
 #include "maple_tree.c"
 #include "mm.c"
