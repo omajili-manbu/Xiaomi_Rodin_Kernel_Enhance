@@ -2189,6 +2189,17 @@ __iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
 		domain = ops->domain_alloc_paging(dev);
 	else if (ops->domain_alloc_paging_flags)
 		domain = ops->domain_alloc_paging_flags(dev, flags, NULL);
+	/*
+	 * rodin b512 #112: 内建 =y 的 6.6 形态 vendor 表（无影子化标记）
+	 * 同样只有 legacy domain_alloc；6.18 默认域分配走
+	 * domain_alloc_paging 族，缺失时静默 -EOPNOTSUPP，导致注册期
+	 * default domain 建立失败 -> iommu_device_register 整体拆除
+	 * （#112 实证：phase1 建群成功后静默拆注册，拆除链上
+	 * mtk_iommu_release_device 踩 NULL larb 崩）。与影子表同语义
+	 * 路由到 domain_alloc(type)。
+	 */
+	else if (ops->domain_alloc && !flags)
+		domain = ops->domain_alloc(type);
 #if IS_ENABLED(CONFIG_FSL_PAMU)
 	else if (ops->domain_alloc && !flags)
 		domain = ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);

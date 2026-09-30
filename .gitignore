@@ -187,3 +187,7 @@ sphinx_*/
 
 # bc language scripts (not LLVM bitcode)
 !kernel/time/timeconst.bc
+
+# rodin b512: tree-root boot images are manual copies of arch/arm64/boot (never commit binaries)
+/Image
+/Image.lz4
