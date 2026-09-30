@@ -40,9 +40,19 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/log_store/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtprintk/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/tinysys_scmi/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mminfra/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vcp/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mkp/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clk/mediatek/
+# rodin b510 (#110): vcp 固件 boot 链（RESET_SET->register_feature->reset_vcp->
+# RESET_RELEASE）依赖 probe 产出的 iova（dma_heap mtk_mm-uncached + M4U 映射），
+# 因此 boot 必须跟在 probe 之后；而 VCP_READY_STA 的消费者（scpsys/mmqos/mml 等
+# 6.init 探针 + clk HWV gate enable 的 clkchk BUG_ON）都在 clk 目录之后。
+# 链接序定案：[clk/mediatek(infracfg_ao)] -> [iommu 家族] -> [dma-buf/heaps]
+# -> [vcp]；vcp_init 由 device_initcall_sync 改 device_initcall 落到本位置(6.init)。
+# 取代 b59 early-kick（其只发 RESET_SET 不发 RESET_RELEASE，固件从未 boot）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma-buf/heaps/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vcp/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/rpmsg/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/soc/mediatek/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/watchdog/
@@ -56,10 +66,8 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/mediatek/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/panel/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mdp/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/scp/
-# ---- r25 batch 2.5 (IOMMU family backport) ----
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iommu/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/iommu/
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma-buf/heaps/
+# ---- r25 batch 2.5 (IOMMU family backport)——b510 整体上移至 clk/mediatek 之后
+# （vcp 固件 boot 依赖 iommu+dma-buf/heaps 先注册；见顶部 b510 注释与 Makefile 序）----
 # kmod repo: wlan_page_pool (Kbuild patched to honor ALLOW_BUILTIN)
 # one more ../ than the devmod lines: KMOD_REL_DIR already carries the
 # first hop, and obj paths resolve relative to drivers/ (sub-make cwd).
