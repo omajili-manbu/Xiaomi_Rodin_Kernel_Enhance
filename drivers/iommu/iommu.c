@@ -2198,8 +2198,24 @@ __iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
 	 * mtk_iommu_release_device 踩 NULL larb 崩）。与影子表同语义
 	 * 路由到 domain_alloc(type)。
 	 */
-	else if (ops->domain_alloc && !flags)
+	else if (ops->domain_alloc && !flags) {
 		domain = ops->domain_alloc(type);
+		/*
+		 * rodin b513 #113: 6.6 由 core 兜底写 pgsize_bitmap
+		 * （bsp-rodin-v-oss-upstream/drivers/iommu/iommu.c:2003：
+		 *  "if not already set, assume all sizes by default; the
+		 *   driver may override this later"），6.18 改由驱动侧写。
+		 * 内建 =y 的 6.6 形态 vendor 表(mtk_iommu) 直到
+		 * domain_finalise()（attach 时，晚于 direct-mappings 步）
+		 * 才写 dom->domain.pgsize_bitmap ⇒ 默认域在该阶段
+		 * pgsize_bitmap==0 ⇒ WARN(iommu_create_device_direct_mappings)
+		 * + FW 直映被跳过（6.6 无此问题）。此处按 6.6 语义补回，
+		 * 仅当驱动未写。影子表分支（__rodin_66_legacy）不适用：
+		 * blob 的 6.6 布局表读 ops->pgsize_bitmap 偏移不同，不动。
+		 */
+		if (!IS_ERR_OR_NULL(domain) && !domain->pgsize_bitmap)
+			domain->pgsize_bitmap = ops->pgsize_bitmap;
+	}
 #if IS_ENABLED(CONFIG_FSL_PAMU)
 	else if (ops->domain_alloc && !flags)
 		domain = ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);
