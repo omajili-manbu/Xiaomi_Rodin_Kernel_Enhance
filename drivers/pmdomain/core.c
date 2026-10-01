@@ -1358,7 +1358,12 @@ err_poweroff:
 	return ret;
 }
 
-static bool pd_ignore_unused;
+/* rodin b519 #119: 6.6 等价 —— 6.6 上 scpsys（MTCMOS genpd 提供者）是 .ko，probe
+ * （0.58s）晚于本 pass ⇒ 该 sweep 从未见过 vendor 电源域；本树全 =y 内建后它会把
+ * 全部“无活跃设备”的 MTCMOS 域在 boot 期排队断电，凡不做 rpm_get 就摸岛内 MMIO 的
+ * 消费者（6.6 时代 blob 从不需要）都会总线挂死。翻默认值 = 保持 6.6 语义；域清理仍
+ * 由 vendor scpsys-disable-unused 白名单驱动负责，runtime genpd 门控不受影响。 */
+static bool pd_ignore_unused = true;
 static int __init pd_ignore_unused_setup(char *__unused)
 {
 	pd_ignore_unused = true;

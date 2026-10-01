@@ -1518,7 +1518,16 @@ unlock_out:
 		clk_core_disable_unprepare(core->parent);
 }
 
-static bool clk_ignore_unused __initdata;
+/* rodin b519 #119: 6.6 等价 —— 6.6 上 MTK 时钟控制器全是 .ko，probe（0.4–1.0s）
+ * 晚于本 pass（0.257s，vendor 时钟树尚未注册）⇒ 该 sweep 从未见过 vendor 时钟状态；
+ * 本树全 =y 内建后它会在 14.7s 首次真遍历全量 MTK 时钟树，walk 对每个子 gate 的
+ * CLK_OPS_PARENT_ENABLE 父回收（临时 enable→disable 父 gate）会关掉 boot-on 的岛
+ * 总线 gate（mtk_clk_gate_ops_no_setclr 的 ADSP/CAM 岛），其后同岛 regmap MMIO 永久
+ * 挂死（b519 真机：PID1 卡 clk_core_disable+0x74 → mtk_cg_disable_no_setclr →
+ * regmap_mmio_read，14.74s 起 lastbus 心跳 → 全系统冻结 → HWT）。翻默认值 = 保持
+ * 6.6 “boot 期不扫 vendor 时钟”语义；清理仍由 vendor mediatek,clk-disable-unused
+ * 白名单驱动完成（6.6 3.547s 实证），runtime clk 门控不受影响。 */
+static bool clk_ignore_unused __initdata = true;
 static int __init clk_ignore_unused_setup(char *__unused)
 {
 	clk_ignore_unused = true;
