@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)	DRVNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/vseq.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -854,7 +855,7 @@ static void __exit dsu_pmu_exit(void)
 	cpuhp_remove_multi_state(dsu_pmu_cpuhp_state);
 }
 
-module_init(dsu_pmu_init);
+vseq_module_init(dsu_pmu_init);
 module_exit(dsu_pmu_exit);
 
 MODULE_DESCRIPTION("Perf driver for ARM DynamIQ Shared Unit");

@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/vseq.h>
 #include <linux/initrd.h>
 #include <linux/memblock.h>
 #include <linux/acpi.h>
@@ -1502,6 +1503,9 @@ static void __init do_basic_setup(void)
 	init_irq_proc();
 	do_ctors();
 	do_initcalls();
+	/* rodin 第二十四轮：标准 initcall 全部完成后，按原厂装载序重放
+	 * vendor ex-module 的 module_init 族（free_initmem 之前，__init 存活）。 */
+	vseq_replay();
 }
 
 static void __init do_pre_smp_initcalls(void)

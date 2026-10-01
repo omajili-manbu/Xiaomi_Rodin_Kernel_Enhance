@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/vseq.h>
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/vmalloc.h>
@@ -448,7 +449,7 @@ static void __exit mtdoops_exit(void)
 }
 
 
-module_init(mtdoops_init);
+vseq_module_init(mtdoops_init);
 module_exit(mtdoops_exit);
 
 MODULE_LICENSE("GPL");

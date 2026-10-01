@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 
 #include "drm_dp_helper_internal.h"
 
@@ -18,5 +19,5 @@ static void __exit drm_display_helper_module_exit(void)
 	drm_dp_aux_dev_exit();
 }
 
-module_init(drm_display_helper_module_init);
+vseq_module_init(drm_display_helper_module_init);
 module_exit(drm_display_helper_module_exit);

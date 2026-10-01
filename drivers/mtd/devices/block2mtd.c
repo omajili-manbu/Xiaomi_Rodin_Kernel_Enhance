@@ -17,6 +17,7 @@
 #define MTD_DEFAULT_TIMEOUT	3
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
@@ -524,7 +525,7 @@ static void block2mtd_exit(void)
 	}
 }
 
-late_initcall(block2mtd_init);
+vseq_late_initcall(block2mtd_init);
 module_exit(block2mtd_exit);
 
 MODULE_LICENSE("GPL");

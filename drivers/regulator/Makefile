@@ -150,7 +150,11 @@ obj-$(CONFIG_REGULATOR_RT4803)	+= rt4803.o
 obj-$(CONFIG_REGULATOR_RT4831)	+= rt4831-regulator.o
 obj-$(CONFIG_REGULATOR_RT5033)	+= rt5033-regulator.o
 obj-$(CONFIG_REGULATOR_RT5120)	+= rt5120-regulator.o
-obj-$(CONFIG_REGULATOR_RT5133)	+= rt5133-regulator.o
+# rodin 第二十四轮: kernel-side rt5133 disabled -- the vendor
+# rt5133-regulator.o builds from the same CONFIG_REGULATOR_RT5133 symbol
+# and is the device-shipped copy; mainline copy registering first caused
+# "Driver 'rt5133' is already registered" (#133).
+#obj-$(CONFIG_REGULATOR_RT5133)	+= rt5133-regulator.o
 obj-$(CONFIG_REGULATOR_RT5190A) += rt5190a-regulator.o
 obj-$(CONFIG_REGULATOR_RT5739)	+= rt5739.o
 obj-$(CONFIG_REGULATOR_RT5759)	+= rt5759-regulator.o

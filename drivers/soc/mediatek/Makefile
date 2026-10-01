@@ -11,4 +11,7 @@ obj-$(CONFIG_MTK_REGULATOR_COUPLER) += mtk-regulator-coupler.o
 obj-$(CONFIG_MTK_MMSYS) += mtk-mmsys.o
 obj-$(CONFIG_MTK_MMSYS) += mtk-mutex.o
 obj-$(CONFIG_MTK_SVS) += mtk-svs.o
-obj-$(CONFIG_MTK_SOCINFO) += mtk-socinfo.o
+# rodin 第二十四轮: kernel-side mtk-socinfo disabled -- the vendor
+# mtk-socinfo.o builds from the same CONFIG_MTK_SOCINFO symbol and is the
+# device-shipped copy (dual-build found by tools/_b523_vseq).
+#obj-$(CONFIG_MTK_SOCINFO) += mtk-socinfo.o
