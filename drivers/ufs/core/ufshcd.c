@@ -11414,7 +11414,13 @@ static struct scsi_driver ufs_dev_wlun_template = {
 	},
 };
 
-static int __init ufshcd_core_init(void)
+/* rodin b517 #117: stock cmdline 带 initcall_blacklist=ufshcd_core_init（6.6 原厂
+ * 用于压制内建 core 的 initcall、由 ufshcd-core.ko 装载时注册 ufs_device_wlun；
+ * 6.6 下 core 为 =m，blacklist 实际不生效）。本树 core 为 =y 且无模块，blacklist
+ * 会把唯一一次 ufs_device_wlun 注册整个抹掉（6.18 无任何其他注册点），WLUN 永不
+ * 绑定。改名使 stock blacklist 落空（与 6.6 净效果一致：wlun 在 hba probe 前注册），
+ * 语义零删减、非 stub。 */
+static int __init ufshcd_core_driver_register_init(void)
 {
 	int ret;
 
@@ -11434,7 +11440,7 @@ static void __exit ufshcd_core_exit(void)
 	scsi_unregister_driver(&ufs_dev_wlun_template.gendrv);
 }
 
-module_init(ufshcd_core_init);
+module_init(ufshcd_core_driver_register_init);
 module_exit(ufshcd_core_exit);
 
 MODULE_AUTHOR("Santosh Yaragnavi <santosh.sy@samsung.com>");

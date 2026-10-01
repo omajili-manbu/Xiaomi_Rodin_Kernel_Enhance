@@ -3100,9 +3100,16 @@ core_initcall(cpufreq_core_init);
 
 /* rodin compat-hardening: 6.6 removed-name re-export moved here from
  * lib/compat-6.6-net.c (stage3 audit) so the built-in mediatek-cpufreq-hw
- * binds a native definition instead of a compat-layer object */
+ * binds a native definition instead of a compat-layer object.
+ * rodin b517 #117: 6.18 core 自身在 cpufreq_add_dev_interface() 里为带
+ * freq_table 的 policy 创建 scaling_available_frequencies；6.6 时该文件
+ * 只经驱动 .attr（=cpufreq_generic_attr）创建。若本数组仍含该 attr，
+ * drv_attr 循环会二次创建同名文件 → sysfs EEXIST → cpufreq_online 失败
+ * → 8 个 policy 创建即拆除，cpufreq 全 boot 死亡（b517 真机实证：
+ * "cannot create duplicate filename ... scaling_available_frequencies"×8
+ * + mbraink_policies_ready() 恒 0 判据超时 + power_throttling 永久 defer）。
+ * 故 6.18 下数组必须为空，文件交由 core 创建，与 6.6 最终 sysfs 面等价。 */
 struct freq_attr *cpufreq_generic_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
 EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
