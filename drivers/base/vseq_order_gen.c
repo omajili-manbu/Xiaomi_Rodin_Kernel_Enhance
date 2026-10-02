@@ -7,6 +7,13 @@
  *                    逐条序）；相对序 = =y 现存标准 initcall（层级, 链接址）秩，
  *                    保持前二十四轮真机已验证的两两相对序；与第一批的边界
  *                    （第二批整体后置）恢复 6.6 语义。tools/_b525_recon 生成。
+ *   第二十七轮（#142）：1143-1172 相机/热簇按 6.6 真机 dmesg 实测 probe 时刻
+ *                    重排（14 单元有实测；静默单元保持组内相对序；块外零改）。
+ *                    合成序把 mtk_imgsys_isp8 排在 mtk_imgsys_cmdq_isp8/hcp
+ *                    之前，6.6 实序相反（hcp 3.014s / cmdq 3.024s → imgsys
+ *                    3.636s）；imgsys probe 的 imgsys_cmdq_init 解引用 cmdq
+ *                    单元 drvdata，倒挂即 [NULL+8] 崩（#142 实证）。
+ *                    tools/_b527_fix。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -729,31 +736,31 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_jpeg", .seq = 1140 },
 	{ .name = "pgboost", .seq = 1141 },
 	{ .name = "pmsr_v3", .seq = 1142 },
-	{ .name = "soc_temp_lvts", .seq = 1143 },
-	{ .name = "pmic_temp", .seq = 1144 },
-	{ .name = "md_cooling_all", .seq = 1145 },
-	{ .name = "charger_cooling", .seq = 1146 },
-	{ .name = "backlight_cooling", .seq = 1147 },
-	{ .name = "thermal_trace", .seq = 1148 },
-	{ .name = "thermal_interface", .seq = 1149 },
-	{ .name = "board_temp", .seq = 1150 },
-	{ .name = "vtskin_temp", .seq = 1151 },
-	{ .name = "wifi_cooling", .seq = 1152 },
-	{ .name = "met", .seq = 1153 },
-	{ .name = "mtk_cam_isp8", .seq = 1154 },
-	{ .name = "camera_eeprom_v4l2", .seq = 1155 },
-	{ .name = "mtk_imgsys_isp8", .seq = 1156 },
-	{ .name = "mtk_imgsys_cmdq_isp8", .seq = 1157 },
-	{ .name = "mtk_hcp_isp8", .seq = 1158 },
-	{ .name = "mtk_ipesys_me", .seq = 1159 },
+	{ .name = "mtk_cam_isp8", .seq = 1143 },
+	{ .name = "mtk_hcp_isp8", .seq = 1144 },
+	{ .name = "mtk_img_frm_sync", .seq = 1145 },
+	{ .name = "camera_dpe_isp8", .seq = 1146 },
+	{ .name = "mtk_imgsys_cmdq_isp8", .seq = 1147 },
+	{ .name = "soc_temp_lvts", .seq = 1148 },
+	{ .name = "pmic_temp", .seq = 1149 },
+	{ .name = "md_cooling_all", .seq = 1150 },
+	{ .name = "charger_cooling", .seq = 1151 },
+	{ .name = "backlight_cooling", .seq = 1152 },
+	{ .name = "thermal_trace", .seq = 1153 },
+	{ .name = "thermal_interface", .seq = 1154 },
+	{ .name = "board_temp", .seq = 1155 },
+	{ .name = "vtskin_temp", .seq = 1156 },
+	{ .name = "wifi_cooling", .seq = 1157 },
+	{ .name = "met", .seq = 1158 },
+	{ .name = "camera_eeprom_v4l2", .seq = 1159 },
 	{ .name = "mtk_mae", .seq = 1160 },
-	{ .name = "mtk_mae_isp8", .seq = 1161 },
-	{ .name = "camera_dpe_isp8", .seq = 1162 },
-	{ .name = "pda_drv_mt6899", .seq = 1163 },
-	{ .name = "mtk_c2ps", .seq = 1164 },
-	{ .name = "c2ps_perf_ioctl", .seq = 1165 },
-	{ .name = "mtk_ccuv", .seq = 1166 },
-	{ .name = "mtk_img_frm_sync", .seq = 1167 },
+	{ .name = "mtk_imgsys_isp8", .seq = 1161 },
+	{ .name = "mtk_mae_isp8", .seq = 1162 },
+	{ .name = "mtk_ipesys_me", .seq = 1163 },
+	{ .name = "pda_drv_mt6899", .seq = 1164 },
+	{ .name = "mtk_c2ps", .seq = 1165 },
+	{ .name = "c2ps_perf_ioctl", .seq = 1166 },
+	{ .name = "mtk_ccuv", .seq = 1167 },
 	{ .name = "mtk_ips_helper", .seq = 1168 },
 	{ .name = "cam_log", .seq = 1169 },
 	{ .name = "mtk_mbraink", .seq = 1170 },
