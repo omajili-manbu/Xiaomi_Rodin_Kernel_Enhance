@@ -42,16 +42,21 @@ static unsigned int vseq_seq_of(const char *mod)
 struct vseq_idx {
 	const struct vseq_ent *e;
 	unsigned int seq;
+	unsigned int lvl;
 	size_t ord;
 };
 
-/* 稳定序：seq 优先，同 seq 按段内原序（heapsort 非稳定，用 ord 兜底） */
+/* 稳定序：单元装载序 seq 优先；同单元（同 seq）按 initcall 层级序（= 6.6
+ * 模块加载器 do_mod_initcalls 语义，#141 实证链接序会倒挂）；同层级再按
+ * 段内原序（heapsort 非稳定，用 ord 兜底）。 */
 static int vseq_cmp(const void *a, const void *b)
 {
 	const struct vseq_idx *x = a, *y = b;
 
 	if (x->seq != y->seq)
 		return x->seq < y->seq ? -1 : 1;
+	if (x->lvl != y->lvl)
+		return x->lvl < y->lvl ? -1 : 1;
 	if (x->ord != y->ord)
 		return x->ord < y->ord ? -1 : 1;
 	return 0;
@@ -77,6 +82,7 @@ void __init vseq_replay(void)
 	for (i = 0; i < n; i++) {
 		idx[i].e = &__vseq_entries_start[i];
 		idx[i].seq = vseq_seq_of(idx[i].e->mod);
+		idx[i].lvl = idx[i].e->lvl;
 		idx[i].ord = i;
 	}
 	sort(idx, n, sizeof(idx[0]), vseq_cmp, NULL);

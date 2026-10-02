@@ -25,6 +25,7 @@
 struct vseq_ent {
 	int (*fn)(void);
 	const char *mod;
+	unsigned int lvl;
 };
 
 struct vseq_mod_order {
@@ -41,30 +42,54 @@ void vseq_replay(void);
 static inline void vseq_replay(void) {}
 #endif
 
-#define __vseq_entry(__fn, __mod) \
+/*
+ * Level constants: restore the 6.6 module loader (do_mod_initcalls)
+ * semantics - all initcalls of one module run in kernel level order when
+ * the module is loaded. Values only need to be monotonic. #141 evidence:
+ * lpm_dbg_init.c carries subsys/late_sync/module in one unit; replaying
+ * them in section link order let late_sync run before module_init (which
+ * creates lpm_entry_rc) -> NULL deref in list_add. Link order != level
+ * order is the norm (13 devmod files).
+ */
+#define __VSEQ_LVL_EARLY		0
+#define __VSEQ_LVL_CORE		1
+#define __VSEQ_LVL_POSTCORE		2
+#define __VSEQ_LVL_ARCH		3
+#define __VSEQ_LVL_ARCH_SYNC		4
+#define __VSEQ_LVL_SUBSYS		5
+#define __VSEQ_LVL_SUBSYS_SYNC	6
+#define __VSEQ_LVL_FS			7
+#define __VSEQ_LVL_FS_SYNC		8
+#define __VSEQ_LVL_ROOTFS		9
+#define __VSEQ_LVL_DEVICE		10
+#define __VSEQ_LVL_DEVICE_SYNC	11
+#define __VSEQ_LVL_LATE		12
+#define __VSEQ_LVL_LATE_SYNC		13
+
+#define __vseq_entry(__fn, __mod, __lvl) \
 	static const struct vseq_ent __vseq_ent_##__fn __used \
-	__section(".vseq.entries") = { .fn = (__fn), .mod = (__mod) };
+	__section(".vseq.entries") = { .fn = (__fn), .mod = (__mod), .lvl = (__lvl) };
 
 /*
  * 全部别名同义展开：.ko 语境下 *_initcall 宏本就折叠为 module_init，
  * 1:1 别名只为保留代码形态可检索。
  */
-#define vseq_module_init(fn)		__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_core_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_early_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_postcore_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_arch_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_subsys_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_fs_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_rootfs_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_device_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_late_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_subsys_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_arch_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_fs_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_rootfs_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_device_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
-#define vseq_late_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME)
+#define vseq_module_init(fn)		__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_DEVICE)
+#define vseq_core_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_CORE)
+#define vseq_early_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_EARLY)
+#define vseq_postcore_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_POSTCORE)
+#define vseq_arch_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_ARCH)
+#define vseq_subsys_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_SUBSYS)
+#define vseq_fs_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_FS)
+#define vseq_rootfs_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_ROOTFS)
+#define vseq_device_initcall(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_DEVICE)
+#define vseq_late_initcall(fn)		__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_LATE)
+#define vseq_subsys_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_SUBSYS_SYNC)
+#define vseq_arch_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_ARCH_SYNC)
+#define vseq_fs_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_FS_SYNC)
+#define vseq_rootfs_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_ROOTFS)
+#define vseq_device_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_DEVICE_SYNC)
+#define vseq_late_initcall_sync(fn)	__vseq_entry(fn, KBUILD_MODNAME, __VSEQ_LVL_LATE_SYNC)
 
 /*
  * 驱动注册宏族：与 include/linux 同名宏逐一等价，仅 module_init →
