@@ -17,6 +17,8 @@
  *   T1 七件（2026-10-03）：miev/xm_power 用第一批实测位（seq 23/184）；
  *                    其余五件 6.6 均为后装波次 .ko、互零依赖，续编 1232+
  *                    组内字母序（tools/_t1）。
+ *   T2①（2026-10-04）：binder_prio 续编 1249（6.6 装载位 vendor_dlkm
+ *                    modules.load 行 248，零依赖；tools/_t2bp）。
  *   第三十八轮（#158）：sensorhub 1138→1211 挪至 scp(1210) 之后。第二批合成序
  *                    把 sensorhub 排在 scp 之前，ipi_comm_init 在 scp_ipidev
  *                    就绪前调 mtk_ipi_register 得 -1 一次性放弃，SCP 固件随后
@@ -863,6 +865,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mi_thermal_interface", .seq = 1246 },
 	{ .name = "powersave", .seq = 1247 },
 	{ .name = "unionpower", .seq = 1248 },
+	{ .name = "binder_prio", .seq = 1249 },
 };
 
 const unsigned int __vseq_mod_order_nr =

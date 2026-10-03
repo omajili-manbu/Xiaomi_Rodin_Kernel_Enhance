@@ -5275,6 +5275,9 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MI_UNION_POWER)
 	"unionpower",
 #endif
+#if IS_ENABLED(CONFIG_BINDER_PRIO)
+	"binder_prio",
+#endif
 	NULL,
 };
 

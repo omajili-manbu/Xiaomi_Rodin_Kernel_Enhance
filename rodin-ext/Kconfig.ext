@@ -605,3 +605,6 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mem_engine/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_log/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/thermal/xiaomi/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/mihw/Kconfig"
+
+# ---- rodin T2① binder_prio（门 = dash 官方 Kconfig 原文）----
+source "$(KCONFIG_EXT_PREFIX)drivers/staging/binder_prio/Kconfig"

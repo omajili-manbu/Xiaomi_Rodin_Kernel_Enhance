@@ -336,3 +336,10 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mem_engine/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_log/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/xiaomi/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mihw/
+
+# ---- rodin T2① binder_prio（blob 对齐重建）----
+# dash 官方源为基底、rodin 设备 blob（vendor_dlkm binder_prio.ko 15,656B）
+# 机器码逐指令对齐（5 处代差全收口，tools/_t2bp）；6.6 装载位 = vendor_dlkm
+# modules.load 行 248（kshrink_slabd 后、xiaomi_wifi_gpio 前，零模块依赖），
+# vseq 续编 1249。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/staging/binder_prio/
