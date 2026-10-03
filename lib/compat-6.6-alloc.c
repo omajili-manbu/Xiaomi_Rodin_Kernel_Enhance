@@ -123,6 +123,64 @@ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t flags)
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
+/* 6.6-Android GKI re-encoded slab flag bit values (bsp-rodin-v-oss-upstream
+ * include/linux/slab.h); 6.18 renumbered them into a compact enum
+ * (_SLAB_*), so a raw 6.6 bit value like 0x04042000
+ * (HWCACHE_ALIGN|PANIC|ACCOUNT) fails SLAB_FLAGS_PERMITTED here with -EINVAL
+ * (bit18 lands on CMPXCHG_DOUBLE, bit26 is out of range).  Translate
+ * bit-by-bit so 6.6-built modules keep their intended semantics regardless of
+ * the 6.18 config bit numbering (b543, #170 mi_schedule/metis -22 root cause).
+ *
+ * SLAB_MEM_SPREAD/SLAB_KASAN have no 6.18 counterpart and are dropped.
+ * SLAB_SKIP_KFENCE is dropped too: this tree's SLAB_FLAGS_PERMITTED
+ * (mm/slab.h SLAB_CORE_FLAGS) does not include SLAB_SKIP_KFENCE, so mapping
+ * it would still fail the create with -EINVAL; dropping only re-enables KFENCE
+ * sampling for that cache.
+ */
+static slab_flags_t translate_slab_flags_6_6(const char *name, slab_flags_t flags)
+{
+	static const struct { slab_flags_t from; slab_flags_t to; } map[] = {
+		/* 6.6-Android value		6.18 public macro (0 if config off) */
+		{ 0x00000100U,	SLAB_CONSISTENCY_CHECKS },
+		{ 0x00000400U,	SLAB_RED_ZONE },
+		{ 0x00000800U,	SLAB_POISON },
+		{ 0x00001000U,	SLAB_KMALLOC },
+		{ 0x00002000U,	SLAB_HWCACHE_ALIGN },
+		{ 0x00004000U,	SLAB_CACHE_DMA },
+		{ 0x00008000U,	SLAB_CACHE_DMA32 },
+		{ 0x00010000U,	SLAB_STORE_USER },
+		{ 0x00020000U,	SLAB_RECLAIM_ACCOUNT },
+		{ 0x00040000U,	SLAB_PANIC },
+		{ 0x00080000U,	SLAB_TYPESAFE_BY_RCU },
+		{ 0x00200000U,	SLAB_TRACE },
+		{ 0x00400000U,	SLAB_DEBUG_OBJECTS },
+		{ 0x00800000U,	SLAB_NOLEAKTRACE },
+		{ 0x01000000U,	SLAB_NO_MERGE },
+		{ 0x02000000U,	SLAB_FAILSLAB },
+		{ 0x04000000U,	SLAB_ACCOUNT },
+		{ 0x10000000U,	SLAB_NO_USER_FLAGS },
+	};
+	slab_flags_t out = 0;
+	slab_flags_t rest;
+	unsigned int i;
+
+	rest = flags;
+	for (i = 0; i < ARRAY_SIZE(map); i++) {
+		if (rest & map[i].from) {
+			out |= map[i].to;
+			rest &= ~map[i].from;
+		}
+	}
+	/* no 6.18 counterpart / rejected by SLAB_FLAGS_PERMITTED here: drop */
+	rest &= ~(0x00100000U /* MEM_SPREAD */ |
+		  0x08000000U /* KASAN */ |
+		  0x20000000U /* SKIP_KFENCE */);
+	if (rest)
+		pr_warn_ratelimited("compat-6.6-alloc: %s: dropped unknown slab flags %#x\n",
+				    name ?: "(null)", rest);
+	return out;
+}
+
 /* 6.6 kmem_cache_create() family over the 6.18 kmem_cache_args API */
 struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
 				     unsigned int align, slab_flags_t flags,
@@ -133,7 +191,8 @@ struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
 		.ctor	= ctor,
 	};
 
-	return __kmem_cache_create_args(name, size, &args, flags);
+	return __kmem_cache_create_args(name, size, &args,
+					translate_slab_flags_6_6(name, flags));
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
@@ -152,7 +211,8 @@ struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 		.usersize	= usersize,
 	};
 
-	return __kmem_cache_create_args(name, size, &args, flags);
+	return __kmem_cache_create_args(name, size, &args,
+					translate_slab_flags_6_6(name, flags));
 }
 EXPORT_SYMBOL(kmem_cache_create_usercopy);
 
