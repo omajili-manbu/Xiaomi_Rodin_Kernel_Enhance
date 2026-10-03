@@ -17,6 +17,13 @@
  *   T1 七件（2026-10-03）：miev/xm_power 用第一批实测位（seq 23/184）；
  *                    其余五件 6.6 均为后装波次 .ko、互零依赖，续编 1232+
  *                    组内字母序（tools/_t1）。
+ *   第三十八轮（#158）：sensorhub 1138→1211 挪至 scp(1210) 之后。第二批合成序
+ *                    把 sensorhub 排在 scp 之前，ipi_comm_init 在 scp_ipidev
+ *                    就绪前调 mtk_ipi_register 得 -1 一次性放弃，SCP 固件随后
+ *                    发 IPI 32(sensor notify) 命中 pin_buf=NULL 的 recv pin，
+ *                    mtk-mbox.c:562 BUG_ON 崩机。相对序对齐 stock
+ *                    vendor_dlkm modules.load：scp.ko(行123) < sensorhub.ko(行145)。
+ *                    tools/_b538。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -734,7 +741,6 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_gpueb", .seq = 1135 },
 	{ .name = "mtk_ghpm", .seq = 1136 },
 	{ .name = "mtk_ghpm_swwa", .seq = 1137 },
-	{ .name = "sensorhub", .seq = 1138 },
 	{ .name = "mtk_cg_peak_power_throttling", .seq = 1139 },
 	{ .name = "mtk_jpeg", .seq = 1140 },
 	{ .name = "pgboost", .seq = 1141 },
@@ -807,32 +813,33 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "cpudvfs", .seq = 1208 },
 	{ .name = "hbt", .seq = 1209 },
 	{ .name = "scp", .seq = 1210 },
-	{ .name = "mtk_swpm", .seq = 1211 },
-	{ .name = "mtk_lpm", .seq = 1212 },
-	{ .name = "frs", .seq = 1213 },
-	{ .name = "powerhal_cpu_ctrl", .seq = 1214 },
-	{ .name = "touch_boost", .seq = 1215 },
-	{ .name = "mtk_et", .seq = 1216 },
-	{ .name = "mtk_composite", .seq = 1217 },
-	{ .name = "et7480", .seq = 1218 },
-	{ .name = "mtk_qos", .seq = 1219 },
-	{ .name = "mtk_ccd_remoteproc", .seq = 1220 },
-	{ .name = "imgsensor_glue_isp8", .seq = 1221 },
-	{ .name = "imgsensor_isp8", .seq = 1222 },
-	{ .name = "camera_af_media", .seq = 1223 },
-	{ .name = "mtk_irtx_pwm", .seq = 1224 },
-	{ .name = "cpufreq_sugov_ext", .seq = 1225 },
-	{ .name = "scheduler", .seq = 1226 },
-	{ .name = "clk_disable_unused", .seq = 1227 },
-	{ .name = "mtk_dvfsrc_start", .seq = 1228 },
-	{ .name = "mtk_pm_domain_disable_unused", .seq = 1229 },
-	{ .name = "mtk_swpm_cpu_dbg_v6899", .seq = 1230 },
-	{ .name = "mtk_perf_common", .seq = 1231 },
-	{ .name = "mi_mem_engine", .seq = 1232 },
-	{ .name = "mi_log", .seq = 1233 },
-	{ .name = "mi_thermal_interface", .seq = 1234 },
-	{ .name = "powersave", .seq = 1235 },
-	{ .name = "unionpower", .seq = 1236 },
+	{ .name = "sensorhub", .seq = 1211 },
+	{ .name = "mtk_swpm", .seq = 1212 },
+	{ .name = "mtk_lpm", .seq = 1213 },
+	{ .name = "frs", .seq = 1214 },
+	{ .name = "powerhal_cpu_ctrl", .seq = 1215 },
+	{ .name = "touch_boost", .seq = 1216 },
+	{ .name = "mtk_et", .seq = 1217 },
+	{ .name = "mtk_composite", .seq = 1218 },
+	{ .name = "et7480", .seq = 1219 },
+	{ .name = "mtk_qos", .seq = 1220 },
+	{ .name = "mtk_ccd_remoteproc", .seq = 1221 },
+	{ .name = "imgsensor_glue_isp8", .seq = 1222 },
+	{ .name = "imgsensor_isp8", .seq = 1223 },
+	{ .name = "camera_af_media", .seq = 1224 },
+	{ .name = "mtk_irtx_pwm", .seq = 1225 },
+	{ .name = "cpufreq_sugov_ext", .seq = 1226 },
+	{ .name = "scheduler", .seq = 1227 },
+	{ .name = "clk_disable_unused", .seq = 1228 },
+	{ .name = "mtk_dvfsrc_start", .seq = 1229 },
+	{ .name = "mtk_pm_domain_disable_unused", .seq = 1230 },
+	{ .name = "mtk_swpm_cpu_dbg_v6899", .seq = 1231 },
+	{ .name = "mtk_perf_common", .seq = 1232 },
+	{ .name = "mi_mem_engine", .seq = 1233 },
+	{ .name = "mi_log", .seq = 1234 },
+	{ .name = "mi_thermal_interface", .seq = 1235 },
+	{ .name = "powersave", .seq = 1236 },
+	{ .name = "unionpower", .seq = 1237 },
 };
 
 const unsigned int __vseq_mod_order_nr =
