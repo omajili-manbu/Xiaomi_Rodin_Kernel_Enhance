@@ -608,3 +608,6 @@ source "$(KCONFIG_EXT_PREFIX)drivers/mihw/Kconfig"
 
 # ---- rodin T2① binder_prio（门 = dash 官方 Kconfig 原文）----
 source "$(KCONFIG_EXT_PREFIX)drivers/staging/binder_prio/Kconfig"
+
+# ---- rodin T2② hwid（门 = rodin 侧补写，dash 两树无源）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/hwid/Kconfig"

@@ -343,3 +343,9 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mihw/
 # modules.load 行 248（kshrink_slabd 后、xiaomi_wifi_gpio 前，零模块依赖），
 # vseq 续编 1249。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/staging/binder_prio/
+
+# ---- rodin T2② hwid（blob 合并代九处对齐重建）----
+# onyx 骨架（参数/sysfs/init/exit）+ sm8550 官方掩码 getter + project_name(charp)
+# 直读 product_name_get；blob 一手面与实机打印逐位验证（tools/_b541_hwid）。
+# 6.6 装载位 = vendorboot modules.load 行 136，vseq 表 seq 135（r24 波次一自带，零表改动）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/hwid/

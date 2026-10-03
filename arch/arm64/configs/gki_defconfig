@@ -1524,3 +1524,6 @@ CONFIG_MI_UNION_POWER=y
 
 # ---- rodin T2① binder_prio（=y 内建，blob 对齐重建）----
 CONFIG_BINDER_PRIO=y
+
+# ---- rodin T2② hwid（=y 内建，blob 合并代对齐重建）----
+CONFIG_HWID=y
