@@ -212,8 +212,6 @@ struct kernfs_node {
 
 	const void		*ns;	/* namespace tag */
 	unsigned int		hash;	/* ns + name hash */
-	unsigned short		flags;
-	umode_t			mode;
 
 	union {
 		struct kernfs_elem_dir		dir;
@@ -222,12 +220,25 @@ struct kernfs_node {
 	};
 
 	/*
+	 * Rodin 6.6 layout freeze: closed-source vendor modules compiled
+	 * against 6.6 read kernfs_node->priv at offset 0x60 (mi_thermal_
+	 * interface retrieves its private container via kernfs_find_and_
+	 * get_ns()->kn->priv).  6.12+ swapped priv/id and moved flags/mode
+	 * up next to hash; restore the 6.6 order (priv@0x60, id@0x68,
+	 * flags@0x70, mode@0x72, iattr@0x78, rcu@0x80).  All in-tree users
+	 * go through the C compiler, so the reordering is otherwise neutral.
+	 */
+	void			*priv;
+
+	/*
 	 * 64bit unique ID.  On 64bit ino setups, id is the ino.  On 32bit,
 	 * the low 32bits are ino and upper generation.
 	 */
 	u64			id;
 
-	void			*priv;
+	unsigned short		flags;
+	umode_t			mode;
+
 	struct kernfs_iattrs	*iattr;
 
 	struct rcu_head		rcu;

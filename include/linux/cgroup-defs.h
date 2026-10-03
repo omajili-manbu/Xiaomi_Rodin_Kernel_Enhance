@@ -280,8 +280,16 @@ struct css_set {
 	 */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
 
-	/* reference count */
-	refcount_t refcount;
+	/*
+	 * Rodin 6.6 layout freeze: closed-source vendor modules compiled
+	 * against 6.6 read css_set->dfl_cgrp at offset 0x48 (binder_gki /
+	 * millet_binder / millet_sig top-app checks walk task->cgroups->
+	 * dfl_cgrp->flags).  6.18's subsys[] grew 7 -> 9 entries, pushing
+	 * dfl_cgrp to 0x58 and leaving refcount at 0x48; swap the two so
+	 * dfl_cgrp sits at 0x48 again.  dom_cset and everything from
+	 * nr_tasks on keep their 6.18 offsets.
+	 */
+	struct cgroup *dfl_cgrp;
 
 	/*
 	 * For a domain cgroup, the following points to self.  If threaded,
@@ -291,8 +299,8 @@ struct css_set {
 	 */
 	struct css_set *dom_cset;
 
-	/* the default cgroup associated with this css_set */
-	struct cgroup *dfl_cgrp;
+	/* reference count */
+	refcount_t refcount;
 
 	/* internal task count, protected by css_set_lock */
 	int nr_tasks;
@@ -516,6 +524,17 @@ struct cgroup {
 	 * of the type in the subtree proper don't have any tasks.
 	 */
 	int nr_populated_csets;
+
+	/*
+	 * Rodin 6.6 layout freeze: closed-source vendor modules compiled
+	 * against 6.6 dereference cgroup->kn at offset 0x118 (mpbe top-app
+	 * detection walks task->cgroups->subsys[0]->cgroup->kn->name).
+	 * 6.18's level/max_depth/kill_seq block pushed kn to 0x128; keep it
+	 * pinned at 0x118 so blob offsets stay valid.  All in-tree accessors
+	 * go through the C compiler, so the reordering is otherwise neutral.
+	 */
+	struct kernfs_node *kn;		/* cgroup kernfs entry */
+
 	int nr_populated_domain_children;
 	int nr_populated_threaded_children;
 
@@ -524,7 +543,6 @@ struct cgroup {
 	/* sequence number for cgroup.kill, serialized by css_set_lock. */
 	unsigned int kill_seq;
 
-	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct cgroup_file procs_file;	/* handle for "cgroup.procs" */
 	struct cgroup_file events_file;	/* handle for "cgroup.events" */
 
@@ -765,7 +783,14 @@ struct cftype {
 
 	struct lock_class_key	lockdep_key;
 
-	ANDROID_KABI_RESERVE(1);
+	/*
+	 * Rodin: ANDROID_KABI_RESERVE(1) removed to keep sizeof == 216, the
+	 * 6.6 size.  Closed-source perf_helper.ko registers cftype arrays
+	 * packed at the 6.6 stride and the core iterates them with kernel
+	 * sizeof — the extra 8 bytes turned entry 1+ into phantom entries.
+	 * (lock_class_key is 0 bytes with CONFIG_LOCKDEP off, so dropping
+	 * the kabi slot restores 216 exactly.)
+	 */
 };
 
 /*
@@ -779,7 +804,6 @@ struct cgroup_subsys {
 	void (*css_released)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
 	void (*css_reset)(struct cgroup_subsys_state *css);
-	void (*css_killed)(struct cgroup_subsys_state *css);
 	void (*css_rstat_flush)(struct cgroup_subsys_state *css, int cpu);
 	int (*css_extra_stat_show)(struct seq_file *seq,
 				   struct cgroup_subsys_state *css);
@@ -789,6 +813,16 @@ struct cgroup_subsys {
 	int (*can_attach)(struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup_taskset *tset);
 	void (*attach)(struct cgroup_taskset *tset);
+	/*
+	 * Rodin 6.6 layout freeze: upstream removed ->post_attach, but
+	 * closed-source millet_oem_cgroup.ko pokes ->can_attach and
+	 * ->cancel_attach of freezer_cgrp_subsys at the 6.6 offsets
+	 * (0x48/0x50).  6.18 inserted ->css_killed at 0x30 (shifted every
+	 * later op by 8) — move css_killed to the tail and keep this
+	 * placeholder slot so the whole 6.6 prefix (0x30..0xf0) stays put.
+	 * Nothing in-tree reads or writes it.
+	 */
+	void (*__rodin_66_slot_post_attach)(void);
 	int (*can_fork)(struct task_struct *task,
 			struct css_set *cset);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
@@ -861,6 +895,10 @@ struct cgroup_subsys {
 
 	spinlock_t rstat_ss_lock;
 	struct llist_head __percpu *lhead; /* lockless update list head */
+
+	/* Rodin: moved to the tail to preserve the 6.6 cgroup_subsys prefix
+	 * layout (was 0x30, between css_reset and css_rstat_flush). */
+	void (*css_killed)(struct cgroup_subsys_state *css);
 
 	ANDROID_KABI_RESERVE(1);
 };
