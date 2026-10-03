@@ -32,6 +32,7 @@
 #undef __vmalloc
 #undef vmalloc
 #undef vmalloc_user
+#undef vzalloc
 #undef __alloc_percpu
 #undef __alloc_percpu_gfp
 #undef kvmalloc_node
@@ -66,6 +67,9 @@ void __percpu *__alloc_percpu(size_t size, size_t align);
 void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp);
 void *kvmalloc_node(size_t size, gfp_t flags, int node);
 void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags, int node, size_t size);
+void *__kmalloc(size_t size, gfp_t flags);
+void *kmalloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size);
+void *vzalloc(unsigned long size);
 void __SetPageMovable(struct page *page, const struct movable_operations *ops);
 void __ClearPageMovable(struct page *page);
 void set_page_private(struct page *page, unsigned long private);
@@ -88,6 +92,18 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t flags, int node,
 	return __kmalloc_node_track_caller_noprof(PASS_BUCKET_PARAMS(size, NULL), flags, node, caller);
 }
 EXPORT_SYMBOL(__kmalloc_node_track_caller);
+
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return __kmalloc_noprof(size, flags);
+}
+EXPORT_SYMBOL(__kmalloc);
+
+void *kmalloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+{
+	return __kmalloc_cache_noprof(s, gfpflags, size);
+}
+EXPORT_SYMBOL(kmalloc_trace);
 
 void *kmalloc_large(size_t size, gfp_t flags)
 {
@@ -228,6 +244,12 @@ void *vmalloc_user(unsigned long size)
 	return __vmalloc_noprof(size, GFP_KERNEL | __GFP_ZERO);
 }
 EXPORT_SYMBOL(vmalloc_user);
+
+void *vzalloc(unsigned long size)
+{
+	return vzalloc_noprof(size);
+}
+EXPORT_SYMBOL(vzalloc);
 
 /* ---- percpu ---- */
 
