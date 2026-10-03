@@ -33,6 +33,20 @@
  *                    READY 重试永不触发→pin_buf=NULL 同 IPI 32 型 BUG_ON）。
  *                    1190-1209 段顺势 -11 前移；sensorhub→1222、尾段→+11。
  *                    tools/_b539。
+ *   第四十轮（#163）：scp 1210→1071 前移至音频簇（1072-1119）之前，修 A-28
+ *                    声卡卡片实例化倒挂。b539 侦察：vseq 第二批序忠实复刻
+ *                    stock 纸面序（声卡件 83-89 行 < scp.ko 123 行），但 6.6
+ *                    实际存活靠 deferred-probe 有效序——scp probe 2.578s ≪
+ *                    音频链 2.93-3.04s（机器驱动 mt6899-mt6368 2.965s 才首次
+ *                    probe，零 defer 重试）。=y 重放下卡片实例化在
+ *                    [299]-[311] 段 one-shot 跑完：snd_soc_component_probe
+ *                    (snd-scp-ultra) 撞 scp_get_reserve_mem_phys(ULTRA_MEM_ID)
+ *                    ==0 返 -1 不再 defer，card0 全程零注册（#158 实证）。
+ *                    scp 二批依赖为零（mbox/clk/regulator/emi-mpu 全第一批），
+ *                    前移无新倒挂；ccci_fsm_scp(1175) ready 重试自愈、
+ *                    audio_ipi(1178) 运行期惰性调用、aov/aod 本机无 DT 节点。
+ *                    判据 = snd_soc_register_card pss 0 + card0 注册。
+ *                    tools/_b540。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -810,7 +824,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "task_turbo", .seq = 1196 },
 	{ .name = "cpudvfs", .seq = 1197 },
 	{ .name = "hbt", .seq = 1198 },
-	{ .name = "scp", .seq = 1210 },
+	{ .name = "scp", .seq = 1071 },
 	{ .name = "connscp", .seq = 1211 },
 	{ .name = "connfem", .seq = 1212 },
 	{ .name = "conninfra", .seq = 1213 },
