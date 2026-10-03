@@ -236,6 +236,16 @@ bool mmc_host_can_gpio_cd(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_host_can_gpio_cd);
 
+/*
+ * 6.6 旧名导出：永久 blob mtk-mmc.ko（6.6 头编译）仍导入 mmc_can_gpio_cd，
+ * 上游 6.9 起改名 mmc_host_can_gpio_cd 后旧名消失致其解析失败。
+ */
+bool mmc_can_gpio_cd(struct mmc_host *host)
+{
+	return mmc_host_can_gpio_cd(host);
+}
+EXPORT_SYMBOL(mmc_can_gpio_cd);
+
 /**
  * mmc_gpiod_request_ro - request a gpio descriptor for write protection
  * @host: mmc host
