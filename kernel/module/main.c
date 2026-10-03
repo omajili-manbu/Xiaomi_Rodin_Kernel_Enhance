@@ -2246,6 +2246,7 @@ static_assert(offsetof(struct module_memory, size) == 8,
  * "the 6.6 fixup must not write the file image" is a disassembly of this symbol.
  */
 static noinline void module_fixup_6_6_bi_io_vec(struct load_info *info);
+static noinline void module_fixup_6_6_rq_offsets(struct load_info *info);
 static noinline void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
 {
 	Elf_Shdr *shdr = &info->sechdrs[mod_idx];
@@ -2286,6 +2287,7 @@ static noinline void module_fixup_6_6(struct load_info *info, unsigned int mod_i
 	 * before writing; anything else is left untouched.
 	 */
 	module_fixup_6_6_bi_io_vec(info);
+	module_fixup_6_6_rq_offsets(info);
 }
 
 /*
@@ -2363,6 +2365,140 @@ static noinline void module_fixup_6_6_bi_io_vec(struct load_info *info)
 		pr_info("rodin: %s: %s: bi_io_vec offset fixed for 6.18\n",
 			info->name, strtab + sym->st_name);
 	}
+}
+
+/*
+ * b543 (#170): struct rq was reordered in 6.18 (size 3840 -> 4702); the
+ * 6.6-built mi_schedule/metis scheduler probes read rq members at 6.6
+ * offsets, so rq->curr@0xaa8 lands inside 6.18's struct dl_rq -- always zero
+ * on an idle dl_rq -- and every CPU faults at [curr+0x44] in mi_sched_tick
+ * at 6.315s.  Rewrite the loads in the module image copy; move_module() then
+ * copies the patched bytes out.  Field moves (pahole on both vmlinuxes):
+ * curr 0xaa8->0xe70, cpu 0xbb8->0xf70, clock 0xad8->0xea8,
+ * clock_update_flags 0xad0->0xea0, cpu_capacity_orig 0xb60->0xf18 (the field
+ * itself was deleted in 6.18; rq->cpu_capacity is fed by the same
+ * update_cpu_capacity() site and reads the effective capacity -- the
+ * fit-checks become conservative instead of nonsense, zero-pressure value is
+ * identical).  Every base register was verified to originate from a hook
+ * parameter or the runqueues per-cpu base (tools/_b543_rqbase_verify.py +
+ * tools/_b543_final_table.py, recon 2026-10-04): trace-buffer and
+ * metis-internal bases are deliberately NOT touched, and dead symbols
+ * (eh_frame-only references, zero importers) are excluded.  Symbol name,
+ * offset and exact 6.6 opcode are asserted before writing; any mismatch
+ * skips that symbol and leaves the module untouched.
+ */
+static noinline void module_fixup_6_6_rq_offsets(struct load_info *info)
+{
+	static const struct { const char *name; unsigned long off; u32 old, new; } recode[] = {
+	{ "mi_sched_tick", 0x38, 0xf9455434, 0xf9473834 },	/* ldr x20, [x1,#0xaa8] -> [x1,#0xe70] rq->curr */
+	{ "metis_coldstart_sched_balance_rt", 0x78, 0xb94bb829, 0xb94f7029 },	/* ldr w9 [x1,#0xbb8] -> [x1,#0xf70] rq->cpu */
+	{ "metis_lb_pull_tasks", 0x208, 0xb94bbb21, 0xb94f7321 },	/* ldr w1 [x25,#0xbb8] -> [x25,#0xf70] rq->cpu */
+	{ "metis_tp_choose_cpu_fastpath", 0x2fc, 0xf945b108, 0xf9478d08 },	/* ldr x8 [x8,#0xb60] -> [x8,#0xf18] rq->cpu_capacity_orig~cpu_capacity(effective-capacity stand-in) */
+	{ "metis_tp_choose_cpu_fastpath", 0x380, 0xf945b104, 0xf9478d04 },	/* ldr x4 [x8,#0xb60] -> [x8,#0xf18] rq->cpu_capacity_orig~cpu_capacity(effective-capacity stand-in) */
+	{ "metis_tp_fixup_cumulative_runnable_avg_hook", 0x2c, 0xb94bb813, 0xb94f7013 },	/* ldr w19 [x0,#0xbb8] -> [x0,#0xf70] rq->cpu */
+	{ "metis_tp_fixup_cumulative_runnable_avg_hook", 0x190, 0xb94bbac1, 0xb94f72c1 },	/* ldr w1 [x22,#0xbb8] -> [x22,#0xf70] rq->cpu */
+	{ "metis_update_top_task_info", 0x2c, 0xf9455428, 0xf9473828 },	/* ldr x8 [x1,#0xaa8] -> [x1,#0xe70] rq->curr */
+	{ "mi_after_enqueue_task_hook", 0x204, 0xb94bba69, 0xb94f7269 },	/* ldr w9 [x19,#0xbb8] -> [x19,#0xf70] rq->cpu */
+	{ "mi_check_preempt_tick", 0x7c, 0xf9455660, 0xf9473a60 },	/* ldr x0 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_check_preempt_tick", 0xb8, 0xf9456e69, 0xf9475669 },	/* ldr x9 [x19,#0xad8] -> [x19,#0xea8] rq->clock */
+	{ "mi_check_preempt_tick_hook", 0x24, 0xb94bb900, 0xb94f7100 },	/* ldr w0 [x8,#0xbb8] -> [x8,#0xf70] rq->cpu */
+	{ "mi_check_preempt_wakeup_hook", 0x30, 0xb94bbac8, 0xb94f72c8 },	/* ldr w8 [x22,#0xbb8] -> [x22,#0xf70] rq->cpu */
+	{ "mi_check_preempt_wakeup_hook", 0x5c, 0xf94556d7, 0xf9473ad7 },	/* ldr x23 [x22,#0xaa8] -> [x22,#0xe70] rq->curr */
+	{ "mi_lb_enable", 0x40, 0xb94b614a, 0xb94f194a },	/* ldr w10 [x10,#0xb60] -> [x10,#0xf18] rq->cpu_capacity_orig~cpu_capacity(effective-capacity stand-in) */
+	{ "mi_lb_enable", 0x44, 0xb94b616b, 0xb94f196b },	/* ldr w11 [x11,#0xb60] -> [x11,#0xf18] rq->cpu_capacity_orig~cpu_capacity(effective-capacity stand-in) */
+	{ "mi_pick_next_task_fair_hook", 0x1c, 0xb94bb820, 0xb94f7020 },	/* ldr w0 [x1,#0xbb8] -> [x1,#0xf70] rq->cpu */
+	{ "mi_pick_next_task_fair_hook", 0x40, 0xb94bbb08, 0xb94f7308 },	/* ldr w8 [x24,#0xbb8] -> [x24,#0xf70] rq->cpu */
+	{ "mi_pick_next_task_fair_hook", 0xa4, 0xb94bbb00, 0xb94f7300 },	/* ldr w0 [x24,#0xbb8] -> [x24,#0xf70] rq->cpu */
+	{ "mi_rb_dequeue_entity_hook", 0x34, 0xb94bb900, 0xb94f7100 },	/* ldr w0 [x8,#0xbb8] -> [x8,#0xf70] rq->cpu */
+	{ "mi_rb_dequeue_entity_hook", 0x44, 0xb94bb914, 0xb94f7114 },	/* ldr w20 [x8,#0xbb8] -> [x8,#0xf70] rq->cpu */
+	{ "mi_rb_enqueue_entity_hook", 0x38, 0xb94bb900, 0xb94f7100 },	/* ldr w0 [x8,#0xbb8] -> [x8,#0xf70] rq->cpu */
+	{ "mi_rb_enqueue_entity_hook", 0x4c, 0xb94bb916, 0xb94f7116 },	/* ldr w22 [x8,#0xbb8] -> [x8,#0xf70] rq->cpu */
+	{ "mi_resched_vip_task", 0x3c, 0xf9455688, 0xf9473a88 },	/* ldr x8 [x20,#0xaa8] -> [x20,#0xe70] rq->curr */
+	{ "mi_resched_vip_task", 0x74, 0xb94ad288, 0xb94ea288 },	/* ldr w8 [x20,#0xad0] -> [x20,#0xea0] rq->clock_update_flags */
+	{ "mi_schedule_hook", 0x40, 0xb94bbab8, 0xb94f72b8 },	/* ldr w24 [x21,#0xbb8] -> [x21,#0xf70] rq->cpu */
+	{ "mi_schedule_hook", 0x180, 0xb94bbaa1, 0xb94f72a1 },	/* ldr w1 [x21,#0xbb8] -> [x21,#0xf70] rq->cpu */
+	{ "mi_scheduler_tick_hook", 0x2c, 0xf9455400, 0xf9473800 },	/* ldr x0 [x0,#0xaa8] -> [x0,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0x38, 0xb94bba68, 0xb94f7268 },	/* ldr w8 [x19,#0xbb8] -> [x19,#0xf70] rq->cpu */
+	{ "mi_scheduler_tick_hook", 0xac, 0xf9455668, 0xf9473a68 },	/* ldr x8 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0xe0, 0xf9455668, 0xf9473a68 },	/* ldr x8 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0xf4, 0xf9455660, 0xf9473a60 },	/* ldr x0 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0x124, 0xf9455668, 0xf9473a68 },	/* ldr x8 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0x128, 0xb94bba61, 0xb94f7261 },	/* ldr w1 [x19,#0xbb8] -> [x19,#0xf70] rq->cpu */
+	{ "mi_scheduler_tick_hook", 0x154, 0xf9455668, 0xf9473a68 },	/* ldr x8 [x19,#0xaa8] -> [x19,#0xe70] rq->curr */
+	{ "mi_scheduler_tick_hook", 0x158, 0xb94bba61, 0xb94f7261 },	/* ldr w1 [x19,#0xbb8] -> [x19,#0xf70] rq->cpu */
+	{ "prio_sched_check", 0x14, 0xb94bb813, 0xb94f7013 },	/* ldr w19 [x0,#0xbb8] -> [x0,#0xf70] rq->cpu */
+	{ "pull_tasks_fast_path", 0x124, 0xb94bbac1, 0xb94f72c1 },	/* ldr w1 [x22,#0xbb8] -> [x22,#0xf70] rq->cpu */
+	{ "rebalance_vip_tasks", 0x5c, 0xb94bb833, 0xb94f7033 },	/* ldr w19 [x1,#0xbb8] -> [x1,#0xf70] rq->cpu */
+	{ "rq_deadloop_detect", 0x20, 0xb94bb808, 0xb94f7008 },	/* ldr w8 [x0,#0xbb8] -> [x0,#0xf70] rq->cpu */
+	{ "rq_deadloop_detect", 0x54, 0xb94bba68, 0xb94f7268 },	/* ldr w8 [x19,#0xbb8] -> [x19,#0xf70] rq->cpu */
+	};
+	Elf_Shdr *symsh = NULL;
+	Elf_Sym *sym, *symend;
+	const char *strtab;
+	unsigned int i, j, done;
+	bool patched[ARRAY_SIZE(recode)] = { false };
+
+	for (i = 1; i < info->hdr->e_shnum; i++)
+		if (info->sechdrs[i].sh_type == SHT_SYMTAB)
+			symsh = &info->sechdrs[i];
+	if (!symsh)
+		return;
+
+	strtab = (const char *)info->hdr +
+		 info->sechdrs[symsh->sh_link].sh_offset;
+	sym = (Elf_Sym *)((char *)info->hdr + symsh->sh_offset);
+	symend = sym + symsh->sh_size / sizeof(*sym);
+
+	for (; sym < symend; sym++) {
+		Elf_Shdr *shdr;
+		char *base;
+		size_t n;
+
+		if (sym->st_shndx == SHN_UNDEF ||
+		    sym->st_shndx >= info->hdr->e_shnum)
+			continue;
+		n = 0;
+		for (j = 0; j < ARRAY_SIZE(recode); j++)
+			if (!strcmp(strtab + sym->st_name, recode[j].name))
+				n++;
+		if (!n)
+			continue;
+
+		shdr = &info->sechdrs[sym->st_shndx];
+		if (!(shdr->sh_flags & SHF_EXECINSTR))
+			continue;
+		base = (char *)info->hdr + shdr->sh_offset + sym->st_value;
+
+		for (j = 0; j < ARRAY_SIZE(recode); j++) {
+			if (strcmp(strtab + sym->st_name, recode[j].name))
+				continue;
+			if (shdr->sh_offset + sym->st_value + recode[j].off + 4 >
+			    info->len)
+				break;
+			if (*(u32 *)(base + recode[j].off) != recode[j].old)
+				break;
+		}
+		if (j != ARRAY_SIZE(recode)) {
+			pr_warn("rodin: %s: %s: unexpected rq opcodes, fixup skipped\n",
+				info->name, strtab + sym->st_name);
+			continue;
+		}
+		for (j = 0; j < ARRAY_SIZE(recode); j++) {
+			if (strcmp(strtab + sym->st_name, recode[j].name))
+				continue;
+			*(u32 *)(base + recode[j].off) = recode[j].new;
+			patched[j] = true;
+		}
+		pr_info("rodin: %s: %s: %zu rq offset(s) fixed for 6.18\n",
+			info->name, strtab + sym->st_name, n);
+	}
+	done = 0;
+	for (j = 0; j < ARRAY_SIZE(recode); j++)
+		done += patched[j];
+	/* 0 applied = not a module we recode (596 of them); partial = broken image */
+	if (done && done != ARRAY_SIZE(recode))
+		pr_warn("rodin: %s: rq fixup applied %u/%zu records\n",
+			info->name, done, (size_t)ARRAY_SIZE(recode));
 }
 #endif
 
