@@ -2245,6 +2245,7 @@ static_assert(offsetof(struct module_memory, size) == 8,
  * the r10 lesson is that ".o green" proves nothing about vmlinux, and the gate for
  * "the 6.6 fixup must not write the file image" is a disassembly of this symbol.
  */
+static noinline void module_fixup_6_6_bi_io_vec(struct load_info *info);
 static noinline void module_fixup_6_6(struct load_info *info, unsigned int mod_idx)
 {
 	Elf_Shdr *shdr = &info->sechdrs[mod_idx];
@@ -2270,6 +2271,98 @@ static noinline void module_fixup_6_6(struct load_info *info, unsigned int mod_i
 	 */
 	shdr->sh_size = sizeof(struct module);
 	info->mod_6_6 = true;
+
+	/*
+	 * rodin b535: the 6.6-built mpbe/blocktag page trackers find
+	 * block_bio_queue by name and walk the bio with 6.6 offsets.  Every
+	 * offset they read is still valid on 6.18 except bi_io_vec: 6.18
+	 * parked two ANDROID_KABI reserves in front of it (0x78 -> 0x88), so
+	 * the probes read __kabi_reserved2 -- zero on an ordinary bio -- and
+	 * dereference it mid-bvec-walk (init died at 5.1s in
+	 * mpbe_trace_block_bio_queue, #155).  Rewrite the two
+	 * `ldr X?, [X19, #0x78]' opcodes inside the probes, here in the image
+	 * copy; move_module() then copies the patched bytes out to the
+	 * module's text.  Symbol name and exact 6.6 opcodes are asserted
+	 * before writing; anything else is left untouched.
+	 */
+	module_fixup_6_6_bi_io_vec(info);
+}
+
+/*
+ * struct bio::bi_io_vec moved 0x78 -> 0x88 between the vendor's 6.6 and this
+ * tree (pahole on both vmlinuxes; everything else these probes touch -- bi_opf
+ * 0x10, bi_bdev 0x8, bd_disk 0x10, gendisk::major 0, bi_iter 0x20, bi_next 0,
+ * task_struct::pid 0x618 -- is unchanged).  The two loads sit at +0xc4/+0xec
+ * in both copies of the probe:
+ *   0xc4: f9403e62  ldr x2, [x19, #0x78]   -> f9404662  ldr x2, [x19, #0x88]
+ *   0xec: f9403e61  ldr x1, [x19, #0x78]   -> f9404661  ldr x1, [x19, #0x88]
+ * noinline: keep this recipe separately disassemblable in the linked image
+ * (r10 gate style).
+ */
+static noinline void module_fixup_6_6_bi_io_vec(struct load_info *info)
+{
+	static const char *const names[] = {
+		"mpbe_trace_block_bio_queue",
+		"btag_trace_block_bio_queue",
+	};
+	static const struct { unsigned long off; u32 old, new; } recode[] = {
+		{ 0xc4, 0xf9403e62, 0xf9404662 },
+		{ 0xec, 0xf9403e61, 0xf9404661 },
+	};
+	Elf_Shdr *symsh = NULL;
+	Elf_Sym *sym, *symend;
+	const char *strtab;
+	unsigned int i;
+
+	for (i = 1; i < info->hdr->e_shnum; i++)
+		if (info->sechdrs[i].sh_type == SHT_SYMTAB)
+			symsh = &info->sechdrs[i];
+	if (!symsh)
+		return;
+
+	strtab = (const char *)info->hdr +
+		 info->sechdrs[symsh->sh_link].sh_offset;
+	sym = (Elf_Sym *)((char *)info->hdr + symsh->sh_offset);
+	symend = sym + symsh->sh_size / sizeof(*sym);
+
+	for (; sym < symend; sym++) {
+		Elf_Shdr *shdr;
+		char *base;
+		size_t j;
+
+		if (sym->st_shndx == SHN_UNDEF ||
+		    sym->st_shndx >= info->hdr->e_shnum)
+			continue;
+		for (j = 0; j < ARRAY_SIZE(names); j++)
+			if (!strcmp(strtab + sym->st_name, names[j]))
+				break;
+		if (j == ARRAY_SIZE(names))
+			continue;
+
+		shdr = &info->sechdrs[sym->st_shndx];
+		if (!(shdr->sh_flags & SHF_EXECINSTR))
+			continue;
+		if (shdr->sh_offset + sym->st_value + recode[1].off + 4 >
+		    info->len) {
+			pr_warn("rodin: %s: %s: text out of range, bio fixup skipped\n",
+				info->name, strtab + sym->st_name);
+			continue;
+		}
+		base = (char *)info->hdr + shdr->sh_offset + sym->st_value;
+
+		for (j = 0; j < ARRAY_SIZE(recode); j++)
+			if (*(u32 *)(base + recode[j].off) != recode[j].old)
+				break;
+		if (j != ARRAY_SIZE(recode)) {
+			pr_warn("rodin: %s: %s: unexpected opcodes, bio fixup skipped\n",
+				info->name, strtab + sym->st_name);
+			continue;
+		}
+		for (j = 0; j < ARRAY_SIZE(recode); j++)
+			*(u32 *)(base + recode[j].off) = recode[j].new;
+		pr_info("rodin: %s: %s: bi_io_vec offset fixed for 6.18\n",
+			info->name, strtab + sym->st_name);
+	}
 }
 #endif
 
