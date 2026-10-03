@@ -349,3 +349,14 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/staging/binder_prio/
 # 直读 product_name_get；blob 一手面与实机打印逐位验证（tools/_b541_hwid）。
 # 6.6 装载位 = vendorboot modules.load 行 136，vseq 表 seq 135（r24 波次一自带，零表改动）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/hwid/
+
+# ---- rodin T2③-⑧ 六件（cpu_isolate/simtray/scene_swappiness/mi_exception_log/mi_memory/xiaomi_spi_tee）----
+# 6.6 blob 机器码对齐重建（tools/_b542_build）：cpu_isolate 走 thermal/mediatek
+# 既有挂载（4-3 批，仅翻 CONFIG_MTK_CPU_ISOLATE_THERMAL 门）；其余五件叶子直挂。
+# 装载位：simtray/scene_swappiness=vendorboot 段（vseq 223/224，紧随实测 224 波）；
+# cpu_isolate/mi_exception_log/xiaomi_spi_tee=vendor_dlkm 段尾续编 1250-1252。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/simtray/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/scene_swappiness/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_exception_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/memory/xiaomi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/fingerprint/xiaomi_fp/

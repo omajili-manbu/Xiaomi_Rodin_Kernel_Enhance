@@ -611,3 +611,11 @@ source "$(KCONFIG_EXT_PREFIX)drivers/staging/binder_prio/Kconfig"
 
 # ---- rodin T2② hwid（门 = rodin 侧补写，dash 两树无源）----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/hwid/Kconfig"
+
+# ---- rodin T2③-⑧ 六件（cpu_isolate 门 = dash thermal/mediatek/Kconfig 原文，
+# 随件补入 devmod；thermal/mediatek 本文件 193 行已 source）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/simtray/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/scene_swappiness/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_exception_log/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/memory/xiaomi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/fingerprint/xiaomi_fp/Kconfig"

@@ -49,6 +49,12 @@
  *                    audio_ipi(1178) 运行期惰性调用、aov/aod 本机无 DT 节点。
  *                    判据 = snd_soc_register_card pss 0 + card0 注册。
  *                    tools/_b540。
+ *   T2③-⑧（2026-10-04）：scene_swappiness 223/simtray 224（vendorboot 段，6.6
+ *                    init/probe 2.441s/2.482s 在 libmodprobe 224 波后）；
+ *                    cpu_isolate_cooling 1250/mi_exception_log 1251/
+ *                    xiaomi_spi_tee 1252（vendor_dlkm 段尾续编，stock
+ *                    modules.load 行 102/251/5，六件互零符号依赖，
+ *                    tools/_b542_build）。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -628,6 +634,8 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "chipreg", .seq = 220 },
 	{ .name = "mtdblock", .seq = 221 },
 	{ .name = "debug_ext", .seq = 222 },
+	{ .name = "scene_swappiness", .seq = 223 },
+	{ .name = "simtray", .seq = 224 },
 	{ .name = "mtk_scpsys_mt6893", .seq = 1000 },
 	{ .name = "mt6397", .seq = 1001 },
 	{ .name = "cmdq_sec_drv", .seq = 1002 },
@@ -866,6 +874,9 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "powersave", .seq = 1247 },
 	{ .name = "unionpower", .seq = 1248 },
 	{ .name = "binder_prio", .seq = 1249 },
+	{ .name = "cpu_isolate_cooling", .seq = 1250 },
+	{ .name = "mi_exception_log", .seq = 1251 },
+	{ .name = "xiaomi_spi_tee", .seq = 1252 },
 };
 
 const unsigned int __vseq_mod_order_nr =

@@ -5281,6 +5281,24 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_HWID)
 	"hwid",
 #endif
+#if IS_ENABLED(CONFIG_MTK_CPU_ISOLATE_THERMAL)
+	"cpu_isolate_cooling",
+#endif
+#if IS_ENABLED(CONFIG_XIAOMI_SIMTRAY)
+	"simtray",
+#endif
+#if IS_ENABLED(CONFIG_SCENE_SWAPPINESS)
+	"scene_swappiness",
+#endif
+#if IS_ENABLED(CONFIG_MI_EXCEPTION_LOG)
+	"mi_exception_log",
+#endif
+#if IS_ENABLED(CONFIG_XIAOMI_MI_MEMORY)
+	"mi_memory",
+#endif
+#if IS_ENABLED(CONFIG_XIAOMI_SPI_TEE)
+	"xiaomi_spi_tee",
+#endif
 	NULL,
 };
 
