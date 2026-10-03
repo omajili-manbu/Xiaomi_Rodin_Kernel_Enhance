@@ -324,3 +324,15 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/task_turbo/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cpufreq_lite/
 obj-y += ../$(KMOD_REL_DIR)/hbt_driver/
 
+
+# ---- rodin T1 七件（xm_power/mi_thermal_interface/powersave/unionpower/miev/mi_log/mi_mem_engine）----
+# 开源维度报告 v4 G1 批（2026-10-03 拍板）： xm_power/miev 走 dash 官方或 klee-devs L2、
+# powersave/unionpower/miev 官方逐字节同源、mi_log/mi_mem_engine 为 L4 移植；
+# 全部 vseq 化（6.6 均为 .ko）：miev/xm_power 已在第一批实测序表（seq 23/184），
+# 其余五件续编 1232+（互零依赖，消费者均在 replay 之后或 blob 装载期，组内字母序）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/power/xm_power/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/miev/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mem_engine/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/xiaomi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mihw/

@@ -5161,6 +5161,27 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTK_HBT)
 	"hbt",
 #endif
+#if IS_ENABLED(CONFIG_XM_POWER)
+	"xm_power",
+#endif
+#if IS_ENABLED(CONFIG_MIEV)
+	"miev",
+#endif
+#if IS_ENABLED(CONFIG_MI_MEM_ENGINE)
+	"mi_mem_engine",
+#endif
+#if IS_ENABLED(CONFIG_MI_LOG)
+	"mi_log",
+#endif
+#if IS_ENABLED(CONFIG_MI_THERMAL_INTERFACE)
+	"mi_thermal_interface",
+#endif
+#if IS_ENABLED(CONFIG_MI_POWER_SAVE)
+	"powersave",
+#endif
+#if IS_ENABLED(CONFIG_MI_UNION_POWER)
+	"unionpower",
+#endif
 	NULL,
 };
 

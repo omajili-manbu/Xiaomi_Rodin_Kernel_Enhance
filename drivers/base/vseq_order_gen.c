@@ -14,6 +14,9 @@
  *                    3.636s）；imgsys probe 的 imgsys_cmdq_init 解引用 cmdq
  *                    单元 drvdata，倒挂即 [NULL+8] 崩（#142 实证）。
  *                    tools/_b527_fix。
+ *   T1 七件（2026-10-03）：miev/xm_power 用第一批实测位（seq 23/184）；
+ *                    其余五件 6.6 均为后装波次 .ko、互零依赖，续编 1232+
+ *                    组内字母序（tools/_t1）。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -825,6 +828,11 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_pm_domain_disable_unused", .seq = 1229 },
 	{ .name = "mtk_swpm_cpu_dbg_v6899", .seq = 1230 },
 	{ .name = "mtk_perf_common", .seq = 1231 },
+	{ .name = "mi_mem_engine", .seq = 1232 },
+	{ .name = "mi_log", .seq = 1233 },
+	{ .name = "mi_thermal_interface", .seq = 1234 },
+	{ .name = "powersave", .seq = 1235 },
+	{ .name = "unionpower", .seq = 1236 },
 };
 
 const unsigned int __vseq_mod_order_nr =

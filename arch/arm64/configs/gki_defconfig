@@ -1508,3 +1508,16 @@ CONFIG_MTK_DVFSRC_MB=y
 # BOOTPARAM_HUNG_TASK_PANIC 保持关（打印后靠硬件复位收 pstore）；
 # DETECT_HUNG_TASK_BLOCKER=y 已开（报告附 blocker 任务栈）。
 CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=10
+
+# ---- rodin T1 七件（=y 内建，开源维度报告 v4 G1 批）----
+# 门值 = 设备真值（blob 在场 =m）+ blob 串证据（mi_thermal blob 带 usb_online/atc_enable
+# ⇒ MULTI_CHARGE/ATC 两 inline 门 =y）。
+CONFIG_XM_POWER=y
+CONFIG_MIEV=y
+CONFIG_MI_MEM_ENGINE=y
+CONFIG_MI_LOG=y
+CONFIG_MI_THERMAL_INTERFACE=y
+CONFIG_MI_THERMAL_MULTI_CHARGE=y
+CONFIG_MI_THERMAL_ATC_ENABLE=y
+CONFIG_MI_POWER_SAVE=y
+CONFIG_MI_UNION_POWER=y

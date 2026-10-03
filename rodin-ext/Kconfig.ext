@@ -596,3 +596,12 @@ config MTK_HBT
 	  注：同树 hbt_driver_cus/src/hbt.c 是 79 行残桩且被 Android.mk 反向守卫排除，
 	  真身 = hbt_driver/src/hbt.c（507 行，md5 与 _cus 下同名文件逐字节相同）。
 
+
+# ---- rodin T1 七件（门定义在 vendor Kconfig；MI_LOG/MI_MEM_ENGINE/MI_THERMAL_* 三类
+# 官方 drop 未带 Kconfig，rodin 侧按 blob 串真值补写）----
+source "$(KCONFIG_EXT_PREFIX)drivers/power/xm_power/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/miev/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mem_engine/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_log/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/thermal/xiaomi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/mihw/Kconfig"
