@@ -38,12 +38,17 @@ RODIN_MM_OFF(struct pglist_data, android_oem_data1, 0x21f0);
 RODIN_MM_OFF(struct pglist_data, __lruvec66, 0x2260);
 
 /* mem_cgroup：xswapd 用 android_oem_data1[1] 挂 per-memcg 控制块，
- * nodeinfo[nid] 取 per-node 对象 */
+ * nodeinfo[nid] 取 per-node 对象。
+ * MEMCG_V1=y 时 v1 字段组回归使尾区自然后移：blob zram/zsmalloc 已
+ * 内建+skip 退役（177ddafc25cc，真机 "rodin: zram is built-in, skipping
+ * load"），6.6 硬偏移无消费者，内核按字段名/struct_size 自洽，不锁偏移。 */
+#ifndef CONFIG_MEMCG_V1
 RODIN_MM_OFF(struct mem_cgroup, android_oem_data1, 0x8f0);
 RODIN_MM_OFF(struct mem_cgroup, nodeinfo, 0x900);
 
 /* mem_cgroup_per_node：xswapd 按 6.6 lruvec.pgdat 偏移同步回指针 */
 RODIN_MM_OFF(struct mem_cgroup_per_node, rodin_lruvec_pgdat, 0x638);
+#endif
 
 /* node_stat_item：blocktag/mpbe 按 6.6 枚举序的编译期下标 */
 static_assert(NR_FILE_PAGES == 19);

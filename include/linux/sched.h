@@ -1563,9 +1563,16 @@ struct task_struct {
 
 #ifdef CONFIG_MEMCG
 	/* Number of pages to reclaim on returning to userland: */
+#ifdef CONFIG_MEMCG_V1
+	/* 6.6 memcg_in_oom 已由上方 CONFIG_MEMCG_V1 真字段原位回归，8B 槽位让位；
+	 * gfp/order 两字段 6.18 已删，原地 4B+4B 占位保 6.6 偏移不变（A-50） */
+	unsigned int			__rodin_66_slot_memcg_oom_gfp_mask;
+	int				__rodin_66_slot_memcg_oom_order;
+#else
 	u64				__rodin_66_slot_memcg_in_oom;	/* 6.6: struct mem_cgroup *memcg_in_oom */
 	unsigned int			__rodin_66_slot_memcg_oom_gfp_mask;
 	int				__rodin_66_slot_memcg_oom_order;
+#endif
 	unsigned int			memcg_nr_pages_over_high;
 
 	/* Used by memcontrol for targeted memcg charge: */

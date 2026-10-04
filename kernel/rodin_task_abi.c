@@ -199,7 +199,12 @@ RODIN_TS_OFF(timer_slack_ns, 0xaf0);
 RODIN_TS_OFF(default_timer_slack_ns, 0xaf8);
 RODIN_TS_OFF(kunit_test, 0xb00);
 RODIN_TS_OFF(trace_recursion, 0xb08);
+#ifdef CONFIG_MEMCG_V1
+/* 6.6 memcg_in_oom 真字段随 MEMCG_V1=y 原位回归（sched.h 槽位让位），偏移不变 */
+RODIN_TS_OFF(memcg_in_oom, 0xb10);
+#else
 RODIN_TS_OFF(__rodin_66_slot_memcg_in_oom, 0xb10);	/* 6.6: memcg_in_oom —— 6.18 移到 CONFIG_MEMCG_V1 下（未开），原地留 8B 占位 */
+#endif
 RODIN_TS_OFF(__rodin_66_slot_memcg_oom_gfp_mask, 0xb18);	/* 6.6: memcg_oom_gfp_mask —— 6.18 删除，原地留 4B 占位 */
 RODIN_TS_OFF(__rodin_66_slot_memcg_oom_order, 0xb1c);	/* 6.6: memcg_oom_order —— 6.18 删除，原地留 4B 占位 */
 RODIN_TS_OFF(memcg_nr_pages_over_high, 0xb20);
