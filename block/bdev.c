@@ -258,8 +258,23 @@ EXPORT_SYMBOL_GPL(sync_blockdev_nowait);
  * Write out and wait upon all the dirty data associated with a block
  * device via its mapping.  Does not take the superblock lock.
  */
+#ifdef CONFIG_MODULE_FORCE_LOAD
+/* rodin: 6.6 blob 持有的是 6.6 视图影子 bdev（lib/compat-6.6-block.c
+ * 的 bdev 布局视图翻译层），先反查真 bdev 再走原逻辑；非影子（含
+ * zram 传真 part0）rodin_bdev66_real() 返回 NULL，原路不动。 */
+struct block_device *rodin_bdev66_real(const void *maybe_view);
+#endif
+
 int sync_blockdev(struct block_device *bdev)
 {
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (unlikely(rodin_obj_is_legacy66(__builtin_return_address(0)))) {
+		struct block_device *real = rodin_bdev66_real(bdev);
+
+		if (real)
+			bdev = real;
+	}
+#endif
 	if (!bdev)
 		return 0;
 	return filemap_write_and_wait(bdev->bd_mapping);

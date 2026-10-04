@@ -501,10 +501,10 @@ struct cp_bdev_open {
 	struct list_head list;
 	struct block_device *bdev;
 	struct file *bdev_file;
+	/* 非 NULL：该 open 来自 6.6 blob（rodin_obj_is_legacy66 命中），blob
+	 * 持有的是 view66 影子而非真 bdev；put 反查两指针都认。 */
+	struct cp_bdev66_view *view66;
 };
-
-static LIST_HEAD(cp_bdev_opens);
-static DEFINE_MUTEX(cp_bdev_lock);
 
 struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
 					void *holder,
@@ -513,10 +513,88 @@ struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
 				       void *holder,
 				       const struct blk_holder_ops *hops);
 void blkdev_put(struct block_device *bdev, void *holder);
+struct block_device *rodin_bdev66_real(const void *maybe_view);
 
-static struct block_device *cp_bdev_open(struct file *file)
+static LIST_HEAD(cp_bdev_opens);
+static DEFINE_MUTEX(cp_bdev_lock);
+
+/*
+ * 6.6 blob 的 bdev 布局视图翻译层。
+ *
+ * 现象：真机 #178 console-ramoops-0 17.34s，bootmonitor
+ * get_bm_devices+0x43c Oops "Unable to handle kernel NULL pointer
+ * dereference at 0x31"，monitor_main 线程首次成功打开 blackbox 打印
+ * mapping 时崩；此前各轮 blkdev_get_by_path 均失败（错误路径不解
+ * 引用）故未触发。
+ *
+ * 根因（两树 pahole BTF 实测）：6.6 block_device 有 bd_inode @0x40，
+ * 6.6 BSP inode 的 i_mapping @0x30、i_size @0x50（BSP 比 mainline 多
+ * i_acl/i_default_acl/i_sb 三指针）；6.12+ 上游删除 bd_inode，6.18 的
+ * bdev+0x40 = bd_openers、bdev+0x38 = bd_mapping。blob 编译期内联了
+ * 6.6 偏移且是无函数调用的裸解引用（无内核函数入口可拦）：
+ * bootmonitor get_bm_devices-180 打印 bdev->bd_inode->i_mapping、
+ * partition_bm_write/_partition_bm_read 经同链取 mapping；block2mtd
+ * add_device 读 bdev->bd_inode->i_size 页对齐作 mtd size，
+ * read/write/erase/cleanup 经同链取 mapping —— 两模块共 10 处反汇编
+ * 逐一确认，模式全部是 ldr [bdev+0x40] 再 ldr [+0x30/+0x50]。6.18
+ * 视角 bdev+0x40 读到 bd_openers（=1），再解引用即崩 @0x31。
+ *
+ * 处置：blkdev_get_by_path/get_by_dev 入口以 rodin_obj_is_legacy66
+ * (返回地址) 分派（与 spi_sync 6.6 blob 消息翻译层同一闸），为 6.6
+ * blob 返回 6.6 视图影子 bdev：view+0x40 -> inode66，inode66+0x30 =
+ * 真 bdev->bd_mapping、+0x50 = bdev_nr_bytes()（≡6.6 bd_inode->
+ * i_size）。内核原生与非 6.6 调用者仍拿真 bdev，行为不变。blkdev_put
+ * 以 view66 指针一并反查（保留原真 bdev 匹配）；sync_blockdev 由
+ * block/bdev.c 入口经 rodin_bdev66_real() 反查翻译（blob 只调原生
+ * 导出 sync_blockdev，其 6.18 实现读 bdev->bd_mapping，影子直接传入
+ * 会解引用影子 0x38=NULL）。blob 取到的 mapping 是真地址，传给
+ * read_cache_page/invalidate_mapping_pages 无需翻译。
+ *
+ * 约束：仅覆盖经 blkdev_get_by_path/get_by_dev 取 bdev 的 blob
+ * （vendorboot 全集 = bootmonitor、block2mtd）；经 gendisk.part0 持
+ * bdev 的 zram 不经此层——其 [bdev+0x38] 读（6.6 bd_openers -> 6.18
+ * bd_mapping）是另一处漂移，仅 remove/reset 路径触发，另账。未来新
+ * blob 若经其它途径（file_bdev 等）持 bdev 并内联解引用 6.6 偏移，
+ * 需在此层扩展反查点。
+ */
+struct cp_bdev66_view {
+	struct block_device *real;	/* 0x00 真 bdev（blob 不读） */
+	u64 pad[7];			/* 0x08-0x38 blob 不读 */
+	void *inode66;			/* 0x40 = 6.6 bd_inode */
+};
+
+struct cp_inode66_view {
+	void *real;			/* 0x00（blob 不读） */
+	u64 pad1[5];			/* 0x08-0x28 */
+	void *mapping;			/* 0x30 = i_mapping */
+	u64 pad2[3];			/* 0x38-0x48 */
+	u64 i_size;			/* 0x50 = i_size */
+};
+
+/* block/bdev.c 的 sync_blockdev 入口反查：参数是 6.6 视图影子 bdev 则
+ * 返回真 bdev，否则 NULL（zram 等传真 bdev 的 6.6 blob 走 NULL 原路）。
+ * 内部自持锁。 */
+struct block_device *rodin_bdev66_real(const void *maybe_view)
 {
 	struct cp_bdev_open *e;
+	struct block_device *real = NULL;
+
+	mutex_lock(&cp_bdev_lock);
+	list_for_each_entry(e, &cp_bdev_opens, list) {
+		if ((void *)e->view66 == maybe_view) {
+			real = e->bdev;
+			break;
+		}
+	}
+	mutex_unlock(&cp_bdev_lock);
+
+	return real;
+}
+
+static struct block_device *cp_bdev_open(struct file *file, bool legacy66)
+{
+	struct cp_bdev_open *e;
+	struct block_device *ret;
 
 	if (IS_ERR(file))
 		return ERR_CAST(file);
@@ -529,19 +607,43 @@ static struct block_device *cp_bdev_open(struct file *file)
 
 	e->bdev_file = file;
 	e->bdev = file_bdev(file);
+	e->view66 = NULL;
+	ret = e->bdev;
+
+	if (legacy66) {
+		struct cp_bdev66_view *v;
+		struct cp_inode66_view *i;
+
+		v = kzalloc(sizeof(*v), GFP_KERNEL);
+		i = kzalloc(sizeof(*i), GFP_KERNEL);
+		if (!v || !i) {
+			kfree(v);
+			kfree(i);
+			kfree(e);
+			bdev_fput(file);
+			return ERR_PTR(-ENOMEM);
+		}
+		i->mapping = e->bdev->bd_mapping;
+		i->i_size = bdev_nr_bytes(e->bdev);
+		v->real = e->bdev;
+		v->inode66 = i;
+		e->view66 = v;
+		ret = (struct block_device *)v;
+	}
 
 	mutex_lock(&cp_bdev_lock);
 	list_add(&e->list, &cp_bdev_opens);
 	mutex_unlock(&cp_bdev_lock);
 
-	return e->bdev;
+	return ret;
 }
 
 struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
 					void *holder,
 					const struct blk_holder_ops *hops)
 {
-	return cp_bdev_open(bdev_file_open_by_path(path, mode, holder, hops));
+	return cp_bdev_open(bdev_file_open_by_path(path, mode, holder, hops),
+			    rodin_obj_is_legacy66(__builtin_return_address(0)));
 }
 EXPORT_SYMBOL(blkdev_get_by_path);
 
@@ -549,7 +651,8 @@ struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode,
 				       void *holder,
 				       const struct blk_holder_ops *hops)
 {
-	return cp_bdev_open(bdev_file_open_by_dev(dev, mode, holder, hops));
+	return cp_bdev_open(bdev_file_open_by_dev(dev, mode, holder, hops),
+			    rodin_obj_is_legacy66(__builtin_return_address(0)));
 }
 EXPORT_SYMBOL(blkdev_get_by_dev);
 
@@ -557,12 +660,14 @@ void blkdev_put(struct block_device *bdev, void *holder)
 {
 	struct cp_bdev_open *e, *found = NULL;
 	struct file *file = NULL;
+	struct cp_bdev66_view *view = NULL;
 
 	mutex_lock(&cp_bdev_lock);
 	list_for_each_entry(e, &cp_bdev_opens, list) {
-		if (e->bdev == bdev) {
+		if (e->bdev == bdev || (void *)e->view66 == (void *)bdev) {
 			found = e;
 			file = e->bdev_file;
+			view = e->view66;
 			list_del(&e->list);
 			break;
 		}
@@ -574,6 +679,9 @@ void blkdev_put(struct block_device *bdev, void *holder)
 		return;
 	}
 
+	if (view)
+		kfree(view->inode66);
+	kfree(view);
 	kfree(found);
 	bdev_fput(file);
 }
