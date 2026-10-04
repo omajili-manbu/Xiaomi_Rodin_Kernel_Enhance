@@ -270,6 +270,15 @@ config MTK_V4L2_IMGSENSOR
 	help
 	  imgsensor_isp8 + imgsensor-glue_isp8 的门（src-isp8/Kbuild）。设备真值 =m。
 
+config CUSTOM_KERNEL_IMGSENSOR
+	string "Custom image sensor driver (rodin inline: vendor imgsensor/Kconfig 带子 source)"
+	help
+	  src-isp8/Kbuild 的 sensor subdrv 名单：Kbuild 按名单从 common/ 逐个
+	  include 子 Makefile 进 imgsensor_isp8 单元，并生成 IMGSENSOR_SUBDRVS
+	  宏供 adaptor-drv.c 建 subdrv 注册表；名单为空 = imgsensor_subdrvs[]
+	  0 长 = search_sensor 全灭（#178 真机 A-46 根因）。设备真值见
+	  gki_defconfig 同名行（= rodin.config 逐字同串）。
+
 config MTK_V4L2_LENS
 	tristate "Mediatek V4L2 lens driver (rodin inline: vendor lens/Kconfig 全族未挂载)"
 	help
