@@ -55,6 +55,23 @@
  *                    xiaomi_spi_tee 1252（vendor_dlkm 段尾续编，stock
  *                    modules.load 行 102/251/5，六件互零符号依赖，
  *                    tools/_b542_build）。
+ *   第五十七轮（#186）：usb_offload 1095→1120、snd_soc_audiodsp_common
+ *                    1108→1121，双双挪至 adsp_v2(1119) 之后，修 A-52。
+ *                    vseq dep 符号拓扑编码不了"提供者 probe 填全局表→消费者
+ *                    probe 读表"的运行时数据依赖：usb_offload probe 读 ADSP
+ *                    mblock 表（adsp_reserve_mblocks，由 adsp-v2 单元
+ *                    adsp_mem_device_probe 填充），符号边只指向 adsp.ko(196)
+ *                    ⇒ 推演序 usb_offload(1095)<adsp_v2(1119) 与 6.6
+ *                    vendor_dlkm 手排 adsp-v2.ko(71)<usb_offload.ko(73) 相反
+ *                    ⇒ 重放 probe 表空 -EPROBE_DEFER ×4（8 行 ERR/开机，
+ *                    deferred 队列 4.734s 自愈成功）。snd_soc_audiodsp_common
+ *                    （snd-audio-dsp 同读 mblock 表）同根因同修。
+ *                    跨序区间 1096-1119 预检零耦合：met_*×10/音频 soc 家族/
+ *                    scp-vow 家族/tmem_ffa 与两名消费者零符号交互；
+ *                    mtk_soc_offload_common(1109) 为死条目（vmlinux 仅表
+ *                    rodata 字符串、System.map 零符号）；usb_offload 导出面
+ *                    （mtk_offload_* 共 8 符号）=y 集内零外部调用者；
+ *                    xhci_mtk=126/mtu3=127 第一波不动。tools/_b555_a52_vseqfix。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -731,7 +748,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "c2k_usb", .seq = 1092 },
 	{ .name = "mtk_u_ether", .seq = 1093 },
 	{ .name = "usb_logger", .seq = 1094 },
-	{ .name = "usb_offload", .seq = 1095 },
+	{ .name = "usb_offload", .seq = 1120 },
 	{ .name = "met_gpu_api", .seq = 1096 },
 	{ .name = "met_gpu_adv_api", .seq = 1097 },
 	{ .name = "met_vcore_api", .seq = 1098 },
@@ -744,7 +761,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "met_scmi_api", .seq = 1105 },
 	{ .name = "snd_soc_mt6899_afe", .seq = 1106 },
 	{ .name = "mt6899_mt6368", .seq = 1107 },
-	{ .name = "snd_soc_audiodsp_common", .seq = 1108 },
+	{ .name = "snd_soc_audiodsp_common", .seq = 1121 },
 	{ .name = "mtk_soc_offload_common", .seq = 1109 },
 	{ .name = "mtk_scp_vow", .seq = 1110 },
 	{ .name = "mtk_vow", .seq = 1111 },
