@@ -20,8 +20,7 @@
  *
  * 已知语义降级（6.18 已删除、无法重建的实参，见各 thunk 注释）：
  *   - android_rvh_replace_next_task_fair: se=NULL、repick=&false、simple=false；
- *   - mmap_lock_start_locking/released: memcg_path=NULL；
- *   - android_rvh_set_user_nice: allowed=&true（6.18 已无否决语义）。
+ *   - mmap_lock_start_locking/released: memcg_path=NULL。
  */
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -154,14 +153,19 @@ static struct rodin_tp66_hook rodin_tp66_h_replace_next = {
 	.thunk = (void *)rodin_tp66_replace_next_thunk,
 };
 
-/* android_rvh_set_user_nice: 6.18 删除 bool *allowed；指向局部 true */
+/*
+ * android_rvh_set_user_nice: -lts 头已按 6.6 归位、保留 bool *allowed
+ * （task_turbo 的 handler 实质写它否决越界 nice 修改）。b550/A-45 §144
+ * 通查实证：traceiter expected 0x326a70b1，原按 stock 6.18 两参写 =
+ * 失配 + blob 否决写进 thunk 栈上局部量而丢失（task_turbo.ko 实引用
+ * 该 tp，注册即暴露）。纯直通。
+ */
 static struct rodin_tp66_hook rodin_tp66_h_set_user_nice;
 static void rodin_tp66_set_user_nice_thunk(void *__data,
-		struct task_struct *p, long *nice)
+		struct task_struct *p, long *nice, bool *allowed)
 {
 	struct rodin_tp66_probe *e = rodin_tp66_h_set_user_nice.slot;
 	int n = READ_ONCE(rodin_tp66_h_set_user_nice.nr);
-	bool allowed = true;
 	int i;
 
 	for (i = 0; i < n; i++) {
@@ -169,7 +173,7 @@ static void rodin_tp66_set_user_nice_thunk(void *__data,
 			(void (*)(void *, struct task_struct *, long *, bool *))e[i].probe;
 
 		if (f)
-			f(e[i].data, p, nice, &allowed);
+			f(e[i].data, p, nice, allowed);
 	}
 }
 static struct rodin_tp66_hook rodin_tp66_h_set_user_nice = {
@@ -177,10 +181,17 @@ static struct rodin_tp66_hook rodin_tp66_h_set_user_nice = {
 	.thunk = (void *)rodin_tp66_set_user_nice_thunk,
 };
 
-/* android_vh_binder_restore_priority: 6.18 删除 task；6.6 调用点传 current */
+/*
+ * android_vh_binder_restore_priority: -lts 头保持 blob 两参形态 (t, task)。
+ * blob 实证（b550/A-45）：task_turbo.ko 的 probe 与 metis.ko 的
+ * mi_binder_restore_vip_hook 都从 x2 取 task，KCFI [entry-4] 同为
+ * 0x8fb7136b = traceiter expected。6.18 调用点传 (t, current) 且 t 可为
+ * NULL，两 blob 对 t 均判空；不得按 stock 6.18 单参收 t 再自补 current
+ * ——那样 thunk 哈希与两侧皆失配（#178 真机 6.592s CFI failure 即此）。
+ */
 static struct rodin_tp66_hook rodin_tp66_h_binder_restore;
 static void rodin_tp66_binder_restore_thunk(void *__data,
-		struct binder_transaction *t)
+		struct binder_transaction *t, struct task_struct *task)
 {
 	struct rodin_tp66_probe *e = rodin_tp66_h_binder_restore.slot;
 	int n = READ_ONCE(rodin_tp66_h_binder_restore.nr);
@@ -191,7 +202,7 @@ static void rodin_tp66_binder_restore_thunk(void *__data,
 			(void (*)(void *, struct binder_transaction *, struct task_struct *))e[i].probe;
 
 		if (f)
-			f(e[i].data, t, current);
+			f(e[i].data, t, task);
 	}
 }
 static struct rodin_tp66_hook rodin_tp66_h_binder_restore = {
@@ -199,10 +210,18 @@ static struct rodin_tp66_hook rodin_tp66_h_binder_restore = {
 	.thunk = (void *)rodin_tp66_binder_restore_thunk,
 };
 
-/* android_vh_cgroup_set_task: 6.18 插入 cgrp 并把 task 挪到第 3 参 */
+/*
+ * android_vh_cgroup_set_task: -lts 头为防漂移退回 blob 两参 (ret, task)
+ * （AOSP fc45b70eda9b 才扩成含 cgrp/threadgroup 的 4 参）。blob 实证：
+ * metis.ko 与 task_turbo.ko 的 probe 均读 w1=ret、x2=task，KCFI
+ * [entry-4] 同为 0xef405919 = traceiter expected。task_turbo 对 task
+ * 不判空，依赖调用点（cgroup-v1.c）恒传非空；不得按 stock 6.18 五参
+ * （cgrp+threadgroup）收参——那样 task 错位读 x3（#178 真机 12 次
+ * CFI failure + task=0 侥幸未崩即此）。
+ */
 static struct rodin_tp66_hook rodin_tp66_h_cgroup_set_task;
 static void rodin_tp66_cgroup_set_task_thunk(void *__data, int ret,
-		struct cgroup *cgrp, struct task_struct *task, bool threadgroup)
+		struct task_struct *task)
 {
 	struct rodin_tp66_probe *e = rodin_tp66_h_cgroup_set_task.slot;
 	int n = READ_ONCE(rodin_tp66_h_cgroup_set_task.nr);
@@ -221,9 +240,17 @@ static struct rodin_tp66_hook rodin_tp66_h_cgroup_set_task = {
 	.thunk = (void *)rodin_tp66_cgroup_set_task_thunk,
 };
 
-/* android_vh_do_futex: 6.18 首部插入 uaddr */
+/*
+ * android_vh_do_futex: -lts 头刻意保持 blob 编译期三参 (cmd, flags,
+ * uaddr2)（AOSP f97958c0be81 才把 uaddr 插到首位；6.6 参考树 4 参 ≠
+ * 设备 blob 实际形态）。blob 实证（b550/A-45）：metis.ko mi_do_futex
+ * 把 x1 当 int cmd（cmp #0x12 + 跳表分派），KCFI [entry-4] 0x54a1f065
+ * = traceiter expected；uaddr2 对 blob 只是地址值（判空/位运算/作值
+ * 传参，不解引用）。恢复 4 参传 uaddr = metis 把指针低 32 位当 cmd
+ * 全部早退 + 偶发野指针，不可走。
+ */
 static struct rodin_tp66_hook rodin_tp66_h_do_futex;
-static void rodin_tp66_do_futex_thunk(void *__data, u32 __user *uaddr, int cmd,
+static void rodin_tp66_do_futex_thunk(void *__data, int cmd,
 		unsigned int *flags, u32 __user *uaddr2)
 {
 	struct rodin_tp66_probe *e = rodin_tp66_h_do_futex.slot;
