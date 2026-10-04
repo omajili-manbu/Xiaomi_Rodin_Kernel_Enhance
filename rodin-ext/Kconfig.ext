@@ -12,6 +12,20 @@ config DEVICE_MODULES_ALLOW_BUILTIN
 	  into the kernel image.
 	  If unsure, say N.
 
+config RODIN_BLOB_DROP
+	bool "skip loading policy-dropped 6.6 vendor blobs"
+	default y
+	help
+	  Closed-source 6.6 blobs dropped by the A-55 recon decision: the
+	  scheduler family (metis/mi_schedule, the b543 rq-recode consumers),
+	  the millet and xiaomi net/memory MIUI-private endpoint families,
+	  misc io/debug/info utilities, and two dead modules (migt has no
+	  symbol providers since the sched =y batch, scheduler_ext is an
+	  empty shell).  The stock load list still names them; the loader is
+	  answered success and nothing is loaded.  mitee and the touch /
+	  fpsgo-cus / bootmonitor blobs are NOT covered and keep loading.
+	  If unsure, say Y.
+
 # ---- r24 batch 1 ----
 source "$(KCONFIG_EXT_PREFIX)drivers/clocksource/Kconfig"
 # ---- r25 batch 2 (P0-core) ----
