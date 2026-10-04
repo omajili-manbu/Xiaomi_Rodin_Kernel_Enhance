@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -4577,6 +4578,123 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	return status;
 }
 
+#ifdef CONFIG_MODULE_FORCE_LOAD
+/*
+ * rodin: 6.6 blob 的 spi_sync 消息翻译层。
+ *
+ * 现象：focaltech_touch_rodin（6.6 blob）probe 电源失败路径首次
+ * spi_sync 即 Oops "Unable to handle kernel paging request" 于
+ * spi_finalize_current_message+0x214，野指针 0x8e9c411818cd1800
+ * 恰为栈残留值（真机 #176 console-ramoops-0）。
+ *
+ * 根因：6.6 与 6.18 的 spi_message / spi_transfer 布局漂移
+ * （两代 vmlinux BTF 实测）：
+ *   spi_message.resources:       6.6 @80(0x50) -> 6.18 @96(0x60)
+ *     （6.12+ 上游在 state 后加 opt_state/offload 两指针）
+ *   spi_transfer.transfer_list:  6.6 @112      -> 6.18 @120
+ * blob 内联的 6.6 版 spi_message_init() 只 memset sizeof_6.6()==104
+ * 字节并把 resources 自环写在 0x50；以 6.18 布局看 message+96
+ * (resources.next) 恒为 blob memset 写下的 0，而 message+104
+ * (resources.prev) 是未初始化栈垃圾。内核原生驱动的 INIT_LIST_HEAD
+ * 保证 resources.next 永不指向头外——真正判据是调用者：
+ * 6.6 blob 编译期只见 6.6 头，凡 6.6 模块传来的 message 必为
+ * 6.6 布局，故以 rodin_obj_is_legacy66(返回地址) 分派（与
+ * platform_remove 的 .remove 原型分派同一闸）。
+ *
+ * 处置：把 blob 消息逐字段翻译成 6.18 布局副本再走核心流程，
+ * 完成后把 status 回写 blob 消息。受影响 blob：focaltech_touch_rodin
+ * / goodix_core_rodin / p73（vendor_dlkm 全集，均只调 spi_sync，
+ * 4 处调用点反汇编逐一确认 spi_message_init 6.6 形态）。
+ */
+#define SPI66_MSG_OFF_STATUS			28	/* int */
+#define SPI66_MSG_OFF_FRAME_LENGTH		48	/* unsigned */
+#define SPI66_MSG_OFF_ACTUAL_LENGTH		52	/* unsigned */
+#define SPI66_XFER_OFF_TX_BUF			0	/* const void * */
+#define SPI66_XFER_OFF_RX_BUF			8	/* void * */
+#define SPI66_XFER_OFF_LEN			16	/* unsigned */
+/* 位域 u32: dummy_data@0, cs_off@1, cs_change@2, tx_nbits:3@3-5,
+ * rx_nbits:3@6-8, timestamped@9 —— 6.18 的 tx/rx_nbits 变 4 位，
+ * timestamped 挪到 bit11，逐位搬运。 */
+#define SPI66_XFER_OFF_BITS			72
+#define SPI66_XFER_OFF_BITS_PER_WORD		74	/* u8 */
+#define SPI66_XFER_OFF_DELAY			76	/* delay/cs_change_delay/word_delay 各 4B */
+#define SPI66_XFER_OFF_SPEED_HZ			88	/* u32 */
+#define SPI66_XFER_OFF_TRANSFER_LIST		112
+#define SPI66_XFER_STACK_SLOTS			4
+
+static void spi66_xfer_translate(const void *x66, struct spi_transfer *x18)
+{
+	u32 bits;
+
+	memset(x18, 0, sizeof(*x18));
+	memcpy(&x18->tx_buf, x66 + SPI66_XFER_OFF_TX_BUF, sizeof(x18->tx_buf));
+	memcpy(&x18->rx_buf, x66 + SPI66_XFER_OFF_RX_BUF, sizeof(x18->rx_buf));
+	memcpy(&x18->len, x66 + SPI66_XFER_OFF_LEN, sizeof(x18->len));
+	memcpy(&bits, x66 + SPI66_XFER_OFF_BITS, sizeof(bits));
+	x18->dummy_data = bits & BIT(0);
+	x18->cs_off = bits & BIT(1);
+	x18->cs_change = bits & BIT(2);
+	x18->tx_nbits = (bits >> 3) & 0x7;
+	x18->rx_nbits = (bits >> 6) & 0x7;
+	x18->timestamped = bits & BIT(9);
+	memcpy(&x18->bits_per_word, x66 + SPI66_XFER_OFF_BITS_PER_WORD,
+	       sizeof(x18->bits_per_word));
+	memcpy(&x18->delay, x66 + SPI66_XFER_OFF_DELAY,
+	       sizeof(x18->delay));
+	memcpy(&x18->cs_change_delay, x66 + SPI66_XFER_OFF_DELAY + 4,
+	       sizeof(x18->cs_change_delay));
+	memcpy(&x18->word_delay, x66 + SPI66_XFER_OFF_DELAY + 8,
+	       sizeof(x18->word_delay));
+	memcpy(&x18->speed_hz, x66 + SPI66_XFER_OFF_SPEED_HZ,
+	       sizeof(x18->speed_hz));
+}
+
+static int spi_sync_6_6_blob(struct spi_device *spi, void *msg66)
+{
+	struct spi_transfer stack_xfers[SPI66_XFER_STACK_SLOTS];
+	struct spi_transfer *xfers = stack_xfers;
+	struct spi_message msg18;
+	struct list_head *pos;
+	unsigned int n = 0;
+	int ret;
+
+	/* transfers 是 spi_message 首成员，两代布局一致，链表可直遍历。 */
+	list_for_each(pos, (struct list_head *)msg66)
+		n++;
+	if (!n)
+		return -EINVAL;
+	if (n > SPI66_XFER_STACK_SLOTS) {
+		xfers = kcalloc(n, sizeof(*xfers), GFP_KERNEL);
+		if (!xfers)
+			return -ENOMEM;
+	}
+
+	spi_message_init(&msg18);
+	n = 0;
+	list_for_each(pos, (struct list_head *)msg66) {
+		spi66_xfer_translate((const char *)pos -
+				     SPI66_XFER_OFF_TRANSFER_LIST, &xfers[n]);
+		list_add_tail(&xfers[n].transfer_list, &msg18.transfers);
+		n++;
+	}
+
+	mutex_lock(&spi->controller->bus_lock_mutex);
+	ret = __spi_sync(spi, &msg18);
+	mutex_unlock(&spi->controller->bus_lock_mutex);
+
+	memcpy(msg66 + SPI66_MSG_OFF_STATUS, &ret, sizeof(ret));
+	memcpy(msg66 + SPI66_MSG_OFF_FRAME_LENGTH, &msg18.frame_length,
+	       sizeof(msg18.frame_length));
+	memcpy(msg66 + SPI66_MSG_OFF_ACTUAL_LENGTH, &msg18.actual_length,
+	       sizeof(msg18.actual_length));
+
+	if (xfers != stack_xfers)
+		kfree(xfers);
+
+	return ret;
+}
+#endif /* CONFIG_MODULE_FORCE_LOAD */
+
 /**
  * spi_sync - blocking/synchronous SPI data transfers
  * @spi: device with which data will be exchanged
@@ -4601,6 +4719,12 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
 	int ret;
+
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	/* rodin: 6.6 blob 的消息是 6.6 布局，见上方 spi_sync_6_6_blob()。 */
+	if (unlikely(rodin_obj_is_legacy66(__builtin_return_address(0))))
+		return spi_sync_6_6_blob(spi, message);
+#endif
 
 	mutex_lock(&spi->controller->bus_lock_mutex);
 	ret = __spi_sync(spi, message);
