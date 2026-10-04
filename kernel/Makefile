@@ -51,6 +51,9 @@ obj-y += rodin_task_abi.o
 obj-y += rodin_mm_abi.o
 # rodin: tracepoint/vendor hook 探针的 6.6 ABI 兼容层（修 mkp task_newtask CFI panic 等 19 处）
 obj-y += rodin_tp_compat.o
+# rodin A-47: vendor remoteproc 固件晚绑定 boot 重试原语（mtk_ccd 等 =y 内建后
+# probe 早于 /vendor 挂载，核心 auto_boot 一发必败无重试）
+obj-y += rodin_rproc_fw_retry.o
 obj-y += sched/
 obj-y += locking/
 obj-y += power/
