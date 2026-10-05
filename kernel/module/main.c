@@ -1610,7 +1610,21 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			break;
 
 		case SHN_UNDEF:
-			ksym = resolve_symbol_wait(mod, info, name);
+			/*
+			 * rodin #202: mod_6_6 blob 导入的 mas_find 重定向到
+			 * compat-6.6-syms 的 rodin_mas_find_6_6：6.6 编译的调用方
+			 * 以 64B ma_state(node=MAS_START) 调 6.18 的 status 状态机
+			 * (88B)，mitee optee_check_mem_type 已在 mas_next_slot+0x54
+			 * 解引用 NULL 崩机（#201 6.927s）。包装器把首调 state 规范
+			 * 成 6.18 起始态再转调真 mas_find。版本检查对新名字落
+			 * "no symbol version" warn-once 放行（check_version 找不到
+			 * 条目时 return 1），属预期形态。
+			 */
+			if (info->mod_6_6 && !strcmp(name, "mas_find"))
+				ksym = resolve_symbol_wait(mod, info,
+							"rodin_mas_find_6_6");
+			else
+				ksym = resolve_symbol_wait(mod, info, name);
 			/* Ok if resolved.  */
 			if (ksym && !IS_ERR(ksym)) {
 				sym[i].st_value = kernel_symbol_value(ksym);
