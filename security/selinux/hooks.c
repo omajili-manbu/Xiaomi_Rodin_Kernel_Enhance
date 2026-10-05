@@ -4295,22 +4295,14 @@ static int selinux_kernel_read_file(struct file *file,
 			 "New kernel_read_file_id introduced; update SELinux!");
 
 	switch (id) {
-	case READING_FIRMWARE:
-		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
-		break;
+	/* rodin 9th-fix: check READING_MODULE only. The other five classes
+	 * (FIRMWARE/KEXEC_IMAGE/KEXEC_INITRAMFS/POLICY/X509_CERTIFICATE) are
+	 * unchecked on the 6.6 baseline this vendor sepolicy was built for
+	 * (ACK 6.6.77 and MTK 6.6.143 only check MODULE); mapping them to
+	 * SYSTEM__MODULE_LOAD still denies because the policy never granted
+	 * kernel:system module_load (conninfra.cfg/fm_cust.cfg -13 at 7.04s,
+	 * #197). Ledger A-44 / recipe 147 rev. */
 	case READING_MODULE:
-		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
-		break;
-	case READING_KEXEC_IMAGE:
-		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
-		break;
-	case READING_KEXEC_INITRAMFS:
-		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
-		break;
-	case READING_POLICY:
-		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
-		break;
-	case READING_X509_CERTIFICATE:
 		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
 		break;
 	default:
@@ -4328,22 +4320,9 @@ static int selinux_kernel_load_data(enum kernel_load_data_id id, bool contents)
 			 "New kernel_load_data_id introduced; update SELinux!");
 
 	switch (id) {
-	case LOADING_FIRMWARE:
-		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
-		break;
+	/* rodin 9th-fix: see selinux_kernel_read_file() - MODULE only, the
+	 * other five classes are unchecked on the 6.6 baseline. */
 	case LOADING_MODULE:
-		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
-		break;
-	case LOADING_KEXEC_IMAGE:
-		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
-		break;
-	case LOADING_KEXEC_INITRAMFS:
-		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
-		break;
-	case LOADING_POLICY:
-		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
-		break;
-	case LOADING_X509_CERTIFICATE:
 		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
 		break;
 	default:
