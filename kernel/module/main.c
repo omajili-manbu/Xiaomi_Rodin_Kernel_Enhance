@@ -1611,14 +1611,17 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 
 		case SHN_UNDEF:
 			/*
-			 * rodin #202: mod_6_6 blob 导入的 mas_find 重定向到
+			 * rodin #202/#203: mod_6_6 blob 导入的 mas_find 重定向到
 			 * compat-6.6-syms 的 rodin_mas_find_6_6：6.6 编译的调用方
 			 * 以 64B ma_state(node=MAS_START) 调 6.18 的 status 状态机
 			 * (88B)，mitee optee_check_mem_type 已在 mas_next_slot+0x54
-			 * 解引用 NULL 崩机（#201 6.927s）。包装器把首调 state 规范
-			 * 成 6.18 起始态再转调真 mas_find。版本检查对新名字落
-			 * "no symbol version" warn-once 放行（check_version 找不到
-			 * 条目时 return 1），属预期形态。
+			 * 解引用 NULL 崩机（#201 6.927s）。#202 的原地重初始化被真机
+			 * 否决——blob 栈上只有 64B 预留，补尾字段/真 mas_find 都要写
+			 * 64..87，砸中紧贴状态槽的 canary（#202 7.076s）。#203 起包装
+			 * 器只读前缀、在本栈跑 88B 影子态、回拷 index 锚（写界仅
+			 * index/last，缩在 64B 内），见 compat-6.6-syms.c。版本检查
+			 * 对新名字落 "no symbol version" warn-once 放行（check_version
+			 * 找不到条目时 return 1），属预期形态。
 			 */
 			if (info->mod_6_6 && !strcmp(name, "mas_find"))
 				ksym = resolve_symbol_wait(mod, info,
