@@ -612,7 +612,8 @@ static void print_bad_page_map(struct vm_area_struct *vma,
 		 vma->vm_file,
 		 vma->vm_ops ? vma->vm_ops->fault : NULL,
 		 vma->vm_file ? vma->vm_file->f_op->mmap : NULL,
-		 vma->vm_file ? vma->vm_file->f_op->mmap_prepare : NULL,
+		 vma->vm_file ? (rodin_fops_has_mmap_prepare(vma->vm_file->f_op) ?
+				vma->vm_file->f_op->mmap_prepare : NULL) : NULL,
 		 mapping ? mapping->a_ops->read_folio : NULL);
 	dump_stack();
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);

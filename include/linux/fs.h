@@ -2422,7 +2422,11 @@ struct inode_operations {
 static inline bool can_mmap_file(struct file *file)
 {
 	bool has_mmap = file->f_op->mmap;
-	bool has_mmap_prepare = file->f_op->mmap_prepare;
+	/* rodin 8th-fix: 6.6-built module fops objects have no such tail
+	 * member; a direct read consumes bytes past the object (observed:
+	 * mitee.ko tee_shm_fops tail = pool_ops_generic's first pointer,
+	 * WARN at fs.h do_mmap / tee-supplicant shm mmap -ENODEV). */
+	bool has_mmap_prepare = rodin_fops_has_mmap_prepare(file->f_op);
 
 	/* Hooks are mutually exclusive. */
 	if (WARN_ON_ONCE(has_mmap && has_mmap_prepare))
@@ -2439,7 +2443,7 @@ int compat_vma_mmap_prepare(struct file *file, struct vm_area_struct *vma);
 
 static inline int vfs_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if (file->f_op->mmap_prepare)
+	if (rodin_fops_has_mmap_prepare(file->f_op))
 		return compat_vma_mmap_prepare(file, vma);
 
 	return file->f_op->mmap(file, vma);

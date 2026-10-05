@@ -1059,7 +1059,8 @@ ssize_t fuse_backing_mmap(struct file *file, struct vm_area_struct *vma)
 	struct timespec64 fuse_inode_ctime, backing_inode_ctime;
 	struct timespec64 fuse_inode_mtime, backing_inode_mtime;
 
-	if (!backing_file->f_op->mmap && !backing_file->f_op->mmap_prepare)
+	if (!backing_file->f_op->mmap &&
+	    !rodin_fops_has_mmap_prepare(backing_file->f_op))
 		return -ENODEV;
 
 	if (WARN_ON(file != vma->vm_file))
