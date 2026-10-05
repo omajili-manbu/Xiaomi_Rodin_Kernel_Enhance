@@ -360,3 +360,8 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/scene_swappiness/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_exception_log/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/memory/xiaomi/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/fingerprint/xiaomi_fp/
+
+# ---- rodin b564: mitee =y 内建（T3→=y；dash 26d0c19 骨架）----
+# 6.6 装载位 = vendorboot_modules modules.load（mitee.ko 1.087s，depends=ffa_v11）；
+# =y 后由 vseq 重放定序（与 ffa_v11 同族内建，arm_ffa 导出面已在 vmlinux）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/mitee/

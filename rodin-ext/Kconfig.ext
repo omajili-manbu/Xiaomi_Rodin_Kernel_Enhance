@@ -104,6 +104,9 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/gate_ic/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/clkbuf/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/reset/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/tee/teeperf/Kconfig"
+
+# ---- rodin b564: mitee =y 内建（T3→=y；骨架 = dash 26d0c19 对齐代，blob 三维对账）----
+source "$(KCONFIG_EXT_PREFIX)drivers/tee/mitee/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/devfreq/Kconfig"
 
 config DEVICE_MODULES_PWM_MTK_DISP

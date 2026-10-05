@@ -3868,6 +3868,9 @@ static const char *const rodin_builtin_modules[] = {
 #if IS_ENABLED(CONFIG_MTD_BLOCK)
 	"mtdblock",
 #endif
+#if IS_ENABLED(CONFIG_MITEE_SUPPORT)
+	"mitee",
+#endif
 #if IS_ENABLED(CONFIG_MTD_BLOCK2MTD)
 	"block2mtd",
 #endif
