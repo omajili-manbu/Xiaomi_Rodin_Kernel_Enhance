@@ -966,6 +966,15 @@ struct mm_struct {
 
 		struct maple_tree mm_mt;
 
+		/*
+		 * rodin 6.6 ABI：get_unmapped_area 函数指针在 6.12+ 被移除，
+		 * 原地留 8B 占位，使 mmap_base…mmap_lock 保持 6.6 偏移
+		 * （mitee 等厂商 blob 按 6.6 偏移访问 mm_struct）。
+		 */
+		unsigned long (*__rodin_66_slot_get_unmapped_area)(struct file *filp,
+				unsigned long addr, unsigned long len,
+				unsigned long pgoff, unsigned long flags);
+
 		unsigned long mmap_base;	/* base of mmap area */
 		unsigned long mmap_legacy_base;	/* base of mmap area in bottom-up allocations */
 #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
@@ -1063,7 +1072,7 @@ struct mm_struct {
 					  * by mmlist_lock
 					  */
 #ifdef CONFIG_PER_VMA_LOCK
-		struct rcuwait vma_writer_wait;
+		/* rodin 6.6 ABI：vma_writer_wait（6.13+ 新增）真身后置到冻结边界后 */
 		/*
 		 * This field has lock-like semantics, meaning it is sometimes
 		 * accessed with ACQUIRE/RELEASE semantics.
@@ -1083,16 +1092,7 @@ struct mm_struct {
 		 */
 		seqcount_t mm_lock_seq;
 #endif
-#ifdef CONFIG_FUTEX_PRIVATE_HASH
-		struct mutex			futex_hash_lock;
-		struct futex_private_hash	__rcu *futex_phash;
-		struct futex_private_hash	*futex_phash_new;
-		/* futex-ref */
-		unsigned long			futex_batches;
-		struct rcu_head			futex_rcu;
-		atomic_long_t			futex_atomic;
-		unsigned int			__percpu *futex_ref;
-#endif
+		/* rodin 6.6 ABI：futex 组（6.13+ 新增 104B）真身后置到冻结边界后 */
 
 		unsigned long hiwater_rss; /* High-watermark of RSS usage */
 		unsigned long hiwater_vm;  /* High-water virtual memory usage */
@@ -1118,19 +1118,23 @@ struct mm_struct {
 		unsigned long start_brk, brk, start_stack;
 		unsigned long arg_start, arg_end, env_start, env_end;
 
-		unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
-
-#ifdef CONFIG_ARCH_HAS_ELF_CORE_EFLAGS
-		/* the ABI-related flags from the ELF header. Used for core dump */
-		unsigned long saved_e_flags;
-#endif
+		/*
+		 * rodin 6.6 ABI：saved_auxv 6.6 为 50 项，6.18 AT_VECTOR_SIZE
+		 * 涨到 54 项；原地留 50 项占位，真身 saved_auxv[AT_VECTOR_SIZE]
+		 * 后置到冻结边界后（fork.c usercopy 白名单按
+		 * offsetof/sizeof_field 引用真身，自动跟随）。
+		 */
+		unsigned long __rodin_66_slot_saved_auxv[50];
 
 		struct percpu_counter rss_stat[NR_MM_COUNTERS];
 
 		struct linux_binfmt *binfmt;
 
-		/* Architecture-specific MM context */
-		mm_context_t context;
+		/*
+		 * rodin 6.6 ABI：mm_context_t 6.6 为 40B，6.18 涨到 48B；
+		 * 原地留占位，真身 context 后置到冻结边界后。
+		 */
+		u64 __rodin_66_slot_context[5];
 
 		mm_flags_t flags; /* Must use mm_flags_* hlpers to access */
 
@@ -1194,9 +1198,7 @@ struct mm_struct {
 #endif
 		struct work_struct async_put_work;
 
-#ifdef CONFIG_IOMMU_MM_DATA
-		struct iommu_mm_data *iommu_mm;
-#endif
+		/* rodin 6.6 ABI：iommu_mm（6.18 新增）真身后置到冻结边界后 */
 #ifdef CONFIG_KSM
 		/*
 		 * Represent how many pages of this process are involved in KSM
@@ -1230,16 +1232,57 @@ struct mm_struct {
 #endif
 		} lru_gen;
 #endif /* CONFIG_LRU_GEN_WALKS_MMU */
-#ifdef CONFIG_MM_ID
-		mm_id_t mm_id;
-#endif /* CONFIG_MM_ID */
-
-		struct task_dma_buf_info *dmabuf_info;
 
 		ANDROID_KABI_RESERVE(1);
-		ANDROID_BACKPORT_RESERVE(1);
-		ANDROID_VENDOR_DATA(1);
+
+		/*
+		 * rodin 6.6 ABI：dmabuf_info 定位 6.6 位 0x490（6.6 经
+		 * ANDROID_BACKPORT_USE(1) 复用 KABI 槽）；其后即 6.6 冻结
+		 * 边界 0x4c0。
+		 */
+		struct task_dma_buf_info *dmabuf_info;
 	} __randomize_layout;
+
+	/*
+	 * ==== rodin 6.6 ABI 冻结边界 0x4c0 ====
+	 * 以上匿名结构与 6.6 mm_struct 逐字节对齐（rodin_mm_abi.c 全表
+	 * 断言 + BTF 门禁）；以下为 6.6 所无或尺寸变化后的成员真身。
+	 */
+	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+
+#ifdef CONFIG_ARCH_HAS_ELF_CORE_EFLAGS
+	/* the ABI-related flags from the ELF header. Used for core dump */
+	unsigned long saved_e_flags;
+#endif
+
+	/* Architecture-specific MM context */
+	mm_context_t context;
+
+#ifdef CONFIG_PER_VMA_LOCK
+	struct rcuwait vma_writer_wait;
+#endif
+
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+	struct mutex			futex_hash_lock;
+	struct futex_private_hash	__rcu *futex_phash;
+	struct futex_private_hash	*futex_phash_new;
+	/* futex-ref */
+	unsigned long			futex_batches;
+	struct rcu_head			futex_rcu;
+	atomic_long_t			futex_atomic;
+	unsigned int			__percpu *futex_ref;
+#endif
+
+#ifdef CONFIG_IOMMU_MM_DATA
+	struct iommu_mm_data *iommu_mm;
+#endif
+
+#ifdef CONFIG_MM_ID
+	mm_id_t mm_id;
+#endif /* CONFIG_MM_ID */
+
+	ANDROID_BACKPORT_RESERVE(1);
+	ANDROID_VENDOR_DATA(1);
 
 	/*
 	 * The mm_cpumask needs to be at the end of mm_struct, because it
