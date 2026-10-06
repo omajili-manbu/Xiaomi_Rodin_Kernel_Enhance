@@ -894,6 +894,13 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "cpu_isolate_cooling", .seq = 1250 },
 	{ .name = "mi_exception_log", .seq = 1251 },
 	{ .name = "xiaomi_spi_tee", .seq = 1252 },
+	/* ---- rodin b567: touch 三件 =y（第六十九轮）。6.6 装载位 = vendor_dlkm
+	 * modules.load 行 211/212/213，框架先于 IC（212/213 依赖 211 的导出）；
+	 * scp=1071 之后（goodix/focaltech scp_tp_init 消费 scp_ipidev/mtk_ipi_*），
+	 * miev=23 早已就绪（框架消费 cdev_tevent_*）。段尾续编 1253-1255。 */
+	{ .name = "xiaomi_touch_rodin", .seq = 1253 },
+	{ .name = "goodix_core_rodin", .seq = 1254 },
+	{ .name = "focaltech_touch_rodin", .seq = 1255 },
 };
 
 const unsigned int __vseq_mod_order_nr =

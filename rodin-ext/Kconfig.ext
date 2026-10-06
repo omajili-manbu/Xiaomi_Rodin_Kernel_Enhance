@@ -645,3 +645,9 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/scene_swappiness/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_exception_log/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/memory/xiaomi/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/fingerprint/xiaomi_fp/Kconfig"
+
+# ---- rodin b567: touch 三件 =y 内建（第六十九轮；骨架 = MiCode
+# vendor_xiaomi_proprietary_touch-driver popsicle/warsaw + blob 反汇编重建缺口）----
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/xiaomi_touch_rodin/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_brl_rodin/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/focaltech_rodin/Kconfig"
