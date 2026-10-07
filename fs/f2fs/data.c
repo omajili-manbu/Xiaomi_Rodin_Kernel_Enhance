@@ -4028,11 +4028,15 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 
 	/* f2fs_lock_op avoids race between write CP and convert_inline_page */
 	if (f2fs_has_inline_data(inode)) {
-		if (pos + len > MAX_INLINE_DATA(inode)) {
+		if (pos + len > MAX_INLINE_DATA(inode))
 			flag = F2FS_GET_BLOCK_DEFAULT;
-			f2fs_map_lock(sbi, &lc, flag);
-			locked = true;
-		}
+		/*
+		 * it needs to cover FI_DATA_EXIST and inline data update w/
+		 * node_change, otherwise concurrent checkpoint may persist
+		 * inline data only w/o F2FS_DATA_EXIST.
+		 */
+		f2fs_map_lock(sbi, &lc, flag);
+		locked = true;
 	} else if ((pos & PAGE_MASK) >= i_size_read(inode)) {
 		f2fs_map_lock(sbi, &lc, flag);
 		locked = true;
