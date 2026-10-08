@@ -72,6 +72,61 @@
  *                    rodata 字符串、System.map 零符号）；usb_offload 导出面
  *                    （mtk_offload_* 共 8 符号）=y 集内零外部调用者；
  *                    xhci_mtk=126/mtu3=127 第一波不动。tools/_b555_a52_vseqfix。
+ *   第六十一轮（#236）：第二批四处相对倒挂复位 stock 序，修 A-63/A-64。
+ *                    ①audio_ipi 1178→1120（与 usb_offload/jpeg_driver 共槽，
+ *                    tie 由 (seq,lvl,ord) 决胜，三者零耦合）：dsp_pcm（
+ *                    snd_soc_audiodsp_common=1121 成员）probe 同步逐 task 发
+ *                    TASK_INIT（mtk-dsp-pcm.c dsp_pcm_dev_probe→mtk_init_
+ *                    adsp_audio_share_mem→mem-control），命中 adsp_ipi_queue.c
+ *                    :559 的 enable 门（队列未 enable 即静默丢包 return -1）；
+ *                    enable 唯一置位在 audio_ipi init 的 ipi_queue_init
+ *                    （audio_ipi.c:660）→dsp_init_single_msg_queue。audio_ipi
+ *                    依赖 adsp(196) 与 adsp_v2(1119) 填的预留内存表，均在
+ *                    1120 前；stock 行 72 恰在 adsp-v2(71)/usb_offload(73)
+ *                    之间。usip(1072) 等对 audio_ipi 的调用运行期惰性且今天
+ *                    早已倒挂，前移只减不改。
+ *                    ②ccci 五行 1173-1177→1028-1032，内部序 auxadc<md_all<
+ *                    ccif<dpmaif<fsm_scp（按 stock dep 实序非行序，见下）：
+ *                    usip(1072，probe 尾 get_smem_phy_start_addr，
+ *                    mtk-usip.c:241) 与 mddp(1074，mddp_ipc_init→md_smem_
+ *                    layout_config+open_port，失败 _init_fail 抹 is_config→
+ *                    wlan attach -1) 都依赖 md_all probe 填 modem_sys
+ *                    （modem_sys1.c:1251）；stock 行 83/90 << 31-36。落位借
+ *                    mtk_scpsys_mt6761/6781/6833/6853/mt6991_spm(1028-1032)
+ *                    五个异构 SoC 死条目（无 .o、System.map 零符号、无 vseq
+ *                    entry，运行时 ccci 独占；(1019,1071) 内 1020-1070 全被
+ *                    活条目占用，无真空闲整数）。内部序依据 vendor_dlkm
+ *                    modules.dep 实序：ccif/dpmaif/fsm_scp 硬依赖 md_all、
+ *                    md_all 依赖 auxadc（md_all 的 ccci_fsm.o/port_rpc.o 调
+ *                    auxadc 导出 ccci_get_adc_*），行 32-36 是 dep 前插后的
+ *                    尝试序非实装序。md_all 对 pbm(1068)/mdpm(1067)/ccmni(
+ *                    1126)/dynamic_loading(1054) 的 modinfo 边全运行期惰性
+ *                    （kicker_pbm_by_md 在 MD 上下电、init_md_section_level
+ *                    有空表守卫、ccmni_ops 为编译期初始化函数表、后两者零
+ *                    符号边）；fsm_scp(1032) 在 scp(1071) 前同 stock 行序
+ *                    （36<123），#163 前实机旧序 1175<1210 ready 重试自愈，
+ *                    mtk_ipi(42)/mbox(40/41) 全第一批。跨序区间预检：ccci
+ *                    导出的外部消费者 usip(1072)/mddp(1074)/md_power_
+ *                    throttling(1055)/pmic_oc_debug(1079)/c2k_usb(1092)/
+ *                    md_cooling(1150)/mbraink(1170+) 全在 1032 后，前移零新
+ *                    倒挂，备选 B（后移消费者）不触发。
+ *                    ③mtk_swpm_dbg_v6899 1012→1095（#186 usb_offload 让出的
+ *                    空洞）：init 调 sspm_sbuf_get 早于 sspm_v3(1013) probe，
+ *                    重放打 "get sspm dram addr failed"；1095>1013 修复；
+ *                    nm 反查全表零外部消费者，后移无风险；qos 命令
+ *                    （mtk_qos=1231）为 A-22 下游不改。
+ *                    ④mtk_ccuv 1167→1138（#158 sensorhub 让出的空洞）：
+ *                    相机簇（mtk_cam_isp8=1143 起）rproc_get_by_phandle 拿
+ *                    ccu handle（mtk_imgsys-v4l2.c:2793，probe 一次性、NULL
+ *                    即 goto out 不重试），映射要等 ccu probe 的 rproc_add
+ *                    （mtk_ccu_isp71.c:1310）；stock 行 12 << 128。ccuv
+ *                    dep 为零、导出符号唯一外部消费者 mmdvfs-ccu(1051) 本就
+ *                    在前且惰性，相对序不变。
+ *                    stock 行序锚（modules.load）：mtk_ccuv=12、ccci_util_lib
+ *                    =31、五 ccci=32-36、sspm=47、ged=67、mali=70、adsp-v2=
+ *                    71、audio_ipi=72、usb_offload=73、audiodsp=81、usip=83、
+ *                    mddp=90、gpu_qos=104、scp=123、cam=128、swpm 族=132-135、
+ *                    wlan=141、mtk_qos=150。tools/_b585_vseq_order。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -665,7 +720,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_scpsys_mt6765", .seq = 1009 },
 	{ .name = "mtk_scpsys_mt6877", .seq = 1010 },
 	{ .name = "mtk_emibus_icc", .seq = 1011 },
-	{ .name = "mtk_swpm_dbg_v6899", .seq = 1012 },
+	{ .name = "mtk_swpm_dbg_v6899", .seq = 1095 },
 	{ .name = "sspm_v3", .seq = 1013 },
 	{ .name = "richtek_spm_cls", .seq = 1014 },
 	{ .name = "vdec_fmt", .seq = 1015 },
@@ -819,18 +874,18 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "pda_drv_mt6899", .seq = 1164 },
 	{ .name = "mtk_c2ps", .seq = 1165 },
 	{ .name = "c2ps_perf_ioctl", .seq = 1166 },
-	{ .name = "mtk_ccuv", .seq = 1167 },
+	{ .name = "mtk_ccuv", .seq = 1138 },
 	{ .name = "mtk_ips_helper", .seq = 1168 },
 	{ .name = "cam_log", .seq = 1169 },
 	{ .name = "mtk_mbraink", .seq = 1170 },
 	{ .name = "mtk_mbraink_v6899", .seq = 1171 },
 	{ .name = "mtk_mbraink_bridge", .seq = 1172 },
-	{ .name = "ccci_auxadc", .seq = 1173 },
-	{ .name = "ccci_md_all", .seq = 1174 },
-	{ .name = "ccci_fsm_scp", .seq = 1175 },
-	{ .name = "ccci_ccif", .seq = 1176 },
-	{ .name = "ccci_dpmaif", .seq = 1177 },
-	{ .name = "audio_ipi", .seq = 1178 },
+	{ .name = "ccci_auxadc", .seq = 1028 },
+	{ .name = "ccci_md_all", .seq = 1029 },
+	{ .name = "ccci_fsm_scp", .seq = 1032 },
+	{ .name = "ccci_ccif", .seq = 1030 },
+	{ .name = "ccci_dpmaif", .seq = 1031 },
+	{ .name = "audio_ipi", .seq = 1120 },
 	{ .name = "mtk_lpm_dbg_mt6899", .seq = 1179 },
 	{ .name = "lpm_gov_mhsp", .seq = 1180 },
 	{ .name = "mtk_ssc", .seq = 1181 },
