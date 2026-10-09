@@ -5509,6 +5509,14 @@ static const char *const rodin_blob_drop_modules[] = {
 	/* dead weight: migt lost its providers (A-30), scheduler_ext is a shell */
 	"migt",
 	"scheduler_ext",
+	/* sched governor family: 6.6 blobs blind to 6.18 delayed-dequeue
+	 * semantics (A-75 recurrence, user verdict: drop, no core fix; b588) */
+	"task_turbo_v",
+	"fpsgo",
+	"game",
+	"eas_ext",
+	"cpuqos_ext",
+	"mtk_em",
 #endif
 	NULL,
 };
