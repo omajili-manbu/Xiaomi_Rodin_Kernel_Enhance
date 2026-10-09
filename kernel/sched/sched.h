@@ -4100,13 +4100,4 @@ static inline bool cpu_busy_with_softirqs(int cpu)
 }
 #endif /* CONFIG_RT_SOFTIRQ_AWARE_SCHED */
 
-/*
- * rodin 6.6-compat: 6.6 入口点，实现与导出在 kernel/sched/core.c（6.18 把
- * sched_class::check_preempt_curr 改名 wakeup_preempt、把 pick_next_task 的按类遍历
- * 收进核心，这里保留 6.6 形状给 vendor sched 簇）。原型此前只写在 core.c 里，
- * vendor 侧 #include <sched/sched.h> 看不见 ⇒ 报 undeclared。
- */
-void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags);
-struct task_struct *pick_migrate_task(struct rq *rq);
-
 #endif /* _KERNEL_SCHED_SCHED_H */
