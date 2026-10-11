@@ -1,0 +1,374 @@
+# r24/r25: batched mount dir - only the current batch's vendor subtrees are
+# built into the kernel image. See file header comments in git history for
+# the two r24 traps (no global LINUXINCLUDE prepend; per-subtree mounting).
+#
+# Path semantics: included from kernel drivers/Makefile via
+#   include $(srctree)/$(KCONFIG_EXT_PREFIX)Makefile.ext
+# so ../ relative to drivers/ = kernel tree root.
+
+ifeq ($(CONFIG_DEVICE_MODULES_ALLOW_BUILTIN),y)
+
+# vendor code carries pre-6.12 style (non-static fns w/o prototypes);
+# keep only the two noisy warning classes from blocking the build.
+# These reach vendor submakes folded into the exported KBUILD_CFLAGS, and
+# DEVICE_MODULES_PATH/MTK_PLATFORM ride the top-level command line, so no
+# export is needed here. Never use a bare `export`: make expands EVERY
+# recursive variable (incl. Makefile.lib's size_append/if_changed family)
+# each time it builds a child's environment - r25 measured ~15x slowdown
+# (26s per .o from 7 $(shell dec_size) loops over the target's dep list).
+subdir-ccflags-y += -Wno-missing-prototypes -Wno-error=array-bounds
+# devmod-only headers (mtk-cmdq-ext/mtk_tinysys_ipi/devapc_public, mt-plat/*):
+# appended AFTER the kernel's own -I list, so kernel headers still win
+# for any same-named file (r24 trap was prepending, this is appending).
+subdir-ccflags-y += -I$(DEVICE_MODULES_PATH)/include \
+		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include \
+		    -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include/mt-plat \
+								-I$(DEVICE_MODULES_PATH)/include/uapi
+# mt-plat/ 那一行是批 4-3b 补的：5 处 vendor 文件用无前缀写法 #include
+# <mtk_ccci_common.h>（该头在 include/mt-plat/ 下），CCCI 门翻 =y 后
+# sound/soc/mediatek/common/mtk-usip.o 首次进入构建图即触发缺头。
+MTK_PLATFORM ?= mt6899
+KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin
+
+# ---- r24 batch 1 (MTK systimer) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clocksource/
+# ---- r25 batch 2 (P0-core 35) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/aee/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/monitor_hang/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sda/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/log_store/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtprintk/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/tinysys_scmi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mminfra/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mkp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clk/mediatek/
+# rodin b510 (#110): vcp 固件 boot 链（RESET_SET->register_feature->reset_vcp->
+# RESET_RELEASE）依赖 probe 产出的 iova（dma_heap mtk_mm-uncached + M4U 映射），
+# 因此 boot 必须跟在 probe 之后；而 VCP_READY_STA 的消费者（scpsys/mmqos/mml 等
+# 6.init 探针 + clk HWV gate enable 的 clkchk BUG_ON）都在 clk 目录之后。
+# 链接序定案：[clk/mediatek(infracfg_ao)] -> [iommu 家族] -> [dma-buf/heaps]
+# -> [vcp]；vcp_init 由 device_initcall_sync 改 device_initcall 落到本位置(6.init)。
+# 取代 b59 early-kick（其只发 RESET_SET 不发 RESET_RELEASE，固件从未 boot）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/iommu/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma-buf/heaps/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vcp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/rpmsg/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/soc/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/watchdog/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/nvmem/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/regulator/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mailbox/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/interconnect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pinctrl/mediatek/
+# ---- B3c: mediatek/ 整目录挂载(dummy_drm 子目录由 DUMMY=m 门控保持 inert) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/drm/panel/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mdp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/scp/
+# ---- r25 batch 2.5 (IOMMU family backport)——b510 整体上移至 clk/mediatek 之后
+# （vcp 固件 boot 依赖 iommu+dma-buf/heaps 先注册；见顶部 b510 注释与 Makefile 序）----
+# kmod repo: wlan_page_pool (Kbuild patched to honor ALLOW_BUILTIN)
+# one more ../ than the devmod lines: KMOD_REL_DIR already carries the
+# first hop, and obj paths resolve relative to drivers/ (sub-make cwd).
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/adaptor/wlan_page_pool/
+
+endif
+# ---- stage2 batch 1 (P0 底座残余) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mfd/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/iio/adc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/rtc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/keyboard/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mmc/host/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/phy/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/i2c/busses/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/spmi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/memory/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/smi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/power/supply/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_boost/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_meta/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_xhci/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/usb/mtu3/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tty/serial/8250/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/dma/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/spi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/typec/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/subpmic/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/dvfsrc/
+
+# ---- rpmb 微批(方案C: vendor 专用符号 DEVICE_MODULES_RPMB,内核 CONFIG_RPMB 不动) ----
+# ---- B3d: hw_random 挂载(批1 遗漏;HW_RANDOM_SECURE=y 一直 inert) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/hw_random/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/char/rpmb/
+
+# ---- stage2 batch4: B1 余量(leds/cmdq/mmdvfs/slbc/swpm/i3c/interconnect/pwm/tee 等) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/leds/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/clkbuf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cmdq/mailbox/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mme/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmp/dummy/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmdvfs/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/swpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/hw_sem/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/i3c_i2c_wrap/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/i3c/master/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtk-interconnect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmdebug/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pidmap/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/power_throttling/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/slbc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sspm/
+
+# ---- stage3 S3b: vendor_boot misc batch (mdpm MUST be in the same batch as
+# pbm: pbm/Makefile switches its mdpm include by CONFIG_MTK_MDPM) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/performance/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/et/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mdpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pbm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/masp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/kshrink_slabd/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/gate_ic/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pwm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/reset/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/teeperf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/devfreq/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/common/
+# ---- stage4 batch4-5 轮C（usb/met/零散 39 件）----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mddp/
+# rodin 4-8: 原为「obj-y += .../apusys/power/」（4-5 轮C 挂载）。本批改为整挂 apusys/ 根目录，
+# 由 apusys/Makefile:215 的 obj-$(CONFIG_MTK_APUSYS_SUPPORT) += power/ 接管（同门等价），
+# 保留本行会**双编**同一个 apu_top（KBUILD_MODNAME 粘连 + 链接重定义）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vmm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mcupm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mmstat/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/elliptic/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmic_protect/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/nfc/nxp-i2c/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/nfc/p73-spi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/flashlight/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/flashlight/v4l2/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/ois/dw9781c/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/ois/dw9781d/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main2_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main3_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/main4_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/sub_vcm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/c2k_usb/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_rndis/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_logger/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/usb/usb_offload/
+obj-y += ../$(KMOD_REL_DIR)/met_drv_v3/met_api/ # rodin: 批4-5 真身路径（default/ 是 32 行 stub，禁入）
+
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/mt6899/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/audio_dsp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/vow/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vow/ver02/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/mediatek/ultrasound/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/sound/soc/codecs/
+
+
+# ---- B2 点修批(pcie-mediatek-gen3) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/
+
+# ---- stage2 B2 ffa_v11(trusted_mem 目录挂载,ffa_v11.o 由 DEVICE_MODULES_ARM_FFA_TRANSPORT 门控) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/trusted_mem/
+# ---- stage2 B3a(adsp/blocktag/extcon 新挂载;power/supply 纯翻) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/adsp/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/blocktag/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/extcon/
+# ---- stage2 B3b(mtk-mmc/ufs 族/mediatek-cpufreq-hw;纯翻+新挂载) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/ufs/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/cpufreq/
+# ---- stage4 batch4-1(bootprof 新挂载 mtprof; 同目录 irq_monitor(MTK_IRQ_MONITOR) 保持 =n) ----
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mtprof/
+
+# ---- stage4 batch4-2 (B2 点修; trusted_mem/heaps/iommu/common 已挂载只翻 CONFIG) ----
+# jpeg/vdec_fmt/widevine_drm/cm_mgr/rps/ccmni = 新目录; geniezone=父目录
+# (父 Makefile 经 obj-$(CONFIG_MTK_ENABLE_GENIEZONE) += gz-trusty/ 下探,
+#  4-5 建 gz_main_mod 时免双下探); pa_combine=aw882xx 门补丁; mtk-vcodec=仅 common
+# (V1/V2 平台块 =n, dec/enc 片段变量不物化); ccusys=kmod mtkcam 首挂.
+# mtk-soc-offload-common 顺延 4-5: 29 个无守卫 audiodsp-common 导入(audio_dsp 不挂).
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/jpeg/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/vdec_fmt/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/widevine_drm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cm_mgr/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/geniezone/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/rps/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccmni/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-vcodec/
+# rodin batch4-4: ccusys/ 由 mtkcam/ 父目录统一下潜（同门等价，避免双编）
+
+# ---- stage4 batch4-3 (33 件：GPU/perf/thermal/振动器/jpeg/mae/dec-v2/pmsr/sapu/met/gz 闭包) ----
+# 说明：gpu/mediatek 父 Makefile 在 MTK_GPU_SUPPORT 非空时无条件下潜
+# ged/hal/gpufreq/gpu_bm/gpu_iommu/gpueb/gpu_pdma 七个子目录——gpu_iommu/gpu_pdma 由
+# mt6989/mt6991 门保持 inert；平台目录下潜只在 MTK_GPU_VERSION 非空时发生（本树无该
+# 平台目录，defconfig 刻意不设）。pmsr 只挂 v3/（父 Makefile 在 MTK_PMSR=y 时还会编
+# pmsr.o/twam/v2 三个设备无 blob 的物件）。eccci 族移出本批（=y 分支布局与 =m 出货
+# 不一致，见 4-3 计划 §0.3）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/misc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/gpu/mediatek/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sensor/2.0/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cg_ppt/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/media/platform/mtk-jpeg/
+# rodin 4-8: 同上，sapu/ 改由 apusys/Makefile:369 的下降沿接管（防双编）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/qos/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pgboost/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pmsr/v3/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/mediatek/
+# rodin batch4-4: mtk-mae/ 由 mtkcam/ 父目录统一下潜（同门等价，避免双编）
+obj-y += ../$(KMOD_REL_DIR)/met_drv_v3/common/
+
+# ---- stage4 batch4-4 (相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + 拉入 mbraink_bridge = 19 件) ----
+# 说明（全部实测）：
+# * camsys 只直挂 isp8/（父 Kbuild 的 obj-y += isp7_1/isp7s/isp7sp/ 无条件，会连带 3 个非设备平台）；
+#   isp8/Kbuild 的 unit_test/ 已摘（设备无 cam-isp8-ut.ko）。
+# * imgsys 挂父目录：common←VIDEO_MTK_ISP_IMGSYS、imgsys/isp8←_IMGSYS_8、
+#   imgsys/cmdq/isp8←_IMGSYS_CMDQ_ISP8；71/7s/7sp 与 cmdq/legacy 各自门保持 =n。
+# * mtk-hcp 挂父目录：legacy←VIDEO_MTK_ISP_HCP(=n)、isp8←_HCP_ISP8(=y)。
+# * imgsensor 挂父目录但父 Kbuild 已改为只编 src-isp8/（设备只有 isp8 版两件 blob）。
+# * cam_cal 挂父目录：Kbuild 的 obj-m 硬编已改成 obj-$(CONFIG_MTK_V4L2_CAM_CAL)。
+# * lens/vcm/v4l2 只挂 media/（父 Makefile 的 MTK_V4L2_LENS 门会带 16 个 vcm，多数属 4-5）。
+# * mbraink 挂父目录：父 Makefile 的 bridge/ 已改由 MTK_MBRAINK_BRIDGE 门控，
+#   MTK_MBRAINK(主体)=n ⇒ 只编 bridge/，父 Makefile 的 -I 集合照常生效。
+# 相机族整挂 mtkcam 父目录（父 Kbuild 的 subdir-ccflags-y 提供两个关键 -I：
+#   -I<mtkcam>/  → camsys/common/mtk_cam-fmt.h
+#   -I<mtkcam>/include/ → linux/platform_data/mtk_ccd.h、uapi/linux/mtk_ccd_controls.h、
+#                          linux/platform_data/mtk_ccd_controls.h、mtk_camera-v4l2-controls-common.h
+# 直接挂子目录会绕开这两个 -I（首轮编译实测 6 个缺头）。父 Kbuild 已打布局补丁（P14）。
+# 原先的单件挂载行（4-2 的 ccusys、4-3 的 mtk-mae）一并删除：父 Kbuild 的
+# obj-$(CONFIG_MTK_CCU_RPROC) += ccusys/ 与 obj-$(CONFIG_MTK_CAMERA_MAE_SUPPORT) += mtk-mae/
+# 是同门等价行，重复挂载会双编。
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ips/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cam_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lens/vcm/v4l2/media/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/mbraink/
+# 注：mmdvfs 目录批 4 已挂载，本批只恢复其 obj 行的 mtk-mmdvfs-v3-start.o（vendor 补丁 P2）
+
+# ---- stage4 batch4-3b (eccci 族 6 件：ccci_md_all/ccci_dpmaif/ccci_util_lib/
+# ccci_auxadc/ccci_ccif/ccci_fsm_scp) ----
+# 布局补丁（vendor P1-P3）：eccci/{,hif/,fsm/}Makefile 的 =y 分支已改为复用 =m 的
+# 模块切分（原 =y 聚合 ccci_all/ccci_fsm_all/ccci_hif_all/ccci_port/udc 与设备 blob
+# 名不匹配且丢 dpmaif）；CCCI_KMODULE_ENABLE 在 =y 下也定义（设备真值）。
+# cldma 不编（设备三分区无 cldma blob）。ccci_util/ 无布局差异，纯翻配置。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/eccci/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ccci_util/
+
+# ---- stage4 batch4-3b 追加：audio_ipi 拉入（跨批提供者）----
+# 依据：CCCI 门翻 =y 后 sound/soc/mediatek/common/mtk-usip.o 首次进图，它对
+# audio_send_ipi_msg 是无守卫调用，唯一提供者=audio_ipi（设备 audio_ipi.ko）。
+# 闭包实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（自足）、与其它设备
+# blob 零导出重叠、10 个源文件 6.18 语法 0 错 ⇒ 直接内建，不改一行源码。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/audio_ipi/
+
+# ---- stage4 batch4-6 (连接/wlan 簇 15 件) ----
+# kmod Kbuild 布局补丁（P1-P11）：conninfra/btif/fmradio/adaptor 的 =m 分支补真实语义
+# 门行（obj-$(CONFIG_MTK_COMBO*)）；gen4m 入口 =y 走 Kbuild.6899（设备芯片
+# CONNAC2X2_SOC7_0/axi）；adaptor 补 CONNAC_VER/MODULE_NAME 兜底 + 树内 -I（$(TOP)/vendor
+# 在树内布局不存在）；btif 的 CONN_INFRA_SRC 等三行覆盖树内路径；gps data_link 入口
+# 门控 v051 下钻；gps_scp/gps_pwr/mi_gps_pwr/connfem 补 obj-门行。
+# 刻意不翻 CONFIG_WLAN_DRV_BUILD_IN：vendor 该分支挂 wmt_drv/（设备无此 blob）且
+# export WLAN_CHIP_ID=6765（错芯片），设备 =m 出货形态才是基准（4-3b §24 精神）。
+# wifi_cooling 无需挂载（thermal/mediatek 4-3 已挂，纯翻 MTK_WIFI_THERMAL 门）。
+# cfg80211/mac80211 是内核树门（net/wireless、net/mac80211），gki_defconfig 翻 y。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/connectivity/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/conn_scp/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/conninfra/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/connfem/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/core/gen4m/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/wlan/adaptor/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/bt/mt66xx/6899/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/fmradio/Build/connac2x/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/data_link/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_scp/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/gps_pwr/
+obj-y += ../$(KMOD_REL_DIR)/connectivity/gps/mi_gps_pwr/
+# ---- stage4 batch4-7 (lpm/swpm dbg/ssc/wla/atf/irtx/pwm + mtk_aov) ----
+# swpm/ 与 adsp/ 已在 B1/B3a 挂载：swpm 只翻 MTK_SWPM_MT6899 门、adsp 只翻 MTK_ADSP_V2 门。
+# lpm/ssc/wla/atf/irtx/pwm 为 devmod 杂项目录整挂（内部全部 CONFIG 门控，翻门才编）。
+# mtk_aov 走 kmod 叶子直挂（wlan_page_pool 先例）；devmod apusys/Makefile 里的 apu_aov 是
+# 另一个模块（MTK_APUSYS_SUPPORT 门，4-8 的事），勿混。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/lpm/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/ssc/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/wla/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/atf/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/irtx/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/pwm/
+obj-y += ../$(KMOD_REL_DIR)/mtkcam/scpsys/mtk-aov/
+
+# ---- stage4 batch4-8 (apusys + mali r49p1 三件) ----
+# apusys/ 整目录挂载（单模块多对象 110 个 .o）：本 Makefile 同时下降 power/（=apu_top）
+# 与 sapu/（=sapu），故上面两行单挂已删除；apu_aov.o 已在 vendor 侧停编（设备无该 blob）。
+# 平台 wildcard 三份（mt6893/mt6899/mt6991）全部保留 = 设备真值（blob 内有 mt6893_rproc_*
+# 局部符号实证，2026-09-29 复核推翻侦察期「mt6893 排除」的推断）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/apusys/
+# mali r49p1 三件走 kmod 叶子直挂（wlan_page_pool / mtk_aov 先例）。
+# 入口 gpu/mt6899/Makefile 里 export BUILD_RULE=OOT + MTK_PLATFORM=mt6899，
+# 激活 midgard 的 mt6899 旋钮阶梯；CONFIG_MTK_GPU_VERSION 保持空（LD2.0，
+# 内建对象名 mali_kbase_mt6899_r49，与设备 blob 同名）。
+obj-y += ../$(KMOD_REL_DIR)/gpu/mt6899/
+# ---- stage4 batch4-9 (perf/sched 栈 18 件) ----
+# 五个 devmod 目录整挂（内部全部 CONFIG 门控，翻门才编）；sched/ 是本批唯一的
+# "完全未挂"目录（此前 Kconfig.ext 无 source 行、Makefile.ext 无 obj-y 行、无软链镜像）。
+# 注意 sched/common.o 同时被 scheduler 与 cpufreq_sugov_ext 两个模块引用：kbuild 各建
+# 一份（KBUILD_MODNAME 不同），不是重复定义。
+# hbt 走 kmod 叶子直挂（方式同 mtk_aov / mali：由 drivers/ 起算的相对路径，经内核树根的
+# MTK_kernel_modules-rodin 目录可达，无需新增软链镜像）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sched/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cache-auditor/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/perf_common/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/task_turbo/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cpufreq_lite/
+obj-y += ../$(KMOD_REL_DIR)/hbt_driver/
+
+
+# ---- rodin T1 七件（xm_power/mi_thermal_interface/powersave/unionpower/miev/mi_log/mi_mem_engine）----
+# 开源维度报告 v4 G1 批（2026-10-03 拍板）： xm_power/miev 走 dash 官方或 klee-devs L2、
+# powersave/unionpower/miev 官方逐字节同源、mi_log/mi_mem_engine 为 L4 移植；
+# 全部 vseq 化（6.6 均为 .ko）：miev/xm_power 已在第一批实测序表（seq 23/184），
+# 其余五件续编 1232+（互零依赖，消费者均在 replay 之后或 blob 装载期，组内字母序）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/power/xm_power/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/miev/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mem_engine/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/thermal/xiaomi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/mihw/
+
+# ---- rodin T2① binder_prio（blob 对齐重建）----
+# dash 官方源为基底、rodin 设备 blob（vendor_dlkm binder_prio.ko 15,656B）
+# 机器码逐指令对齐（5 处代差全收口，tools/_t2bp）；6.6 装载位 = vendor_dlkm
+# modules.load 行 248（kshrink_slabd 后、xiaomi_wifi_gpio 前，零模块依赖），
+# vseq 续编 1249。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/staging/binder_prio/
+
+# ---- rodin T2② hwid（blob 合并代九处对齐重建）----
+# onyx 骨架（参数/sysfs/init/exit）+ sm8550 官方掩码 getter + project_name(charp)
+# 直读 product_name_get；blob 一手面与实机打印逐位验证（tools/_b541_hwid）。
+# 6.6 装载位 = vendorboot modules.load 行 136，vseq 表 seq 135（r24 波次一自带，零表改动）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/hwid/
+
+# ---- rodin T2③-⑧ 六件（cpu_isolate/simtray/scene_swappiness/mi_exception_log/mi_memory/xiaomi_spi_tee）----
+# 6.6 blob 机器码对齐重建（tools/_b542_build）：cpu_isolate 走 thermal/mediatek
+# 既有挂载（4-3 批，仅翻 CONFIG_MTK_CPU_ISOLATE_THERMAL 门）；其余五件叶子直挂。
+# 装载位：simtray/scene_swappiness=vendorboot 段（vseq 223/224，紧随实测 224 波）；
+# cpu_isolate/mi_exception_log/xiaomi_spi_tee=vendor_dlkm 段尾续编 1250-1252。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/simtray/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/scene_swappiness/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_exception_log/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/memory/xiaomi/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/fingerprint/xiaomi_fp/
+
+# ---- rodin b564: mitee =y 内建（T3→=y；dash 26d0c19 骨架）----
+# 6.6 装载位 = vendorboot_modules modules.load（mitee.ko 1.087s，depends=ffa_v11）；
+# =y 后由 vseq 重放定序（与 ffa_v11 同族内建，arm_ffa 导出面已在 vmlinux）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/mitee/
+
+# ---- rodin b567: touch 三件 =y 内建（第六十九轮；T3→=y 第二波）----
+# 6.6 装载位 = vendor_dlkm modules.load 行 211/212/213（scp=123 之后，依赖闭包
+# = scp/tinysys_ipi/rpmsg_mbox/mbox 全已 =y）。vseq 段尾续编 1253-1255。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/xiaomi_touch_rodin/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/goodix_brl_rodin/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/focaltech_rodin/

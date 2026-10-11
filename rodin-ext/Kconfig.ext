@@ -1,0 +1,653 @@
+# r24/r25: batched mount dir - only the Kconfig/源码 of the current batch
+# are hooked into the 6.18 build (整棵 vendor Kconfig 会让 conf 静默失败, 见 r24 报告).
+# r25: sources go through the $(KCONFIG_EXT_PREFIX) drivers/ symlink mirror so
+# vendor sub-Kconfigs' internal $(KCONFIG_EXT_PREFIX) sources resolve too.
+
+config DEVICE_MODULES_ALLOW_BUILTIN
+	bool "allow builtin drivers into kernel image"
+	default y
+	help
+	  All modules are default built as kernel modules.
+	  Set DEVICE_MODULES_ALLOW_BUILTIN=y to build modules
+	  into the kernel image.
+	  If unsure, say N.
+
+config RODIN_BLOB_DROP
+	bool "skip loading policy-dropped 6.6 vendor blobs"
+	default y
+	help
+	  Closed-source 6.6 blobs dropped by the A-55 recon decision: the
+	  scheduler family (metis/mi_schedule, the b543 rq-recode consumers),
+	  the millet and xiaomi net/memory MIUI-private endpoint families,
+	  misc io/debug/info utilities, and two dead modules (migt has no
+	  symbol providers since the sched =y batch, scheduler_ext is an
+	  empty shell).  The stock load list still names them; the loader is
+	  answered success and nothing is loaded.  mitee and the touch /
+	  fpsgo-cus / bootmonitor blobs are NOT covered and keep loading.
+	  If unsure, say Y.
+
+# ---- r24 batch 1 ----
+source "$(KCONFIG_EXT_PREFIX)drivers/clocksource/Kconfig"
+# ---- r25 batch 2 (P0-core) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/aee/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/monitor_hang/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sda/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/log_store/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprintk/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/tinysys_scmi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mminfra/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vcp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mkp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/iommu/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/clk/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/soc/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/watchdog/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/nvmem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/regulator/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/mailbox/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/interconnect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/pinctrl/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/char/hw_random/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/iommu/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/dma-buf/heaps/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/rpmsg/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/gpu/drm/mediatek/Kconfig"
+# ---- stage2 batch 1 (P0 底座残余: smi/PMIC 族/存储底座/i2c/spmi/emi 簇/dcm) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/mfd/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/iio/adc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/rtc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/keyboard/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/mmc/host/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/phy/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/i2c/busses/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/spmi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/memory/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/dcm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/smi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/power/supply/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_boost/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_meta/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_xhci/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/usb/mtu3/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/tty/serial/8250/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/dma/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/spi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/typec/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/subpmic/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/dvfsrc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/char/rpmb/Kconfig"
+
+# ---- stage2 batch4 ----
+source "$(KCONFIG_EXT_PREFIX)drivers/leds/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cmdq/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mme/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/swpm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/hw_sem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/i3c_i2c_wrap/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/i3c/master/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtk-interconnect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmdebug/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pidmap/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/power_throttling/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/slbc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sspm/Kconfig"
+
+# ---- stage3 S3b: vendor_boot misc batch (load_track/uload_ind/et/mdpm/pbm/masp/kshrink) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/performance/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/et/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mdpm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pbm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/masp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/kshrink_slabd/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/gate_ic/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/clkbuf/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/reset/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/tee/teeperf/Kconfig"
+
+# ---- rodin b564: mitee =y 内建（T3→=y；骨架 = dash 26d0c19 对齐代，blob 三维对账）----
+source "$(KCONFIG_EXT_PREFIX)drivers/tee/mitee/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/devfreq/Kconfig"
+
+config DEVICE_MODULES_PWM_MTK_DISP
+	tristate "MediaTek display PWM driver (rodin inline: vendor pwm/Kconfig redefines menuconfig PWM)"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+
+config SND_SOC_MTK_SMART_PHONE
+	tristate "Mediatek Smart Phone PCM Operation (rodin inline: vendor sound Kconfig has kernel-clashing SND_SOC_MT8188)"
+	help
+	  Mediatek PCM operation which is specific for smart phone product.
+
+# ---- stage2 B2 ffa_v11 (vendor FFA v1.1 fork; kernel CONFIG_ARM_FFA_TRANSPORT
+# must stay =n: kernel arm_ffa and this fork both define ffa_bus_type etc.) ----
+config DEVICE_MODULES_ARM_FFA_TRANSPORT
+	bool "vendor ffa_v11 (FF-A v1.1 fork) builtin gate (rodin inline)"
+	help
+	  Rodin-only gate for drivers/misc/mediatek/trusted_mem/ffa_v11 and the
+	  tmem_ffa build family. Kept separate from the kernel's
+	  CONFIG_ARM_FFA_TRANSPORT (=n) because both implementations export
+	  ffa_bus_type/ffa_driver_register; enabling both breaks vmlinux link.
+
+config DEVICE_MODULES_TMEM_FFA
+	bool "vendor tmem_ffa (trusted_mem FFA variant) builtin (rodin inline)"
+	depends on DEVICE_MODULES_ARM_FFA_TRANSPORT
+	help
+	  Builds the trusted_mem FFA-variant driver into the image. The device
+	  blob lives in vendor_dlkm; flip to =y in the vendor_dlkm stage.
+
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/trusted_mem/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/adsp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/blocktag/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/extcon/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/ufs/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/cpufreq/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/gpu/drm/panel/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mdp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/scp/Kconfig"
+
+
+
+source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"
+# ---- stage4 batch4-1(bootprof 新挂载 mtprof; thermal_generic_adc 内核树 B0 翻=y) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprof/Kconfig"
+# ---- stage4 batch4-2 (B2 点修 16+连带 iommu_engine; offload-common 顺延 4-5) ----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/jpeg/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vdec_fmt/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/widevine_drm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cm_mgr/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/geniezone/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/rps/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/media/platform/mtk-vcodec/Kconfig"
+
+config DEVICE_MODULES_SND_SOC_MEDIATEK
+	tristate "vendor snd-soc-mtk-common builtin gate (rodin inline: vendor sound Kconfig has kernel-clashing per-chip symbols)"
+	help
+	  Rodin-only gate for sound/soc/mediatek/common snd-soc-mtk-common.
+	  The vendor definition lives in the unsourced sound/soc/mediatek/Kconfig
+	  (promptless, selected by per-chip configs that clash with kernel ones).
+
+config MTK_NET_CCMNI
+	tristate "MediaTek CCMNI driver (rodin inline: vendor def depends MTK_CCCI_DEVICES which is not mounted)"
+	help
+	  Ladder key read directly by ccmni/Makefile (CCCI_CCMNI_OBJ). Defining
+	  it inline drops the MTK_CCCI_DEVICES dependency; the ccci family lands
+	  in batch 4-3 and may add its own definition later.
+
+config DEVICE_MODULES_SND_SOC_AW882XX
+	tristate "Awinic AW882XX Smart PA builtin gate (rodin inline: pa_combine Makefile was obj-m hardcode)"
+	help
+	  Rodin-only gate patching pa_combine/Makefile obj-m += snd-soc-aw882xx.o
+	  into obj-$(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX). MIEV telemetry
+	  calls compile out with CONFIG_MIEV unset (miev blob stays closed).
+
+config MTK_CCU_RPROC
+	tristate "MediaTek CCU driver (rodin inline: vendor def depends RPMSG_MTK_CCD which lands in batch 4-4)"
+	help
+	  Gate read by kmod mtkcam/ccusys Kbuild. Vendor definition lives in the
+	  unsourced devmod remoteproc/Kconfig behind RPMSG_MTK_CCD; defined here
+	  without it so mtk_ccuv can be built-in ahead of the camera family.
+
+config DEVICE_MODULES_VIDEO_MEDIATEK_VCODEC
+	tristate "vendor mtk-vcodec builtin gate (rodin inline: vendor def lives in unsourced media/platform Kconfig)"
+	depends on VIDEO_DEV
+	help
+	  Builds mtk-vcodec-common only (mtk-vcodec-dec/enc are fragments
+	  consumed by V1/V2 platform blocks, both =n; dec-v2 lands in batch
+	  4-3/4-7 behind CONFIG_VIDEO_MEDIATEK_VCODEC_V2).
+
+# ---- stage4 batch4-3 (GPU/perf/thermal/振动器/pmsr/sapu/met/mae/dec-v2) ----
+# 源门（vendor Kconfig 直接 source；其内部嵌套 source 由 rodin-ext symlink 镜像解析）
+source "$(KCONFIG_EXT_PREFIX)drivers/input/misc/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/gpu/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cg_ppt/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/qos/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pgboost/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmsr/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sensor/2.0/sensorhub/Kconfig"
+#   (批4-5: sensorhub 拉入——vendor sensor/2.0/Kconfig 会 source 四个未挂子树，
+#    故只单 source sensorhub/Kconfig；其 obj 行在已挂载的 sensor/2.0/Makefile)
+source "$(KCONFIG_EXT_PREFIX)drivers/thermal/mediatek/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/apusys/Kconfig"
+
+# --- rodin inline 门（vendor 定义位置不可直接 source 的）---
+
+config MTK_SENSOR_SUPPORT
+	tristate "MediaTek sensor framework gate (rodin inline: sensor/Kconfig sources 1.0/2.0 全族，2.0/Kconfig 又 source nanohub/sensorhub/test/lsm6dsm 四个未挂子树)"
+	help
+	  hf_manager 的门（sensor/2.0/core/Makefile）。父 sensor/2.0/Makefile 的
+	  `obj-y += core/` 是无条件行，其余子目录各有自己的门且保持未定义(=n)。
+
+config DEVICE_MODULES_VIDEO_MEDIATEK_JPEG
+	tristate "vendor mtk-jpeg builtin gate (rodin inline: vendor def 在未 source 的 media/platform/Kconfig，带 4 条内核侧 depends)"
+	help
+	  mtk-jpeg 的门。vendor 定义 depends on MTK_IOMMU_V1||DEVICE_MODULES_MTK_IOMMU、
+	  VIDEO_DEV、ARCH_MEDIATEK、DEVICE_MODULES_MTK_SMI 并 select
+	  VIDEOBUF2_DMA_CONTIG/V4L2_MEM2MEM_DEV——前者本树已 =y、select 目标内核侧已 =y，
+	  故内联定义（同 4-2 的 VIDEO_MEDIATEK_VCODEC 手法）。
+
+config MTK_CAMERA_MAE_SUPPORT
+	tristate "MediaTek MAE (rodin inline: vendor def 在 kmod mtkcam/mtk-mae/Kconfig)"
+	select V4L2_MEM2MEM_DEV
+	help
+	  kmod mtk-mae Kbuild 读此门，同门编 mtk_mae + mtk_mae_isp8 两件
+	  （两者都有设备 blob，必须同批同跳）。
+
+config MTK_MET
+	tristate "MET profile (rodin inline: vendor def 在 devmod drivers/misc/mediatek/Kconfig 顶层，source 整棵有 conf 静默失败前科)"
+	help
+	  kmod met_drv_v3/common/Kbuild 读此门。设备 met.ko 实测来自 met_drv_v3
+	  （blob strings 证据：../vendor/mediatek/kernel_modules/met_drv_v3/common/...）。
+
+config VIDEO_MEDIATEK_VCODEC_ENC_V2
+	bool "Video Vcodec ENC V2 (rodin 拆分: vendor 把 dec/enc v2 写在同一个 ifeq 块)"
+	help
+	  vendor mtk-vcodec/Makefile 的 V2 块同时编 mtk-vcodec-dec-v2.o 与
+	  mtk-vcodec-enc-v2.o。enc-v2 的符号闭包压在 perf/sched 簇（含闭源
+	  metis/mi_schedule），本批只能收 dec-v2；拆分门默认 n，enc-v2 顺延。
+	  **4-9 已复活 =y**：闭包里的 metis/mi_schedule 是设备 blob 侧 Xiaomi 私有补丁
+	  的产物，源码内建后不再被引用。复活时必须在 mtk-vcodec/Makefile 里去掉 enc-v2
+	  对 v2/vcodec_dvfs.o 的重复引用（同列在 dec-v2/enc-v2 两条 objs ⇒ 18 个
+	  multiple definition）。
+
+config MTK_POWERHAL_CPU_CTRL
+	tristate "vendor powerhal_cpu_ctrl (rodin 拆分: vendor 用 MTK_PERFORMANCE_MODULE 一门编 5 件)"
+	help
+	  performance/Makefile 原以 MTK_PERFORMANCE_MODULE 同时编
+	  mtk_perf_ioctl/mtk_ioctl_touch_boost/mtk_ioctl_powerhal/touch_boost/ 与
+	  powerhal_cpu_ctrl/。后者闭包含闭源 metis/mi_schedule ⇒ 4-3 拆出独立门默认 n。
+	  **4-9 已复活 =y**（同 enc-v2：闭包源头是 blob 侧私有补丁）。
+	  注意初始化级：MTK_PERF_COMMON=y 时源码走 late_initcall（IS_BUILTIN 分支），
+	  与设备 =m 的 module_init 不同 ⇒ 终验观察初始化时序。
+
+# ---- stage4 batch4-4 (相机族 9 + 传感器/vcm/标定 4 + 辅助 4 + 拉入提供者 mbraink_bridge = 19 件) ----
+# source：devmod media/platform/mtk-isp/Kconfig 是扁平文件（18 个 config，无子 source），
+# 经已有 rodin-ext/drivers/media 符号链接可达；提供 VIDEO_MTK_ISP_* 全部相机门。
+source "$(KCONFIG_EXT_PREFIX)drivers/media/platform/mtk-isp/Kconfig"
+
+# --- rodin inline 门（vendor 定义位置不可直接 source：带子 source / 与内核同名面重叠 /
+#     定义在未挂载树）---
+
+config MTK_CAMERA_ISP_SUPPORT
+	tristate "Camera ISP Driver Support (rodin inline: vendor cameraisp/Kconfig 带 9 个子 source)"
+	help
+	  dpe 家族的父门。设备真值 =m。本批只由 camera_dpe_isp8 消费。
+
+config MTK_CAMERA_ISP_PDA_SUPPORT
+	tristate "[PDA] Phase Distortion point Accelerator (rodin inline: vendor cameraisp/pda/Kconfig)"
+	help
+	  pda_drv_mt6899 的门。设备真值 =m。
+
+config MTK_V4L2_IMGSENSOR
+	tristate "MediaTek v4l2 image sensor support (rodin inline: vendor imgsensor/Kconfig 带子 source)"
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select I2C
+	help
+	  imgsensor_isp8 + imgsensor-glue_isp8 的门（src-isp8/Kbuild）。设备真值 =m。
+
+config CUSTOM_KERNEL_IMGSENSOR
+	string "Custom image sensor driver (rodin inline: vendor imgsensor/Kconfig 带子 source)"
+	help
+	  src-isp8/Kbuild 的 sensor subdrv 名单：Kbuild 按名单从 common/ 逐个
+	  include 子 Makefile 进 imgsensor_isp8 单元，并生成 IMGSENSOR_SUBDRVS
+	  宏供 adaptor-drv.c 建 subdrv 注册表；名单为空 = imgsensor_subdrvs[]
+	  0 长 = search_sensor 全灭（#178 真机 A-46 根因）。设备真值见
+	  gki_defconfig 同名行（= rodin.config 逐字同串）。
+
+config MTK_V4L2_LENS
+	tristate "Mediatek V4L2 lens driver (rodin inline: vendor lens/Kconfig 全族未挂载)"
+	help
+	  camera_af_media 的门（lens/vcm/v4l2/media/Makefile）。设备真值 =m。
+
+config MTK_V4L2_CAM_CAL
+	tristate "MTK camera cal driver (rodin inline: vendor devmod cam_cal/Kconfig；构建入口在 kmod)"
+	help
+	  camera_eeprom_v4l2 的门（kmod mtkcam/cam_cal 的 obj-m 硬编补丁后读它）。设备真值 =m。
+
+config MTK_IPS_HELPER
+	tristate "MTK IPS Helper debugging Support (rodin inline: vendor ips/Kconfig)"
+	help
+	  mtk-ips-helper 的门。设备真值 =m。
+
+config MI_CAMLOG
+	tristate "Camera Camlog Driver Support (rodin inline: vendor cam_log/Kconfig; Makefile obj-m 硬编)"
+	help
+	  cam_log 的门。设备真值 =m。
+
+config MTK_CCD_REMOTEPROC
+	tristate "MediaTek CCD driver (rodin inline: vendor def 在 devmod remoteproc/Kconfig 的 if REMOTEPROC 内)"
+	help
+	  mtk_ccd_remoteproc 的门。设备真值 =m。不 source 该文件是为了避免
+	  与内核树自身 drivers/remoteproc/Kconfig 的 menu 双定义。
+
+config MTK_CAMERA_DPE_ISP8
+	tristate "[DPE] Depth Engine ISP8 (rodin inline: 定义在 kmod mtkcam/mtk-dpe/Kconfig)"
+	depends on MTK_CAMERA_ISP_SUPPORT
+	help
+	  camera_dpe_isp8 的门。同目录 7SP/7S 门保持未定义。
+
+config MTK_MBRAINK_BRIDGE
+	tristate "MTK MBRAINK BRIDGE support (rodin inline: vendor def depends MTK_MBRAINK=主体属 4-5)"
+	help
+	  mtk_mbraink_bridge 的门（devmod mbraink/bridge）。去 depends 的依据＝设备 blob
+	  闭包实测对 mbraink 主体零引用（仅注册 ops 面），可独立编。本批拉入它是因为
+	  imgsys/cmdq 的 imgsys2mbrain_notify_hw_time_info 唯一提供者就是它。
+
+config BUILD_XIAOMI_CAMERA_IMAGE_NAMES
+	string "Xiaomi camera image name (rodin inline: 设备真值在 devmod kernel/configs/rodin.config)"
+	default "rodin"
+	help
+	  cam_cal custom/Kbuild 的 ifeq 读它决定 -DRODIN_CAM。设备真值 ="rodin"，
+	  vendor 树里无 Kconfig 定义（只由 config fragment 注入），故此处补上。
+
+# ---- stage4 batch4-3b (eccci 族) ----
+# eccci/Kconfig = MTK_ECCI_DRIVER(tristate, depends MTK_CCCI_DEVICES, select
+#   MTK_NET_CCMNI/PAGE_POOL) + MTK_ECCI_CLDMA/CCIF/C2K/C2K_USB + DEBUG_LOG；
+# ccci_util/Kconfig = menuconfig MTK_CCCI_DEVICES + MTK_MD1_SUPPORT(int)。
+# 两份都是扁平文件（无子 source）。MTK_NET_CCMNI 仍用上面的 rodin inline 定义
+# （ccmni/Kconfig 未 source；eccci/Kconfig 仅 select 它）。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/eccci/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/ccci_util/Kconfig"
+
+config MTK_AUDIO_IPI
+	tristate "MTK audio ipi support (rodin inline: vendor def depends MTK_AUDIODSP_SUPPORT||MTK_SCP_AUDIO)"
+	help
+	  批 4-3b 拉入的门。vendor 定义在 audio_ipi/Kconfig（未 source，避免与
+	  其内的 DEVICE_MODULES_VHOST_ADSP/ADSP_VOIP_LEGACY 一并引入）。依赖去掉的
+	  依据＝实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（链接期自足），
+	  adsp/include 等 -I 在 vendor Makefile 里本就是无条件行。
+
+# ---- stage4 batch4-5 轮C source（vendor 各目录 Kconfig）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mddp/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmstat/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmic_protect/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vmm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mcupm/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/flashlight/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/flashlight/v4l2/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/nfc/nxp-i2c/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/nfc/p73-spi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_offload/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_rndis/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/usb/usb_logger/Kconfig"
+
+config MTK_PLAT_POWER_6893
+	tristate "Platform power specified macro (rodin inline: vendor def 在未 source 的 drivers/misc/mediatek/Kconfig)"
+	help
+	  mcupm/v1 下钻门（vendor 命名为 6893，实为 v1 tinysys 平台开关；6.6 设备真值 y）。
+
+# --- rodin inline 门（批4-5 轮B：声卡大簇；vendor 定义在未 source 的 sound/soc/{mediatek,codecs}/Kconfig）---
+config DEVICE_MODULES_SND_SOC_MT6899
+	tristate "ASoC support for Mediatek MT6899 chip (rodin inline)"
+	depends on ARCH_MEDIATEK
+	select SND_SOC_MTK_SRAM
+	select SND_SOC_MTK_SMART_PHONE
+	help
+	  snd-soc-mt6899-afe 聚合门（sound/soc/mediatek/mt6899/Makefile）。
+
+config DEVICE_MODULES_SND_SOC_MT6899_MT6368
+	tristate "ASoC MT6899 with MT6368 codec (rodin inline)"
+	depends on DEVICE_MODULES_SND_SOC_MT6899
+	help
+	  mt6899-mt6368 machine driver 门。
+
+config SND_SOC_MTK_SRAM
+	tristate "Mediatek Audio SRAM Management (rodin inline)"
+	help
+	  mtk-sram-manager.o 门（common/Makefile）：mtk_audio_sram_init/get_size 提供者，
+	  snd_soc_mt6899_afe 的消费面。设备无独立 blob（聚合在 snd_soc_mtk_common 内）。
+
+config SND_SOC_MTK_AUDIO_DSP
+	tristate "MTK audio DSP platform (rodin inline)"
+	help
+	  snd-soc-audiodsp-common 聚合门（audio_dsp/Makefile）。
+
+config SND_SOC_MTK_OFFLOAD
+	tristate "MTK audio offload (rodin inline)"
+	help
+	  mtk-soc-offload-common.o 门（audio_dsp/Makefile）。
+
+config SND_SOC_MT6368
+	tristate "MediaTek MT6368 Codec driver (rodin inline)"
+	help
+	  snd-soc-mt6368.o 门（codecs/Makefile）。
+
+config SND_SOC_MT6368_ACCDET
+	tristate "MediaTek MT6368 ACCDET driver (rodin inline)"
+	depends on MFD_MTK_SPMI_PMIC
+	help
+	  mt6368-accdet.o 门（codecs/Makefile）。
+
+config SND_SOC_RT5512
+	tristate "Mediatek RT5512 speaker amplifier (rodin inline)"
+	depends on I2C
+	help
+	  snd-soc-rt5512.o + richtek_spm_cls.o 门（codecs/Makefile → richtek/）。
+
+config SND_SOC_TFA9874
+	tristate "NXP TFA9874 speaker amplifier (rodin inline)"
+	depends on I2C
+	help
+	  snd-soc-tfa98xx.o 门（codecs/Makefile → tfa98xx/）。
+
+config USB_SWITCH_ET7480
+	tristate "TYPE-C switch ET7480 (rodin inline)"
+	depends on I2C
+	help
+	  et7480.o 门（codecs/Makefile → et7480/；vendor Makefile 是无条件 obj-m，本批加门）。
+
+config MTK_ULTRASND_PROXIMITY
+	tristate "MTK ultrasound proximity (rodin inline)"
+	help
+	  mtk-scp-ultra 门（ultrasound/ultra_{common,scp}/Makefile）。
+
+config MTK_VOW_SUPPORT
+	tristate "MediaTek VOW support (rodin inline)"
+	help
+	  mtk-vow.o（drivers/misc/mediatek/vow/ver02/）与 mtk-scp-vow.o（sound/soc/mediatek/vow/）共同门。
+
+config MTK_VOW_DUAL_MIC_SUPPORT
+	bool "MediaTek VOW dual mic support (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+
+config MTK_VOW_MAX_PDK_NUMBER
+	int "MediaTek VOW MAX PDK model support (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+	default 0
+
+config MTK_VOW_DSP_VERSION
+	string "MediaTek VOW DSP Version (rodin inline)"
+	depends on MTK_VOW_SUPPORT
+
+# --- rodin inline 门（批4-5 轮A）---
+config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
+	tristate "ALSA BT SCO CVSD/MSBC (rodin inline: vendor def 在未 source 的 sound/soc/mediatek/Kconfig)"
+	help
+	  mtk-btcvsd.o 的门（sound/soc/mediatek/common/Makefile，目录 4-3 已挂）。
+	  批4-5 轮B 若 source sound/soc/mediatek/Kconfig 需删除本 inline 定义防重定义。
+
+# --- 批4-6 source（连接/wlan 簇）---
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/connectivity/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/conn_scp/Kconfig"
+# --- 批4-7 inline 门（杂项簇：lpm/swpm dbg/ssc/wla/atf/irtx/pwm + mtk_aov）---
+# vendor 定义在未 source 的 {lpm,ssc,wla,irtx,pwm}/Kconfig 与 drivers/misc/mediatek/Kconfig；
+# pwm/Kconfig redefines menuconfig PWM 不可整棵 source（4-5 先例），lpm/Kconfig 的
+# MTK_LPM_MODULE_NAME 引用未定义 MTK_PLATFORM 字符串符号 ⇒ 一律 inline。
+# 设备真值（devmod arch/arm64/configs/mgk_64_k66_defconfig）：这些门全 =m，翻 =y 即内建形态。
+# 刻意不定义的（未定义 ≡ n，与设备一致）：
+#   MTK_LPM_GS_DUMP_SUPPORT   设备 defconfig 显式 =n
+#   MTK_CPU_IDLE_IPI_SUPPORT  default n；blob lpm-gov-MHSP.ko 无 update_ipi_history 符号实锤
+#   MTK_LPM_MODULE_NAME       仅用于 =m 的 ko 命名（=y 走 Makefile 字面名 mtk-lpm.o）
+config MTK_LOW_POWER_MODULE
+	tristate "MediaTek Low Power Module (rodin inline)"
+	help
+	  mtk-lpm 家族总门（vendor def 在 lpm/Kconfig）。
+
+config MTK_LPM_DBG_COMMON
+	bool "MediaTek LPM common debug (rodin inline)"
+
+config MTK_LPM_MT6899
+	tristate "LPM platform MT6899 (rodin inline)"
+	depends on MTK_LOW_POWER_MODULE
+	select MTK_LPM_DBG_COMMON
+
+config MTK_CPU_IDLE_GOV
+	tristate "MediaTek cpuidle governor (rodin inline)"
+
+config MTK_CPU_IDLE_GOV_VERSION
+	string
+	default "MHSP"
+
+config MTK_SYS_RES_DBG_SUPPORT
+	tristate "LPM system resource debug support (rodin inline)"
+
+config MTK_SSC_MODULE
+	tristate "MediaTek Shared S-RAM Control (rodin inline)"
+
+config MTK_SSC_DBG_V1
+	tristate "SSC debug v1 (rodin inline; 设备 =m 但无此 blob 出货，保持 n)"
+	depends on MTK_SSC_MODULE
+
+config MTK_SSC_DBG_V2
+	tristate "SSC debug v2 (rodin inline)"
+	depends on MTK_SSC_MODULE
+
+config MTK_WLA
+	tristate "MediaTek Work Load Aware (rodin inline)"
+
+config MTK_ATF_LOGGER
+	tristate "atf logger kernel driver (rodin inline: vendor def 在 mediatek/Kconfig)"
+	depends on HAVE_ARM_SMCCC && ARCH_MEDIATEK && OF
+
+config MTK_PWM
+	tristate "MediaTek PWM driver (rodin inline: vendor pwm/Kconfig redefines menuconfig PWM，不可 source)"
+
+config MTK_IRTX_PWM_SUPPORT
+	tristate "MediaTek PWM IR transmitter (rodin inline: vendor def 在 irtx/Kconfig)"
+	depends on RC_CORE && ARCH_MEDIATEK && MTK_PWM
+
+# ---- stage4 batch4-8: mali r49p1（kmod gpu/mt6899 叶子直挂）标准门 ----
+# 为什么不 source midgard/Kconfig：它的 `source "$(MALI_KCONFIG_EXT_PREFIX)…/platform/tests"`
+# 两行在前缀为空时会炸 kconfig，且其 depends/select 会牵动内核侧键（GPU_TRACEPTS 等本树无）。
+# 这里按 4-8 实行指南内联 11 个门，取值来自 vendor defconfig + blob 符号实证（device truth）。
+# 全部写成无 depends/select 的独立 bool —— 全树除 mali 源码外**零消费者**（已 grep 实证），
+# 因此不会产生门翻连带；midgard 侧其余 ~50 个 CONFIG_MALI_MTK_* 旋钮由 gpu/mt6899/Makefile
+# 的 export BUILD_RULE=OOT 阶梯 + Kbuild-mtk-custom-env 转 -D 供给，**刻意不进 kconfig**。
+# ⚠️ 刻意**不定义** CONFIG_MALI_KUTF：设备 .config 无该键 ⇒ auto.conf 缺席 ⇒
+#    midgard/Makefile:529 的 `ifneq ($(CONFIG_MALI_KUTF), n)` 为真 ⇒ MALI_KERNEL_TEST_API=1
+#    （设备 blob 的 __ksymtab 有 186 项，正是此形态）；定义成 n 会与设备反向。
+
+config MALI_MIDGARD
+	bool "Mali Midgard kbase (rodin inline; LD2.0 对象名 mali_kbase_mt6899_r49)"
+	default n
+
+config MALI_CSF_SUPPORT
+	bool "Mali CSF (Command Stream Frontend) support (rodin inline)"
+	default n
+
+config MALI_DEVFREQ
+	bool "Mali devfreq support (rodin inline)"
+	default n
+
+config MALI_REAL_HW
+	bool "Mali real hardware support (rodin inline)"
+	default n
+
+config MALI_DEBUG
+	bool "Mali debug support (rodin inline)"
+	default n
+
+config MALI_FENCE_DEBUG
+	bool "Mali fence debug (rodin inline)"
+	default n
+
+config LARGE_PAGE_SUPPORT
+	bool "Mali large page support (rodin inline)"
+	default n
+
+config MALI_TRACE_POWER_GPU_WORK_PERIOD
+	bool "Mali GPU work period trace (rodin inline)"
+	default n
+
+config MALI_BASE_MODULES
+	bool "Mali base modules (rodin inline)"
+	default n
+
+config MALI_MEMORY_GROUP_MANAGER
+	bool "Mali memory group manager (rodin inline; 对象名 mali_mgm_mt6899_r49)"
+	default n
+
+config MALI_PROTECTED_MEMORY_ALLOCATOR
+	bool "Mali protected memory allocator (rodin inline; 对象名 mali_prot_alloc_mt6899_r49)"
+	default n
+# ---- stage4 batch4-9: perf/sched 栈（18 件纯源 =y 内建）----
+# source 五棵 vendor Kconfig（经 rodin-ext/drivers/... 的符号链接镜像可达）：
+#   * sched/Kconfig —— 本批**必须** source：它是 MAX_NR_CPUS 的**唯一**定义处
+#     （`int "..." range 2 32 default "8"`；全树 grep 实证无第二处）。三个子代理
+#     曾把它误判为"缺失符号 blocker"，实际只是当时没被 source。**不要**改成本树
+#     CONFIG_NR_CPUS=32。同时提供 MTK_SCHEDULER / MTK_EAS / VIP / CORE_PAUSE / FLT /
+#     GROUP_AWARE / OPP_CAP_INFO / NONLINEAR_FREQ_CTL / GEARLESS / SUGOV / CORE_CTL。
+#   * 其余四棵是扁平 Kconfig（cache-auditor / perf_common / task_turbo /
+#     cpufreq_lite），内部无子 source，可直接 source。
+# mbraink/Kconfig **不可 source**：MTK_MBRAINK `select MTK_MBRAINK_BRIDGE` 而后者
+# `depends on MTK_MBRAINK` ⇒ kconfig 依赖环。主体两门在下方 inline 定义。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sched/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cache-auditor/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/perf_common/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/task_turbo/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/cpufreq_lite/Kconfig"
+
+# --- rodin inline 门（vendor 无定义 / 定义位置不可 source）---
+# 设备真值（mgk_64_k66_defconfig）：MTK_MBRAINK=m、MTK_MBRAINK_MT6899=m。
+config MTK_MBRAINK
+	tristate "MTK MBRAINK support (rodin inline: vendor def 在 mbraink/Kconfig，select 环不可 source)"
+	help
+	  mbraink/Makefile 的 obj-$(CONFIG_MTK_MBRAINK) 门控主体 13 个 .c 与 modules/。
+	  （bridge/ 子目录是另一个门 MTK_MBRAINK_BRIDGE，见上。）
+
+config MTK_MBRAINK_MT6899
+	tristate "MTK MBRAINK for mt6899 (rodin inline)"
+	depends on MTK_MBRAINK
+	help
+	  mbraink/modules/Makefile 与 modules/v6899/Makefile 的门控（后者同时按
+	  CONFIG_MTK_SWPM_MODULE 多编 4 个 sys_res 文件，=m 写死门已改 filter y m）。
+
+config MTK_HBT
+	tristate "MTK HBT driver (rodin inline: vendor 两树均无 Kconfig 定义)"
+	help
+	  kmod hbt_driver/Kbuild 读此门（-DCONFIG_MTK_HBT 与 obj- 行）。设备 hbt.ko
+	  真实发货，但门由 MTK Android 构建层注入、不在 vendor defconfig 里，故此处补定义。
+	  注：同树 hbt_driver_cus/src/hbt.c 是 79 行残桩且被 Android.mk 反向守卫排除，
+	  真身 = hbt_driver/src/hbt.c（507 行，md5 与 _cus 下同名文件逐字节相同）。
+
+
+# ---- rodin T1 七件（门定义在 vendor Kconfig；MI_LOG/MI_MEM_ENGINE/MI_THERMAL_* 三类
+# 官方 drop 未带 Kconfig，rodin 侧按 blob 串真值补写）----
+source "$(KCONFIG_EXT_PREFIX)drivers/power/xm_power/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/miev/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mem_engine/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_log/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/thermal/xiaomi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/mihw/Kconfig"
+
+# ---- rodin T2① binder_prio（门 = dash 官方 Kconfig 原文）----
+source "$(KCONFIG_EXT_PREFIX)drivers/staging/binder_prio/Kconfig"
+
+# ---- rodin T2② hwid（门 = rodin 侧补写，dash 两树无源）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/hwid/Kconfig"
+
+# ---- rodin T2③-⑧ 六件（cpu_isolate 门 = dash thermal/mediatek/Kconfig 原文，
+# 随件补入 devmod；thermal/mediatek 本文件 193 行已 source）----
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/simtray/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/scene_swappiness/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_exception_log/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/memory/xiaomi/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/fingerprint/xiaomi_fp/Kconfig"
+
+# ---- rodin b567: touch 三件 =y 内建（第六十九轮；骨架 = MiCode
+# vendor_xiaomi_proprietary_touch-driver popsicle/warsaw + blob 反汇编重建缺口）----
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/xiaomi_touch_rodin/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_brl_rodin/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/focaltech_rodin/Kconfig"

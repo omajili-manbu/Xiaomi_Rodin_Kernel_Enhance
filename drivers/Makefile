@@ -197,3 +197,7 @@ obj-$(CONFIG_DPLL)		+= dpll/
 
 obj-$(CONFIG_DIBS)		+= dibs/
 obj-$(CONFIG_S390)		+= s390/
+
+# ANDROID/MTK: descend into the device-modules project (builtin mode).
+# KCONFIG_EXT_PREFIX points at the device-modules tree, with trailing slash.
+include $(srctree)/$(KCONFIG_EXT_PREFIX)Makefile.ext
