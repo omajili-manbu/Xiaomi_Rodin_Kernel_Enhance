@@ -3357,6 +3357,90 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	return 0;
 }
 
+/*
+ * RODIN: closed-source 6.6 blobs the project deliberately no longer runs
+ * (A-55 recon).  The stock dlkm load list and modules.dep still name them,
+ * and a failed load aborts the rest of the vendor list, so - like the
+ * built-ins above - the load reports success and does nothing.  Unlike
+ * rodin_builtin_modules there is no in-image provider: the module simply
+ * does not load.  Keep sorted by cluster.
+ */
+static const char *const rodin_blob_drop_modules[] = {
+#if IS_ENABLED(CONFIG_RODIN_BLOB_DROP)
+	/* scheduler family: the rq-recode machine-patch consumers (b543) */
+	"metis",
+	"mi_schedule",
+	/* millet family: MIUI private kernel endpoints (millet daemon) */
+	"binder_gki",
+	"millet_binder",
+	"millet_core",
+	"millet_hs",
+	"millet_oem_cgroup",
+	"millet_pkg",
+	"millet_sig",
+	/* xiaomi net family (netfilter hook ops users) */
+	"miicmpfilter",
+	"minet",
+	"miwill",
+	"miwill_mode_redudancy",
+	"sla",
+	/* xiaomi memory family */
+	"mi_mempool",
+	"mi_mem_epoll",
+	"perf_helper",
+	/* io / misc */
+	"lb",
+	"mpbe",
+	/* debug / info utilities */
+	"crash_module",
+	"debug_ext",
+	"hardwareinfo",
+	"xiaomi_wifi_gpio",
+	/* dead weight: migt lost its providers (A-30), scheduler_ext is a shell */
+	"migt",
+	"scheduler_ext",
+	/* sched governor family: 6.6 blobs blind to 6.18 delayed-dequeue
+	 * semantics (A-75 recurrence, user verdict: drop, no core fix; b588) */
+	"task_turbo_v",
+	"fpsgo",
+	"game",
+	"eas_ext",
+	"cpuqos_ext",
+	"mtk_em",
+#endif
+	NULL,
+};
+
+/*
+ * Compare module names with '-' and '_' treated alike: kbuild sanitises the
+ * name it writes into .modinfo ("industrialio_triggered_buffer" for
+ * industrialio-triggered-buffer.ko), callers may pass either form.
+ */
+static bool rodin_module_name_eq(const char *a, const char *b)
+{
+	for (; *a && *b; a++, b++) {
+		char ca = *a == '-' ? '_' : *a;
+		char cb = *b == '-' ? '_' : *b;
+
+		if (ca != cb)
+			return false;
+	}
+	return *a == *b;
+}
+
+/* noinline: keeps the table walk visible in vmlinux for the build gates. */
+static noinline bool rodin_skip_drop_module(const char *name)
+{
+	const char *const *p;
+
+	if (!name)
+		return false;
+	for (p = rodin_blob_drop_modules; *p; p++)
+		if (rodin_module_name_eq(name, *p))
+			return true;
+	return false;
+}
+
 /* Module within temporary copy, this doesn't do any allocation  */
 static int early_mod_check(struct load_info *info, int flags)
 {
@@ -3430,6 +3514,15 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = early_mod_check(info, flags);
 	if (err)
 		goto free_copy;
+
+	/*
+	 * RODIN: policy-dropped 6.6 blobs; report success the same way so the
+	 * vendor load list and modules.dep resolution never abort on them.
+	 */
+	if (rodin_skip_drop_module(info->name)) {
+		pr_warn("rodin: %s is dropped blob, skipping load\n", info->name);
+		goto free_copy;
+	}
 
 	/* Figure out module layout, and allocate all the memory. */
 	mod = layout_and_allocate(info, flags);
