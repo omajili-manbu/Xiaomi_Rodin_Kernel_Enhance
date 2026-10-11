@@ -573,10 +573,10 @@ CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
 CONFIG_USB_OTG=y
 CONFIG_USB_MON=m
 CONFIG_USB_XHCI_HCD=y
-# rodin 修复18（A-24）：DbC 胶水归 vendor usb_xhci（按 vendor xhci.h 布局编译），
-# 内核树 DBGCAP 关闭避免同一符号双定义；内核树 xhci.c 调用点走上游 static inline
-# 空实现（上游原生设计）。vendor 侧 xhci-dbgcap.c/xhci-dbgtty.c 已入 xhci-mtk-hcd-v2-y。
-# CONFIG_USB_XHCI_DBGCAP is not set
+# rodin 修复18（A-24，b246 起改写）：DbC/debugfs/dbg/trace/ext-caps 交还内核树，
+# vendor usb_xhci 只保留改名后的核心副本并经 -I 落到内核头；DbC 胶水回到内核
+# xhci-dbc.c/xhci-dbgtty.c，打开 DBGCAP 由内核 xhci_hcd_init 统一拉起。
+CONFIG_USB_XHCI_DBGCAP=y
 CONFIG_USB_XHCI_SIDEBAND=y
 CONFIG_USB_EHCI_HCD=y
 CONFIG_USB_EHCI_ROOT_HUB_TT=y
