@@ -24,6 +24,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
@@ -2200,7 +2201,7 @@ static void __exit zs_exit(void)
 	zs_stat_exit();
 }
 
-module_init(zs_init);
+vseq_module_init(zs_init);
 module_exit(zs_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");

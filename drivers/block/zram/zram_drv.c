@@ -16,6 +16,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
 #include <linux/bitops.h>
@@ -3645,7 +3646,7 @@ static void __exit zram_exit(void)
 	destroy_devices();
 }
 
-module_init(zram_init);
+vseq_module_init(zram_init);
 module_exit(zram_exit);
 
 module_param(num_devices, uint, 0);

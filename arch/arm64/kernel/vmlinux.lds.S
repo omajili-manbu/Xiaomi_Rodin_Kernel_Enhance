@@ -295,6 +295,7 @@ SECTIONS
 		INIT_SETUP(16)
 		INIT_CALLS
 		CON_INITCALL
+		VSEQ_ENTRIES
 		INIT_RAM_FS
 		*(.init.altinstructions .init.bss)	/* from the EFI stub */
 	}

@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
@@ -2631,7 +2632,7 @@ static void __exit cleanup_mtd(void)
 	idr_destroy(&mtd_idr);
 }
 
-module_init(init_mtd);
+vseq_module_init(init_mtd);
 module_exit(cleanup_mtd);
 
 MODULE_LICENSE("GPL");

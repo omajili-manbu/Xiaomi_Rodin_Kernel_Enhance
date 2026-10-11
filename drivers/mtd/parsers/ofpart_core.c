@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/vseq.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/mtd/mtd.h>
@@ -289,7 +290,7 @@ static void __exit ofpart_parser_exit(void)
 	deregister_mtd_parser(&ofoldpart_parser);
 }
 
-module_init(ofpart_parser_init);
+vseq_module_init(ofpart_parser_init);
 module_exit(ofpart_parser_exit);
 
 MODULE_LICENSE("GPL");
