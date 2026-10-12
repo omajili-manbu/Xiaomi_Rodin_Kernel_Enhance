@@ -864,6 +864,9 @@ CONFIG_MTK_IOMMU_MISC_DBG=y
 CONFIG_MTK_IOMMU_MISC_SECURE=y
 CONFIG_DEVICE_MODULES_DMABUF_HEAPS_SYSTEM=y
 CONFIG_DEVICE_MODULES_DMABUF_HEAPS_REFILL=y
+# rodin b247 A-107: 启用厂商自带的无前缀 dmabuf_page_pool_* 实现（6.18 化过），
+# 供预编译 blob mtk_sec_heap.ko 的导入解析（其期望的就是这套名字/结构体布局）。
+CONFIG_DEVICE_MODULES_DMABUF_HEAPS_PAGE_POOL=y
 # == system_dlkm B0 (6.18 in-tree sources, =m -> =y; diag stays blob) ==
 # (6LOWPAN/VLAN_8021Q =y live in their native lines above)
 CONFIG_NET_9P=y
