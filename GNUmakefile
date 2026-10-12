@@ -25,16 +25,30 @@ RODIN_TREE := $(CURDIR)
 # clang 工具链不放树内（2026-09-26 定案）：prebuilts（clang/pahole/rust）留在
 # rodin-build 顶层与 bp 树共用，本文件以 $(RODIN_TREE)/../prebuilts 引用；
 # 树内只保留 dwarves。
-# rust 刻意不进 PATH，两条实锤依据：
-# ① r25 基线产物面无 Rust——r25 21 轮构建从未带上 rust/ 对象；
-# ② 本树 Rust 面当前编不过：兼容层把 __blk_mq_alloc_disk 等改名为 *_k618，
-#    rust/bindings 仍引用旧名（E0425），drm_driver 缺 date/lastclose 字段（E0063）
-#    ——实测。将来要开 Rust 必须先修这两处，再把
-#    ../prebuilts/rust-toolchain/linux-x86/1.97.0/bin 加回 PATH（r24 教训：
-#    LIBCLANG_PATH 不设会落到系统 libclang 18）。
+# rust：2026-10-12 起启用（目的 = 恢复 /dev/ashmem：6.18 的 ashmem 是 Rust 实现
+# （drivers/staging/android/ashmem.rs，Kconfig `depends on SHMEM && RUST`），RUST 不开时
+# CONFIG_ASHMEM 被静默丢弃，stock HyperOS 的 system_server 会在 ApplicationSharedMemory
+# 上 FATAL 崩、启动循环）。
+# 旧注记里"编不过"的两条实锤属兼容层树（该树路径历史上曾用本名）：本树无 *_k618 改名、
+# drm_driver 亦无 lastclose/date 槽位，两处修法均不适用（2026-10-12 grep 复核）。
+# 工具链 = ../prebuilts/rust-toolchain/linux-x86/1.97.0（rustc 的 LLVM 22.1.6 与
+# clang-r596125 的 22.0.2 同代）；LIBCLANG_PATH 必须显式给（r24 教训：不设会落到
+# 系统 libclang 18）。
+# 副作用（刷机判读用）：CONFIG_RUST select EXTENDED_MODVERSIONS + CFI_ICALL_NORMALIZE_INTEGERS，
+# 相对出厂 6.6 是规则面净变化（见 tools/_b566_bootfix/apply_rust_route_b566.py 的 ABI 门禁说明）。
 RODIN_CLANG_DIR := clang-r596125
-export PATH := $(RODIN_TREE)/dwarves:$(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/bin:$(PATH)
+RODIN_RUST_DIR := rust-toolchain/linux-x86/1.97.0
+export PATH := $(RODIN_TREE)/dwarves:$(RODIN_TREE)/../prebuilts/$(RODIN_RUST_DIR)/bin:$(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/bin:$(PATH)
 export LIBCLANG_PATH := $(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/lib
+
+# ---- KCFLAGS：rust bitcode 编译步的旗标冲突兜底（2026-10-12） ----
+# rust/Makefile:469（inline-helpers）用 clang 编 *.m.bc，吃整个 $(KBUILD_CFLAGS)：
+# 其中既有内核默认 -Werror=unused-command-line-argument，又有 vendor 的全局 -I
+# （C 面必需；bitcode 输入用不到 -I）⇒ clang 把 "argument unused" 抬成 error，
+# drivers/staging/android/ashmem.o 编不出来（CONFIG_ASHMEM=y 的唯一阻塞点）。
+# Makefile:1140 `KBUILD_CFLAGS += $(KCFLAGS)` 追加在末尾 ⇒ 后置 -Wno 覆盖前置 -Werror。
+# 只影响诊断、不改代码生成；C 编译面不受影响（-I 在 C 里不算 unused）。
+export KCFLAGS := -Wno-unused-command-line-argument
 
 # ---- 架构 ----
 export ARCH := arm64
