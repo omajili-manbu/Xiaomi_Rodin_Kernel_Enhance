@@ -838,7 +838,13 @@
 		.shstrtab 0 : { *(.shstrtab) }
 
 #define MODINFO								\
-		.modinfo : { *(.modinfo) . = ALIGN(8); }
+		/* RODIN: bounds for CONFIG_RODIN_BUILTIN_SKIP - the section is
+		 * kept in the image and read back as the registry of built-in
+		 * module names (kernel/module/main.c). */	\
+		.modinfo : {						\
+			BOUNDED_SECTION_BY(.modinfo, ___modinfo)	\
+			. = ALIGN(8);					\
+		}
 
 #ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\

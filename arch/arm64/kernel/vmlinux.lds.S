@@ -215,6 +215,15 @@ SECTIONS
 	/* everything from this point to __init_begin will be marked RO NX */
 	RO_DATA(PAGE_SIZE)
 
+	/*
+	 * RODIN: the build-generated .modinfo section is kept in the image on
+	 * purpose (upstream strips it): CONFIG_RODIN_BUILTIN_SKIP reads it
+	 * back as the registry of built-in module names.  It must sit inside
+	 * [RO_DATA, __init_begin) so that _end covers it (kernel image
+	 * memblock reservation) and it is mapped read-only.
+	 */
+	MODINFO
+
 	HYPERVISOR_RODATA_SECTIONS
 
 	.got : { *(.got) }
@@ -377,7 +386,6 @@ SECTIONS
 
 	STABS_DEBUG
 	DWARF_DEBUG
-	MODINFO
 	ELF_DETAILS
 
 	HEAD_SYMBOLS

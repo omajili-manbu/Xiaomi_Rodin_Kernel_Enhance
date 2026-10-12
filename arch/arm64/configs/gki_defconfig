@@ -795,6 +795,10 @@ CONFIG_KUNIT_EXAMPLE_TEST=m
 # CONFIG_RUNTIME_TESTING_MENU is not set
 CONFIG_RUST_INLINE_HELPERS=y
 CONFIG_RODIN_BLOB_DROP=y
+# rodin A-102 丢载名单本体：仅未内建件（内建面由 .modinfo 名册自动覆盖）；改名单只动这一行
+CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule binder_gki millet_binder millet_core millet_hs millet_oem_cgroup millet_pkg millet_sig miicmpfilter minet miwill miwill_mode_redudancy sla mi_mempool mi_mem_epoll perf_helper lb mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em"
+# rodin A-102 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
+CONFIG_RODIN_BUILTIN_SKIP=y
 # CONFIG_ARM64_BTI_KERNEL is not set
 CONFIG_CFI_PERMISSIVE=y
 CONFIG_MODULE_FORCE_LOAD=y

@@ -24,6 +24,37 @@ config RODIN_BLOB_DROP
 	  empty shell).  The stock load list still names them; the loader is
 	  answered success and nothing is loaded.  mitee and the touch /
 	  fpsgo-cus / bootmonitor blobs are NOT covered and keep loading.
+	  rodin A-102: the name list itself now lives in
+	  CONFIG_RODIN_BLOB_DROP_LIST below (maintained in gki_defconfig),
+	  not in C code.
+	  If unsure, say Y.
+
+config RODIN_BLOB_DROP_LIST
+	string "non-builtin blob names to refuse loading (space-separated)"
+	depends on RODIN_BLOB_DROP
+	default ""
+	help
+	  Policy list for RODIN_BLOB_DROP: loader-visible module names of stock
+	  .ko files that must never load because no in-image provider exists.
+	  Anything this image already provides is covered automatically by
+	  CONFIG_RODIN_BUILTIN_SKIP and must NOT be listed here - the build
+	  gates assert the two sets are disjoint.  Space or comma separated;
+	  the value is maintained in arch/arm64/configs/gki_defconfig.
+
+config RODIN_BUILTIN_SKIP
+	bool "skip loading stock .ko already provided by this image"
+	default y
+	help
+	  Keep the build-generated .modinfo section in vmlinux and use it as the
+	  in-image registry of built-in module names (kernel/module/main.c).  A
+	  finit_module() whose file name matches a built-in module - or a
+	  policy-dropped blob - is answered success without reading the module
+	  at all: the stock first-stage loader aborts its whole list on any
+	  failure, and every .ko it resolves is either built into this image or
+	  on CONFIG_RODIN_BLOB_DROP_LIST.  The decision is made from the opened
+	  file's name before any module byte is read; renamed/split units and
+	  built-in units that emit no .modinfo are covered by a small in-image
+	  table (rodin_builtin_extra).
 	  If unsure, say Y.
 
 # ---- r24 batch 1 ----

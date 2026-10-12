@@ -17,6 +17,7 @@
 #include <linux/kallsyms.h>
 #include <linux/buildid.h>
 #include <linux/fs.h>
+#include <linux/dcache.h>
 #include <linux/kernel.h>
 #include <linux/kernel_read_file.h>
 #include <linux/kstrtox.h>
@@ -3358,88 +3359,302 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 }
 
 /*
- * RODIN: closed-source 6.6 blobs the project deliberately no longer runs
- * (A-55 recon).  The stock dlkm load list and modules.dep still name them,
- * and a failed load aborts the rest of the vendor list, so - like the
- * built-ins above - the load reports success and does nothing.  Unlike
- * rodin_builtin_modules there is no in-image provider: the module simply
- * does not load.  Keep sorted by cluster.
+ * RODIN: one decision point for "answer this load with success without
+ * loading anything".  Two sources of policy meet here, plus a small
+ * in-image table:
+ *
+ *  - the .modinfo registry (CONFIG_RODIN_BUILTIN_SKIP): every module kbuild
+ *    built into this image has "modname.field=value" entries in .modinfo
+ *    (the same data modules.builtin is generated from).  The section is kept
+ *    in vmlinux on purpose (scripts/Makefile.vmlinux, arch/arm64/kernel/
+ *    vmlinux.lds.S) and indexed once at boot, so a lookup costs a few
+ *    hundred bytes of comparison instead of a walk over 665 KiB.
+ *  - the drop list (CONFIG_RODIN_BLOB_DROP_LIST, CONFIG_RODIN_BLOB_DROP):
+ *    configuration, not code - stock blobs with no in-image provider at all
+ *    (A-55), maintained in gki_defconfig.  The two sets must stay disjoint;
+ *    the build gates assert that.
+ *
+ * The stock first-stage loader aborts its whole load list on any failure,
+ * and every name it resolves either exists in this image or was dropped, so
+ * those loads are answered success and nothing is loaded.  finit_module
+ * normally decides from the opened file's name before a single module byte
+ * is read; the module's own .modinfo name stays as the backstop for
+ * init_module-style callers and odd file names.
  */
-static const char *const rodin_blob_drop_modules[] = {
-#if IS_ENABLED(CONFIG_RODIN_BLOB_DROP)
-	/* scheduler family: the rq-recode machine-patch consumers (b543) */
-	"metis",
-	"mi_schedule",
-	/* millet family: MIUI private kernel endpoints (millet daemon) */
-	"binder_gki",
-	"millet_binder",
-	"millet_core",
-	"millet_hs",
-	"millet_oem_cgroup",
-	"millet_pkg",
-	"millet_sig",
-	/* xiaomi net family (netfilter hook ops users) */
-	"miicmpfilter",
-	"minet",
-	"miwill",
-	"miwill_mode_redudancy",
-	"sla",
-	/* xiaomi memory family */
-	"mi_mempool",
-	"mi_mem_epoll",
-	"perf_helper",
-	/* io / misc */
-	"lb",
-	"mpbe",
-	/* debug / info utilities */
-	"crash_module",
-	"debug_ext",
-	"hardwareinfo",
-	"xiaomi_wifi_gpio",
-	/* dead weight: migt lost its providers (A-30), scheduler_ext is a shell */
-	"migt",
-	"scheduler_ext",
-	/* sched governor family: 6.6 blobs blind to 6.18 delayed-dequeue
-	 * semantics (A-75 recurrence, user verdict: drop, no core fix; b588) */
-	"task_turbo_v",
-	"fpsgo",
-	"game",
-	"eas_ext",
-	"cpuqos_ext",
-	"mtk_em",
-#endif
-	NULL,
-};
+#if IS_ENABLED(CONFIG_RODIN_BUILTIN_SKIP) || IS_ENABLED(CONFIG_RODIN_BLOB_DROP)
 
 /*
  * Compare module names with '-' and '_' treated alike: kbuild sanitises the
  * name it writes into .modinfo ("industrialio_triggered_buffer" for
  * industrialio-triggered-buffer.ko), callers may pass either form.
  */
-static bool rodin_module_name_eq(const char *a, const char *b)
+static bool rodin_name_eq(const char *a, const char *b, size_t len)
 {
-	for (; *a && *b; a++, b++) {
-		char ca = *a == '-' ? '_' : *a;
-		char cb = *b == '-' ? '_' : *b;
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		char ca = a[i] == '-' ? '_' : a[i];
+		char cb = b[i] == '-' ? '_' : b[i];
 
 		if (ca != cb)
 			return false;
 	}
-	return *a == *b;
+	return true;
 }
 
-/* noinline: keeps the table walk visible in vmlinux for the build gates. */
-static noinline bool rodin_skip_drop_module(const char *name)
+#if IS_ENABLED(CONFIG_RODIN_BUILTIN_SKIP)
+/*
+ * Boot-time index of the built-in module names: one entry per ".file="
+ * modinfo entry (the units kbuild built into this image - exactly what
+ * modules.builtin is derived from), split per segment for composite objects
+ * ("a:b.file=..." covers both a and b).  Names stay dash->underscore as
+ * kbuild sanitises them.
+ */
+/* Defined by the linker script (include/asm-generic/vmlinux.lds.h, MODINFO). */
+extern const char __start___modinfo[], __stop___modinfo[];
+
+static struct {
+	unsigned int count;
+	char *names;			/* packed, NUL-terminated */
+	unsigned short *lens;
+} rodin_bindex;
+
+static int __init rodin_bindex_init(void)
+{
+	const char *start = __start___modinfo, *end = __stop___modinfo;
+	const char *p;
+	unsigned int count = 0, i = 0;
+	size_t blob = 0;
+	char *w;
+
+	for (p = start; p < end; p += strlen(p) + 1) {
+		const char *dot, *seg;
+
+		if (!*p)
+			continue;	/* alignment padding between entries */
+		dot = strchr(p, '.');
+		if (!dot || strncmp(dot, ".file=", 6))
+			continue;
+		for (seg = p; seg < dot; ) {
+			const char *colon = memchr(seg, ':', dot - seg);
+
+			count++;
+			blob += (colon ? colon - seg : dot - seg) + 1;
+			if (!colon)
+				break;
+			seg = colon + 1;
+		}
+	}
+	if (!count)
+		return 0;
+
+	rodin_bindex.lens = kcalloc(count, sizeof(*rodin_bindex.lens), GFP_KERNEL);
+	rodin_bindex.names = kmalloc(blob, GFP_KERNEL);
+	if (!rodin_bindex.lens || !rodin_bindex.names) {
+		kfree(rodin_bindex.lens);
+		kfree(rodin_bindex.names);
+		rodin_bindex.lens = NULL;
+		rodin_bindex.names = NULL;
+		return 0;
+	}
+
+	w = rodin_bindex.names;
+	for (p = start; p < end; p += strlen(p) + 1) {
+		const char *dot, *seg;
+
+		if (!*p)
+			continue;
+		dot = strchr(p, '.');
+		if (!dot || strncmp(dot, ".file=", 6))
+			continue;
+		for (seg = p; seg < dot; ) {
+			const char *colon = memchr(seg, ':', dot - seg);
+			size_t seg_len = colon ? (size_t)(colon - seg)
+					       : (size_t)(dot - seg);
+
+			rodin_bindex.lens[i] = seg_len;
+			memcpy(w, seg, seg_len);
+			w += seg_len;
+			*w++ = '\0';
+			i++;
+			if (!colon)
+				break;
+			seg = colon + 1;
+		}
+	}
+	rodin_bindex.count = i;
+	pr_info("rodin: %u built-in module names indexed from .modinfo\n", i);
+	return 0;
+}
+early_initcall(rodin_bindex_init);
+
+static noinline bool rodin_in_builtin_index(const char *name, size_t len)
+{
+	const char *p = rodin_bindex.names;
+	unsigned int i;
+
+	if (!p)
+		return false;
+	for (i = 0; i < rodin_bindex.count; i++) {
+		size_t m = rodin_bindex.lens[i];
+
+		if (m == len && rodin_name_eq(p, name, len))
+			return true;
+		p += m + 1;
+	}
+	return false;
+}
+
+/*
+ * Names the .modinfo registry cannot see, yet the stock loader still names
+ * and this image still provides: renamed/split units (the stock .ko name
+ * differs from the name kbuild writes - "diag" vs the 6.18 tipc_diag,
+ * "usb_boost" vs the usb_boost_common/plat split, "pinctrl-mtk-v2" vs the
+ * pinctrl-mtk-common-v2 family) and built-in units that emit no .modinfo at
+ * all (their MODULE_* macros - and with them kbuild's file= entry - sit in a
+ * MODULE-only branch: timer-mediatek, log_store, mtk_printk_ctrl,
+ * snd_soc_aw882xx).
+ */
+static const char *const rodin_builtin_extra[] = {
+#if IS_ENABLED(CONFIG_TIPC_DIAG)
+	"diag",
+#endif
+#if IS_ENABLED(CONFIG_MTK_USB_BOOST)
+	"usb_boost",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_PINCTRL_MTK_V2)
+	"pinctrl-mtk-v2",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_MTK_TIMER)
+	"timer-mediatek",
+#endif
+#if IS_ENABLED(CONFIG_MTK_DRAM_LOG_STORE)
+	"log_store",
+#endif
+#if IS_ENABLED(CONFIG_MTK_PRINTK)
+	"mtk_printk_ctrl",
+#endif
+#if IS_ENABLED(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX)
+	"snd_soc_aw882xx",
+#endif
+	NULL,
+};
+
+static noinline bool rodin_in_builtin_extra(const char *name, size_t len)
 {
 	const char *const *p;
 
-	if (!name)
-		return false;
-	for (p = rodin_blob_drop_modules; *p; p++)
-		if (rodin_module_name_eq(name, *p))
+	for (p = rodin_builtin_extra; *p; p++) {
+		size_t m = strlen(*p);
+
+		if (m == len && rodin_name_eq(*p, name, len))
 			return true;
+	}
 	return false;
 }
+#else /* !CONFIG_RODIN_BUILTIN_SKIP */
+static inline bool rodin_in_builtin_index(const char *name, size_t len)
+{
+	return false;
+}
+static inline bool rodin_in_builtin_extra(const char *name, size_t len)
+{
+	return false;
+}
+#endif /* CONFIG_RODIN_BUILTIN_SKIP */
+
+#if IS_ENABLED(CONFIG_RODIN_BLOB_DROP)
+static const char rodin_drop_list[] = CONFIG_RODIN_BLOB_DROP_LIST;
+
+/* Token walk over CONFIG_RODIN_BLOB_DROP_LIST (space/comma separated). */
+static noinline bool rodin_in_drop_list(const char *name, size_t len)
+{
+	const char *p = rodin_drop_list;
+
+	while (*p) {
+		size_t tlen;
+
+		while (*p == ' ' || *p == ',' || *p == '\t')
+			p++;
+		if (!*p)
+			break;
+		for (tlen = 0; p[tlen] && p[tlen] != ' ' && p[tlen] != ',' &&
+			      p[tlen] != '\t'; tlen++)
+			;
+		if (tlen == len && rodin_name_eq(p, name, len))
+			return true;
+		p += tlen;
+	}
+	return false;
+}
+#else /* !CONFIG_RODIN_BLOB_DROP */
+static inline bool rodin_in_drop_list(const char *name, size_t len)
+{
+	return false;
+}
+#endif /* CONFIG_RODIN_BLOB_DROP */
+
+/* noinline: keeps the decision visible in vmlinux for the build gates. */
+static noinline const char *rodin_skip_reason(const char *name, size_t len)
+{
+	if (!len || len >= MODULE_NAME_LEN)
+		return NULL;
+	if (rodin_in_builtin_index(name, len) ||
+	    rodin_in_builtin_extra(name, len))
+		return "built-in";
+	if (rodin_in_drop_list(name, len))
+		return "dropped blob";
+	return NULL;
+}
+
+/*
+ * finit_module path: decide from the opened file's name alone, before
+ * kernel_read_file() pulls the module in.  The stock loader resolves every
+ * module it asks for to "<dir>/<name>.ko" (modules.dep paths) and kbuild
+ * names the .ko after the module, so the dentry name is the module name
+ * ('-' vs '_' sanitising aside) - the same identity the .modinfo name
+ * carries.  Returns true when the load was answered success (and logged).
+ */
+static noinline bool rodin_skip_file_load(struct file *f)
+{
+	const char *base = f->f_path.dentry->d_name.name;
+	size_t len = strlen(base);
+	const char *why;
+
+	if (len > 3 && !memcmp(base + len - 3, ".ko", 3))
+		len -= 3;
+	why = rodin_skip_reason(base, len);
+	if (!why)
+		return false;
+	pr_info("rodin: %.*s is %s, skipping load\n", (int)len, base, why);
+	return true;
+}
+
+/*
+ * Backstop for init_module-style callers and odd file names: decide from
+ * the module's own .modinfo name (finit_module reaches this only when the
+ * file-name fast path above did not match).
+ */
+static noinline bool rodin_skip_named_module(const char *name)
+{
+	const char *why = rodin_skip_reason(name, strlen(name));
+
+	if (!why)
+		return false;
+	pr_info("rodin: %s is %s, skipping load\n", name, why);
+	return true;
+}
+
+#else /* neither facility configured */
+static inline bool rodin_skip_file_load(struct file *f)
+{
+	return false;
+}
+static inline bool rodin_skip_named_module(const char *name)
+{
+	return false;
+}
+#endif
 
 /* Module within temporary copy, this doesn't do any allocation  */
 static int early_mod_check(struct load_info *info, int flags)
@@ -3516,13 +3731,14 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_copy;
 
 	/*
-	 * RODIN: policy-dropped 6.6 blobs; report success the same way so the
+	 * RODIN: in-image or policy-dropped module; report success so the
 	 * vendor load list and modules.dep resolution never abort on them.
+	 * finit_module normally hits the file-name fast path in
+	 * init_module_from_file() before any byte is read; this catches
+	 * init_module-style callers and odd file names.
 	 */
-	if (rodin_skip_drop_module(info->name)) {
-		pr_warn("rodin: %s is dropped blob, skipping load\n", info->name);
+	if (rodin_skip_named_module(info->name))
 		goto free_copy;
-	}
 
 	/* Figure out module layout, and allocate all the memory. */
 	mod = layout_and_allocate(info, flags);
@@ -3811,6 +4027,15 @@ static int init_module_from_file(struct file *f, const char __user * uargs, int 
 	struct load_info info = { };
 	void *buf = NULL;
 	int len;
+
+	/*
+	 * RODIN: module already provided by this image (or policy-dropped):
+	 * answer success from the file name alone, before reading a single
+	 * byte of it.  The stock loader aborts its whole list on any load
+	 * failure, and this is the only path it uses (finit_module).
+	 */
+	if (rodin_skip_file_load(f))
+		return 0;
 
 	len = kernel_read_file(f, 0, &buf, INT_MAX, NULL, READING_MODULE);
 	if (len < 0) {

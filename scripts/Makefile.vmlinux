@@ -81,7 +81,10 @@ endif
 # vmlinux
 # ---------------------------------------------------------------------------
 
-remove-section-y                                   := .modinfo
+# RODIN: .modinfo stays in the image on purpose - it is the in-image registry
+# of built-in module names read back by CONFIG_RODIN_BUILTIN_SKIP
+# (kernel/module/main.c; bounds in include/asm-generic/vmlinux.lds.h).
+remove-section-y                                   :=
 remove-section-$(CONFIG_ARCH_VMLINUX_NEEDS_RELOCS) += '.rel*' '!.rel*.dyn'
 # for compatibility with binutils < 2.32
 # https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=c12d9fa2afe7abcbe407a00e15719e1a1350c2a7
