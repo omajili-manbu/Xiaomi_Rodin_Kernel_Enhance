@@ -366,6 +366,12 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/fingerprint/xiaomi_fp/
 # =y 后由 vseq 重放定序（与 ffa_v11 同族内建，arm_ffa 导出面已在 vmlinux）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/tee/mitee/
 
+# ---- rodin b251: bootmonitor =y 内建（T3→=y；blob 6.6 bootmonitor.ko 反汇编等价重建）----
+# 6.6 装载位 = vendorboot_modules modules.load（bootmonitor.ko 随 init 加载，1~5s 期；
+# depends=bootprof）；vseq 表内既有条目 seq=1（紧随 bootprof seq=0），消费 bootprof
+# 三件导出（bootprof_lock/get_log_count/get_bootprof_pointer，树内 mtprof/bootprof.c 已导出）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/bootmonitor/
+
 # ---- rodin b567: touch 三件 =y 内建（第六十九轮；T3→=y 第二波）----
 # 6.6 装载位 = vendor_dlkm modules.load 行 211/212/213（scp=123 之后，依赖闭包
 # = scp/tinysys_ipi/rpmsg_mbox/mbox 全已 =y）。vseq 段尾续编 1253-1255。
