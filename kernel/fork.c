@@ -799,6 +799,7 @@ static void __init set_max_threads(unsigned int max_threads_suggested)
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 /* Initialized by the architecture: */
 int arch_task_struct_size __read_mostly;
+EXPORT_SYMBOL_GPL(arch_task_struct_size);
 #endif
 
 static void __init task_struct_whitelist(unsigned long *offset, unsigned long *size)
