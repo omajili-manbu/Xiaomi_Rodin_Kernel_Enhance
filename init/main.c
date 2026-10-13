@@ -1277,6 +1277,23 @@ static int __init initcall_blacklist(char *str)
 	do {
 		str_entry = strsep(&str, ",");
 		if (str_entry) {
+			/*
+			 * RODIN: stock bootloader cmdline always carries
+			 * initcall_blacklist=ufshcd_core_init.  Upstream intent is
+			 * to suppress a loadable vendor ufshcd core in favour of
+			 * the built-in one; in this tree ufshcd core is built-in
+			 * (=y) and ufshcd_core_init is the only registration point
+			 * of the ufs_device_wlun driver.  6.18 wires every other
+			 * LUN to device wlun as its PM device-link supplier
+			 * (ufshcd_setup_links), so a blacklisted registration
+			 * leaves all LUNs at "scsi: supplier 0:0:0:49488 not
+			 * ready" -EPROBE_DEFER with no block devices and a
+			 * first-stage init panic on missing partitions.
+			 * Swallow only this single name; the blacklist mechanism
+			 * and every other entry keep their semantics.
+			 */
+			if (!strcmp(str_entry, "ufshcd_core_init"))
+				continue;
 			pr_debug("blacklisting initcall %s\n", str_entry);
 			entry = memblock_alloc_or_panic(sizeof(*entry),
 					       SMP_CACHE_BYTES);
