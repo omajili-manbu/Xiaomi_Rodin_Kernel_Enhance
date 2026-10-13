@@ -858,7 +858,8 @@ CONFIG_RPMSG_MTK=y
 CONFIG_MTK_IPI=y
 CONFIG_DEVICE_MODULES_REGULATOR_MTK_DVFSRC=y
 CONFIG_INTERCONNECT_MTK=y
-CONFIG_MTK_MKP=y
+# 关 mkp 以供 KernelSU LKM加载
+# CONFIG_MTK_MKP is not set
 # == IOMMU family backport (vendor mgk_64_k66 =m -> =y; 2026-09-25) ==
 # DEVICE_MODULES_MTK_SMI arrives via select; its vendor source dir stays
 # unmounted -- smi remains a 6.6 blob served by the compat layer.
