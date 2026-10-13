@@ -7258,10 +7258,15 @@ static int selinux_uring_cmd(struct io_uring_cmd *ioucmd)
  */
 static int selinux_uring_allowed(void)
 {
-	u32 sid = current_sid();
-
-	return avc_has_perm(sid, sid, SECCLASS_IO_URING, IO_URING__ALLOWED,
-			    NULL);
+	/*
+	 * The vendor sepolicy is built for the 6.6 GKI classmap, whose io_uring
+	 * class has no "allowed" permission. This kernel added it for 6.18's
+	 * io_uring_setup() gate, reports it as not defined in policy and denies
+	 * every self-check, so io_uring_setup() fails with -EACCES for all
+	 * domains (artd/iorapd crash loop observed). 6.6 had no such check;
+	 * keep that baseline.
+	 */
+	return 0;
 }
 #endif /* CONFIG_IO_URING */
 
