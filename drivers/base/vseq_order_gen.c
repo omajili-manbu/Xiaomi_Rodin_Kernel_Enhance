@@ -956,6 +956,9 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "xiaomi_touch_rodin", .seq = 1253 },
 	{ .name = "goodix_core_rodin", .seq = 1254 },
 	{ .name = "focaltech_touch_rodin", .seq = 1255 },
+	/* ---- rodin b260: mi_mempool =y（dmesg 对查第③项）。6.6 装载位 =
+	 * vendor_dlkm modules.load 行 252；零依赖零消费者，段尾续编 1256。 */
+	{ .name = "mi_mempool", .seq = 1256 },
 };
 
 const unsigned int __vseq_mod_order_nr =

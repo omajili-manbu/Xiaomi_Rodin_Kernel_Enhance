@@ -685,3 +685,8 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/bootmonitor/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/xiaomi_touch_rodin/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_brl_rodin/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/focaltech_rodin/Kconfig"
+
+# ---- rodin b260: mi_mempool =y 内建（dmesg 对查第③项；A-55 丢载名单同步摘除）----
+# 骨架 = sm8550 树 drivers/staging/mi-perf/mi_mempool（blob 自记构建路径同款），
+# 全函数按 rodin blob（6.6.77 vendor_dlkm，depends= 空）机器码/.data/.rodata 对齐重建。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mempool/Kconfig"

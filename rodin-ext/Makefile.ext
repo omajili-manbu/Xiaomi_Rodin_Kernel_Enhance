@@ -378,3 +378,11 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/bootmonitor/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/xiaomi_touch_rodin/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/goodix_brl_rodin/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/focaltech_rodin/
+
+# ---- rodin b260: mi_mempool =y 内建（dmesg 对查第③项）----
+# 6.6 装载位 = vendor_dlkm modules.load 行 252（binder_prio 248 之后）；depends= 空、
+# 导出闭包为零（5 个全局符号无任何 blob 消费者）。消费面 = 四个 android_vh 钩子
+# （alloc_pages_reclaim/failure_bypass、free_unref_page_bypass、free_task，6.6↔6.18
+# 签名逐字一致）+ 全内核侧 API；refill kthread 首填 64MB order-0，vseq 段尾续编
+# 1256 复刻 stock 4.33s 装载相位（普通 initcall 会在 0.4s 提前抓内存）。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mempool/
