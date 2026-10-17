@@ -145,14 +145,22 @@
  *                    grep 零命中，二者只是 md_all 的共同下游，见 #236 ②），
  *                    后移到 1167 晚于 mddp 可接受。
  *                    ②mtk_qos 1231→1210：与 gki_defconfig 开
- *                    CONFIG_MTK_QOS_MT6893=y + qos-v6893.c:223 改
- *                    vseq_late_initcall 三件配套。原 1231 晚于 swpm(1223)/
+ *                    CONFIG_MTK_QOS_MT6893=y（b4003a83 已做）+ qos-v6893.c:223
+ *                    改 vseq_late_initcall 三件配套。原 1231 晚于 swpm(1223)/
  *                    lpm(1224)，与 6.6 实测序 qos(2.913s)<swpm(3.542s)/
  *                    SPM(3.685s) 相反；改后 1210 > scp(1071) 满足 qos_ipi
  *                    依赖 SCP IPI 通道就绪、< swpm/lpm 恢复 6.6 序。
  *                    打破 #236 ③"mtk_qos=1231 为 A-22 下游不改"的边界裁决。
  *                    1210 区间前后（audio/gpu/camera/thermal、sensorhub=1222）
  *                    不依赖 qos_ipi。A-22 当时未修，本次补。
+ *                    —— 曾试图 1210→1072 以消除 swpm_dbg_v6899(1095)
+ *                    的 3 条 "qos ipi not ready skip cmd=5"，真机复验触发
+ *                    VCP core0 watchdog 超时（PC 卡死 0x1b370）⇒ vcp_aed
+ *                    BUG_ON(1)。根因：qos 在 VCP 过渡期（6.66s 自关 pm_clk
+ *                    id 5）就 ready，swpm 6.70s 发的 cmd=5 不再被跳过而真发
+ *                    出去，打在过渡窗口打挂固件。复验结论：该 skip 是
+ *                    vendor 设计的优雅降级（mtk_qos_ipi_v2.c:69），非 bug，
+ *                    1210 允许残留；勿再前移。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
