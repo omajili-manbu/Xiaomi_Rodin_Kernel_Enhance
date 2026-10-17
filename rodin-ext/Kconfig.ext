@@ -212,6 +212,18 @@ config DEVICE_MODULES_SND_SOC_AW882XX
 	  into obj-$(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX). MIEV telemetry
 	  calls compile out with CONFIG_MIEV unset (miev blob stays closed).
 
+config SND_SMARTPA_AW882XX
+	tristate "Awinic AW882XX outer recursion gate (rodin inline: vendor sound/soc/codecs/Kconfig is unsourced)"
+	depends on I2C
+	help
+	  Outer gate read by vendor sound/soc/codecs/Makefile:
+	  obj-$(CONFIG_SND_SMARTPA_AW882XX) += pa_combine/. Without this inline
+	  definition the symbol is invisible because rodin-ext/Kconfig.ext never
+	  sources the vendor codec Kconfig (only the Makefile/Kbuild obj-y hooks
+	  pull pa_combine into the build). Pair with CONFIG_DEVICE_MODULES_SND_SOC_AW882XX:
+	  the outer gate recurses into pa_combine/, the inner gates snd-soc-aw882xx.o
+	  itself, and the pa_combine/Makefile must not carry a leftover obj-m line.
+
 config MTK_CCU_RPROC
 	tristate "MediaTek CCU driver (rodin inline: vendor def depends RPMSG_MTK_CCD which lands in batch 4-4)"
 	help
