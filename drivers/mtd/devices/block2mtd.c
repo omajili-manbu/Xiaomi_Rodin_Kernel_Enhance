@@ -11,10 +11,10 @@
 
 /*
  * When the first attempt at device initialization fails, we may need to
- * wait a little bit and retry. This timeout, by default 3 seconds, gives
+ * wait a little bit and retry. This timeout, by default 5 seconds, gives
  * device time to start up. Required on BCM2708 and a few other chipsets.
  */
-#define MTD_DEFAULT_TIMEOUT	3
+#define MTD_DEFAULT_TIMEOUT	5
 
 #include <linux/module.h>
 #include <linux/vseq.h>
@@ -26,6 +26,7 @@
 #include <linux/pagemap.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/kthread.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
@@ -46,6 +47,26 @@ struct block2mtd_dev {
 
 /* Static info about the MTD, used in cleanup_module */
 static LIST_HEAD(blkmtd_device_list);
+
+/*
+ * Recovery boots may reach us before the backing block device has been
+ * probed. The first failure is remembered and retried from a kthread once
+ * the device is expected to exist.
+ */
+struct block2mtd_init_info {
+	char *devname;
+	int erase_size;
+	int timeout;
+};
+
+static bool block2mtd_first_init = true;
+static struct block2mtd_init_info *block2mtd_last_init;
+static struct task_struct *block2mtd_retry_thread;
+static char *block2mtd_device_name;
+
+#define BLOCK2MTD_RETRY_COUNT	2
+#define BLOCK2MTD_RETRY_DELAY_MS	2000
+#define BLOCK2MTD_NAME_LEN	32
 
 
 static struct page *page_read(struct address_space *mapping, pgoff_t index)
@@ -259,8 +280,10 @@ static struct file __ref *mdtblock_early_get_bdev(const char *devname,
 	return bdev_file;
 }
 
+static int block2mtd_retry_fn(void *data);
+
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
-		char *label, int timeout)
+		int timeout, bool retry)
 {
 	const blk_mode_t mode = BLK_OPEN_READ | BLK_OPEN_WRITE;
 	struct file *bdev_file;
@@ -268,6 +291,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	struct block2mtd_dev *dev;
 	loff_t size;
 	char *name;
+	int i;
 
 	if (!devname)
 		return NULL;
@@ -278,6 +302,23 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	/* Get a handle on the device */
 	bdev_file = bdev_file_open_by_path(devname, mode, dev, NULL);
+
+	/*
+	 * On a recovery boot the backing device may show up later than us,
+	 * so keep polling before falling back to the early lookup below.
+	 */
+	if (retry) {
+		pr_err("block2mtd: %s not ready, boot mode is recovery\n",
+		       devname);
+		for (i = 0; IS_ERR(bdev_file) && i <= timeout; i++) {
+			if (i)
+				msleep(BLOCK2MTD_RETRY_DELAY_MS);
+			wait_for_device_probe();
+			pr_err("block2mtd: retry %d, devname is %s\n", i, devname);
+			bdev_file = bdev_file_open_by_path(devname, mode, dev, NULL);
+		}
+	}
+
 	if (IS_ERR(bdev_file))
 		bdev_file = mdtblock_early_get_bdev(devname, mode, timeout,
 						      dev);
@@ -303,10 +344,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	/* Setup the MTD structure */
 	/* make the name contain the block device in */
-	if (!label)
-		name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
-	else
-		name = kstrdup(label, GFP_KERNEL);
+	name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
 	if (!name)
 		goto err_destroy_mutex;
 
@@ -333,7 +371,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	list_add(&dev->list, &blkmtd_device_list);
 	pr_info("mtd%d: [%s] erase_size = %dKiB [%d]\n",
 		dev->mtd.index,
-		label ? label : dev->mtd.name + strlen("block2mtd: "),
+		dev->mtd.name + strlen("block2mtd: "),
 		dev->mtd.erasesize >> 10, dev->mtd.erasesize);
 	return dev;
 
@@ -341,7 +379,63 @@ err_destroy_mutex:
 	mutex_destroy(&dev->write_mutex);
 err_free_block2mtd:
 	block2mtd_free_device(dev);
+
+	/*
+	 * Only the first probe can schedule the late retry: the thread runs
+	 * once and owns the remembered device name afterwards.
+	 */
+	if (block2mtd_first_init && block2mtd_device_name && !retry) {
+		block2mtd_first_init = false;
+		block2mtd_last_init = kzalloc(sizeof(*block2mtd_last_init),
+					      GFP_KERNEL);
+		if (block2mtd_last_init) {
+			block2mtd_last_init->devname = block2mtd_device_name;
+			block2mtd_last_init->erase_size = erase_size;
+			block2mtd_last_init->timeout = timeout;
+			pr_err("block2mtd: scheduling retry for %s, erase_size %d, timeout %d\n",
+			       block2mtd_device_name, erase_size, timeout);
+			block2mtd_retry_thread =
+				kthread_run(block2mtd_retry_fn, NULL,
+					    "block2mtd_retry");
+			if (IS_ERR(block2mtd_retry_thread)) {
+				pr_err("block2mtd: cannot start retry thread\n");
+				block2mtd_retry_thread = NULL;
+				kfree(block2mtd_last_init);
+				block2mtd_last_init = NULL;
+			}
+		}
+	}
+
 	return NULL;
+}
+
+static void block2mtd_free_retry_state(void)
+{
+	kfree(block2mtd_last_init);
+	block2mtd_last_init = NULL;
+	kfree(block2mtd_device_name);
+	block2mtd_device_name = NULL;
+}
+
+static int block2mtd_retry_fn(void *data)
+{
+	struct block2mtd_init_info *info = block2mtd_last_init;
+	int retry_count = BLOCK2MTD_RETRY_COUNT;
+
+	while (info && retry_count > 0) {
+		if (add_device(info->devname, info->erase_size, info->timeout,
+			       true)) {
+			pr_info("block2mtd: retry succeeded for %s\n",
+				info->devname);
+			break;
+		}
+		pr_err("block2mtd: retry failed, %d left\n", retry_count - 1);
+		msleep(BLOCK2MTD_RETRY_DELAY_MS);
+		retry_count--;
+	}
+
+	block2mtd_free_retry_state();
+	return 0;
 }
 
 
@@ -411,7 +505,7 @@ static int block2mtd_setup2(const char *val)
 	char *str = buf;
 	char *token[BLOCK2MTD_PARAM_MAX_COUNT];
 	char *name;
-	char *label = NULL;
+	size_t label = 0;
 	size_t erase_size = PAGE_SIZE;
 	unsigned long timeout = MTD_DEFAULT_TIMEOUT;
 	int i, ret;
@@ -452,13 +546,28 @@ static int block2mtd_setup2(const char *val)
 		}
 	}
 
-	if (token[2]) {
-		label = token[2];
-		pr_info("Using custom MTD label '%s' for dev %s\n", label, name);
+	/*
+	 * The third argument used to be a custom MTD label; it now carries
+	 * the boot mode (1 == recovery), which decides whether a failed probe
+	 * is worth retrying once the block device is expected to exist.
+	 */
+	if (token[2] && strlen(token[2])) {
+		ret = parse_num(&label, token[2]);
+		if (ret) {
+			pr_err("illegal boot mode\n");
+			return 0;
+		}
+		pr_err("block2mtd: boot mode is %zu\n", label);
 	}
 
-	add_device(name, erase_size, label, timeout);
+	kfree(block2mtd_device_name);
+	block2mtd_device_name = kstrdup(name, GFP_KERNEL);
+	if (!block2mtd_device_name) {
+		pr_err("block2mtd: cannot remember device name\n");
+		return 0;
+	}
 
+	add_device(name, erase_size, timeout, label == 1);
 	return 0;
 }
 
@@ -510,6 +619,12 @@ static int __init block2mtd_init(void)
 static void block2mtd_exit(void)
 {
 	struct list_head *pos, *next;
+
+	if (block2mtd_retry_thread) {
+		kthread_stop(block2mtd_retry_thread);
+		block2mtd_retry_thread = NULL;
+	}
+	block2mtd_free_retry_state();
 
 	/* Remove the MTD devices */
 	list_for_each_safe(pos, next, &blkmtd_device_list) {
