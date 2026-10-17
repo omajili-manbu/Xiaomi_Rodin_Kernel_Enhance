@@ -127,6 +127,32 @@
  *                    71、audio_ipi=72、usb_offload=73、audiodsp=81、usip=83、
  *                    mddp=90、gpu_qos=104、scp=123、cam=128、swpm 族=132-135、
  *                    wlan=141、mtk_qos=150。tools/_b585_vseq_order。
+ *   第一百一十六轮（dmesg 时序类 A）：修 vseq 合成序两处倒挂（对照真机
+ *                    dmesg 差异报告 §1.5 usip/adsp + §1.1 qos）。
+ *                    ①snd_soc_mtk_common 1072→1167：该 KBUILD_MODNAME 唯一
+ *                    vseq 入口 = usip_init（mtk-usip.c:609），其内注册
+ *                    speech_usip_mem driver → probe 同步调
+ *                    adsp_register_feature(VOICE_CALL)（mtk-usip.c:382）。
+ *                    feature_set 位图由 adsp_v2 的 adsp_core_drv_probe 填
+ *                    （adsp_driver_v2.c:352）。#236 注释判该调用"运行期惰性"
+ *                    有误：platform_driver_register 后 DT 同步匹配触发 probe，
+ *                    非惰性。真机日志铁证：报错 4.585s，register_adsp_core
+ *                    4.619s（晚 33ms），ipi_dsp_id_to_adsp_cid total 0。
+ *                    1167 > adsp_v2(1119)/audio_ipi(1120)/audiodsp_common(1121)
+ *                    全部依赖，且不与任何 seq 共槽（比较器先比 seq，故与表内
+ *                    位置 ord 无关）。stock 行序 usip(83) 本就晚于
+ *                    adsp-v2(71)。usip 与 mddp(1074) 无互相依赖（双向符号
+ *                    grep 零命中，二者只是 md_all 的共同下游，见 #236 ②），
+ *                    后移到 1167 晚于 mddp 可接受。
+ *                    ②mtk_qos 1231→1210：与 gki_defconfig 开
+ *                    CONFIG_MTK_QOS_MT6893=y + qos-v6893.c:223 改
+ *                    vseq_late_initcall 三件配套。原 1231 晚于 swpm(1223)/
+ *                    lpm(1224)，与 6.6 实测序 qos(2.913s)<swpm(3.542s)/
+ *                    SPM(3.685s) 相反；改后 1210 > scp(1071) 满足 qos_ipi
+ *                    依赖 SCP IPI 通道就绪、< swpm/lpm 恢复 6.6 序。
+ *                    打破 #236 ③"mtk_qos=1231 为 A-22 下游不改"的边界裁决。
+ *                    1210 区间前后（audio/gpu/camera/thermal、sensorhub=1222）
+ *                    不依赖 qos_ipi。A-22 当时未修，本次补。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -780,7 +806,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_peak_power_budget", .seq = 1069 },
 	{ .name = "sec", .seq = 1070 },
 	{ .name = "kshrink_slabd", .seq = 1071 },
-	{ .name = "snd_soc_mtk_common", .seq = 1072 },
+	{ .name = "snd_soc_mtk_common", .seq = 1167 },
 	{ .name = "mtk_btcvsd", .seq = 1073 },
 	{ .name = "mddp", .seq = 1074 },
 	{ .name = "mtk_vmm_notifier", .seq = 1075 },
@@ -927,7 +953,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_et", .seq = 1228 },
 	{ .name = "mtk_composite", .seq = 1229 },
 	{ .name = "et7480", .seq = 1230 },
-	{ .name = "mtk_qos", .seq = 1231 },
+	{ .name = "mtk_qos", .seq = 1210 },
 	{ .name = "mtk_ccd_remoteproc", .seq = 1232 },
 	{ .name = "imgsensor_glue_isp8", .seq = 1233 },
 	{ .name = "imgsensor_isp8", .seq = 1234 },
