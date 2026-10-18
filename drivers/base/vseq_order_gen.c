@@ -161,6 +161,19 @@
  *                    出去，打在过渡窗口打挂固件。复验结论：该 skip 是
  *                    vendor 设计的优雅降级（mtk_qos_ipi_v2.c:69），非 bug，
  *                    1210 允许残留；勿再前移。
+ *   第一百二十轮（2026-10-18）：两处相对序对齐 6.6 实测 + 一件新入表。
+ *                    ①rt4831a_drv 93→70：门 IC 的 i2c driver 注册必须先于
+ *                    i2c_mt65xx(71) 建设备；6.6 实测门 IC(0.848s) 先取
+ *                    gate-power(pio64) 并立即释放，功放(3.190s) 后取并持有。
+ *                    6.18 相反序：功放 0.717s 先独占 → 门 IC -EBUSY。
+ *                    ②apu_top 1188→32：必须先于 mtk_iommu(33) 的
+ *                    iommu_device_register() 全总线同步 attach；6.6 实测
+ *                    apu_top(2.926s) 先于 APU SMMU attach(2.936s)，寄存器
+ *                    有效；6.18 apu_top 在 6.964s，APU SMMU 0.549s attach
+ *                    后 PT_BASE 回读 0 的自愈重放 764 行即由此空窗而来。
+ *                    ③snd_soc_aw882xx 新入表 94：原 module_init 自然序
+ *                    0.384s，早于 i2c 建设备；改 vseq 后置于 i2c(71) 与
+ *                    rt4831a(70) 之后，保证门 IC 先 probe、功放后 probe。
  * 条目 = (归一化模块名, 序号)；runner 按此稳定排序 .vseq.entries。
  */
 #include <linux/vseq.h>
@@ -345,8 +358,9 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mtk_mml_tp_mt6899", .seq = 90 },
 	{ .name = "mdp_drv_dummy", .seq = 91 },
 	{ .name = "leds_mtk", .seq = 92 },
-	{ .name = "rt4831a_drv", .seq = 93 },
+	{ .name = "rt4831a_drv", .seq = 70 },
 	{ .name = "mtk_panel_ext", .seq = 94 },
+	{ .name = "snd_soc_aw882xx", .seq = 94 },
 	{ .name = "mtk_mminfra_debug", .seq = 95 },
 	{ .name = "mtk_afe_external", .seq = 96 },
 	{ .name = "drm_dma_helper", .seq = 97 },
@@ -929,7 +943,7 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "atf_logger", .seq = 1185 },
 	{ .name = "mtk_pwm", .seq = 1186 },
 	{ .name = "mtk_aov", .seq = 1187 },
-	{ .name = "apu_top", .seq = 1188 },
+	{ .name = "apu_top", .seq = 32 },
 	{ .name = "apusys", .seq = 1189 },
 	{ .name = "sapu", .seq = 1190 },
 	{ .name = "mali_kbase_mt6899_r49", .seq = 1191 },
