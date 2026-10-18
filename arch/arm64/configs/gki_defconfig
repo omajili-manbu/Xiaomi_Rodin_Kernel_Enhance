@@ -59,7 +59,8 @@ CONFIG_ARCH_HISI=y
 CONFIG_ARCH_QCOM=y
 CONFIG_ARCH_TEGRA=y
 CONFIG_ARM64_VA_BITS_39=y
-CONFIG_NR_CPUS=32
+# 8 = 设备物理核数：内核与 vendor 的每 CPU 数组/位图都按此定尺，勿回 32
+CONFIG_NR_CPUS=8
 CONFIG_PARAVIRT_TIME_ACCOUNTING=y
 CONFIG_ARM64_SW_TTBR0_PAN=y
 CONFIG_COMPAT=y
@@ -1423,8 +1424,9 @@ CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
 # 取值依据：vendor defconfig（mgk_64_k66_defconfig）+ 设备 blob 符号实证（设备真值）。
 # 25 件里 18 件纯源走 =y；6 件 .o_shipped 预编译件 + 1 件空壳留 blob（形态二）。
 # MAX_NR_CPUS 是本批关键项：sched/Kconfig 的 `int default "8"`（设备真值 = 默认值，
-# vendor defconfig 未设它）。**不要**用本树 CONFIG_NR_CPUS=32 —— c2ps 的
-# MAX_NUMBER_OF_CLUSTERS 直接等于它，32 会放大每核数组并让部分循环上界越过 nr_cpu_ids。
+# vendor defconfig 未设它；c2ps 的 MAX_NUMBER_OF_CLUSTERS 直接取它）。CONFIG_NR_CPUS
+# 同步取 8 —— 内核与 vendor 的每 CPU 数组/位图按 NR_CPUS 定尺，32 对 8 核设备是纯
+# 浪费，并让以 NR_CPUS 为上界的循环扫到不存在的 CPU。
 CONFIG_MAX_NR_CPUS=8
 CONFIG_MTK_SCHEDULER=y
 CONFIG_MTK_EAS=y
