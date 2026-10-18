@@ -1015,10 +1015,11 @@ static int __init setup_transparent_hugepage(char *str)
 			&transparent_hugepage_flags);
 		ret = 1;
 	} else if (!strcmp(str, "never")) {
-		clear_bit(TRANSPARENT_HUGEPAGE_FLAG,
-			  &transparent_hugepage_flags);
-		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-			  &transparent_hugepage_flags);
+		/*
+		 * Swallow a bootloader-supplied "never": keep the built-in global
+		 * policy so PMD-sized THP stays selectable via MADV_HUGEPAGE.
+		 */
+		pr_info("rodin: transparent_hugepage=never ignored, global policy kept\n");
 		ret = 1;
 	}
 out:
