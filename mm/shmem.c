@@ -5592,6 +5592,11 @@ static ssize_t shmem_enabled_store(struct kobject *kobj,
 	char tmp[16];
 	int huge, err;
 
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	if (count + 1 > sizeof(tmp))
 		return -EINVAL;
 	memcpy(tmp, buf, count);
@@ -5638,6 +5643,11 @@ static ssize_t thpsize_shmem_enabled_store(struct kobject *kobj,
 					   struct kobj_attribute *attr,
 					   const char *buf, size_t count)
 {
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	int order = to_thpsize(kobj)->order;
 	ssize_t ret = count;
 
@@ -5823,6 +5833,7 @@ static int __init setup_thp_shmem(char *str)
 	huge_shmem_orders_inherit = inherit;
 	huge_shmem_orders_within_size = within_size;
 	shmem_orders_configured = true;
+	thp_sysfs_locked = true;
 	return 1;
 
 err:

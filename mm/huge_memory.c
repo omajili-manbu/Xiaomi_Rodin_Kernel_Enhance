@@ -85,6 +85,13 @@ unsigned long huge_anon_orders_madvise __read_mostly;
 unsigned long huge_anon_orders_inherit __read_mostly;
 static bool anon_orders_configured __initdata;
 
+/*
+ * Set when thp_anon= configured the anon mTHP policy at boot: runtime writes
+ * to the per-size enabled nodes are then accepted but ignored, so that the
+ * boot-time policy cannot be flipped back from userspace.
+ */
+bool thp_sysfs_locked;
+
 static inline bool file_thp_enabled(struct vm_area_struct *vma)
 {
 	struct inode *inode;
@@ -326,6 +333,11 @@ static ssize_t enabled_store(struct kobject *kobj,
 {
 	ssize_t ret = count;
 
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	if (sysfs_streq(buf, "always")) {
 		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
 		set_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
@@ -405,6 +417,11 @@ static ssize_t defrag_store(struct kobject *kobj,
 			    struct kobj_attribute *attr,
 			    const char *buf, size_t count)
 {
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	if (sysfs_streq(buf, "always")) {
 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
 		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
@@ -446,6 +463,11 @@ static ssize_t use_zero_page_show(struct kobject *kobj,
 static ssize_t use_zero_page_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	return single_hugepage_flag_store(kobj, attr, buf, count,
 				 TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
 }
@@ -470,6 +492,11 @@ static ssize_t split_underused_thp_store(struct kobject *kobj,
 			     const char *buf, size_t count)
 {
 	int err = kstrtobool(buf, &split_underused_thp);
+
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
 
 	if (err < 0)
 		return err;
@@ -525,6 +552,15 @@ static ssize_t anon_enabled_store(struct kobject *kobj,
 {
 	int order = to_thpsize(kobj)->order;
 	ssize_t ret = count;
+
+	/*
+	 * Boot params (thp_anon=/thp_shmem=) define the final policy: pretend
+	 * to accept writes so userspace does not error out, but change nothing.
+	 */
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
 
 	if (sysfs_streq(buf, "always")) {
 		spin_lock(&huge_anon_orders_lock);
@@ -1070,6 +1106,7 @@ static int __init setup_thp_anon(char *str)
 	huge_anon_orders_madvise = madvise;
 	huge_anon_orders_inherit = inherit;
 	anon_orders_configured = true;
+	thp_sysfs_locked = true;
 	return 1;
 
 err:

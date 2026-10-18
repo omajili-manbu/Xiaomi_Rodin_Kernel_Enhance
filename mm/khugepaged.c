@@ -136,6 +136,11 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
 	unsigned int msecs;
 	int err;
 
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	err = kstrtouint(buf, 10, &msecs);
 	if (err)
 		return -EINVAL;
@@ -163,6 +168,11 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
 	unsigned int msecs;
 	int err;
 
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	err = kstrtouint(buf, 10, &msecs);
 	if (err)
 		return -EINVAL;
@@ -188,6 +198,11 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
 {
 	unsigned int pages;
 	int err;
+
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
 
 	err = kstrtouint(buf, 10, &pages);
 	if (err || !pages)
@@ -228,6 +243,11 @@ static ssize_t defrag_store(struct kobject *kobj,
 			    struct kobj_attribute *attr,
 			    const char *buf, size_t count)
 {
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	return single_hugepage_flag_store(kobj, attr, buf, count,
 				 TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
 }
@@ -255,6 +275,11 @@ static ssize_t max_ptes_none_store(struct kobject *kobj,
 	int err;
 	unsigned long max_ptes_none;
 
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
+
 	err = kstrtoul(buf, 10, &max_ptes_none);
 	if (err || max_ptes_none > HPAGE_PMD_NR - 1)
 		return -EINVAL;
@@ -279,6 +304,11 @@ static ssize_t max_ptes_swap_store(struct kobject *kobj,
 {
 	int err;
 	unsigned long max_ptes_swap;
+
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
 
 	err  = kstrtoul(buf, 10, &max_ptes_swap);
 	if (err || max_ptes_swap > HPAGE_PMD_NR - 1)
@@ -305,6 +335,11 @@ static ssize_t max_ptes_shared_store(struct kobject *kobj,
 {
 	int err;
 	unsigned long max_ptes_shared;
+
+	if (thp_sysfs_locked) {
+		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
+		return count;
+	}
 
 	err  = kstrtoul(buf, 10, &max_ptes_shared);
 	if (err || max_ptes_shared > HPAGE_PMD_NR - 1)
