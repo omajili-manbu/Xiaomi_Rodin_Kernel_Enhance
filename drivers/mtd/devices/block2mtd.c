@@ -319,6 +319,17 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		}
 	}
 
+	if (IS_ERR(bdev_file) && !retry && system_state < SYSTEM_RUNNING) {
+		/*
+		 * Boot path: the early lookup loop only sleeps (msleep x
+		 * timeout) while waiting for the backing device, and every
+		 * second there delays /init.  Hand the waiting to the
+		 * retry thread instead of blocking do_basic_setup.
+		 */
+		pr_err("block2mtd: %s not ready at boot, deferring to retry thread\n",
+		       devname);
+		goto err_free_block2mtd;
+	}
 	if (IS_ERR(bdev_file))
 		bdev_file = mdtblock_early_get_bdev(devname, mode, timeout,
 						      dev);
