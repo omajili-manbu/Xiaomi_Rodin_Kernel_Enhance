@@ -65,6 +65,7 @@
 #include "fs.c"
 #include "interrupt.c"
 #include "io.c"
+#include "iommu.c"
 #include "jump_label.c"
 #include "kunit.c"
 #include "maple_tree.c"
