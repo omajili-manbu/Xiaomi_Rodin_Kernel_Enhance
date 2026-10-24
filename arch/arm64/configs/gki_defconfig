@@ -804,7 +804,7 @@ CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule binder_gki millet_binder millet_c
 # rodin A-102 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
 CONFIG_RODIN_BUILTIN_SKIP=y
 # CONFIG_ARM64_BTI_KERNEL is not set
-CONFIG_CFI_PERMISSIVE=y
+# CONFIG_CFI_PERMISSIVE is not set
 CONFIG_MODULE_FORCE_LOAD=y
 CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS=y
 CONFIG_ZSMALLOC=y
