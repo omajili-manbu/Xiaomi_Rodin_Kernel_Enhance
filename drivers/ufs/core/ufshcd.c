@@ -5602,15 +5602,6 @@ static int ufshcd_sdev_configure(struct scsi_device *sdev,
 	if (hba->dev_info.zwor_sup)
 		lim->features |= BLK_FEAT_ZWOR;
 
-	/*
-	 * The write order is preserved per MCQ. Without MCQ, auto-hibernation
-	 * may cause write reordering that results in unaligned write errors.
-	 */
-	if (hba->mcq_enabled)
-		lim->features |= BLK_FEAT_ORDERED_HWQ;
-	if (to_hba_priv(hba)->zwor_sup)
-		lim->features |= BLK_FEAT_ZWOR;
-
 	lim->dma_pad_mask = PRDT_DATA_BYTE_COUNT_PAD - 1;
 
 	/*
