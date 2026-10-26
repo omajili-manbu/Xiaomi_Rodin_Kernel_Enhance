@@ -1007,6 +1007,14 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	/* ---- rodin b260: mi_mempool =y（dmesg 对查第③项）。6.6 装载位 =
 	 * vendor_dlkm modules.load 行 252；零依赖零消费者，段尾续编 1256。 */
 	{ .name = "mi_mempool", .seq = 1256 },
+	/* ---- rodin: metis 移植四件 =y（S4-3 拍板）。6.6 stock 为 vendor_dlkm
+	 * 后装波次（modules.load 无行，kernel_initcall device 级自然序）；
+	 * #139 ramoops 实测 metis_init 0.415s（device 级时点）。四件互零依赖、
+	 * 与表内既有单元零依赖交叉，段尾续编 1257-1260。 */
+	{ .name = "metis", .seq = 1257 },
+	{ .name = "mi_schedule", .seq = 1258 },
+	{ .name = "xr_qi", .seq = 1259 },
+	{ .name = "perf_actuator", .seq = 1260 },
 };
 
 const unsigned int __vseq_mod_order_nr =
