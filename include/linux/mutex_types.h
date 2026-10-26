@@ -52,9 +52,7 @@ struct mutex {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	/* rodin: OEM slot widened to u64[2] (same shape as rwsem): word0 low u32
-	 * = metis tag, high u32 = xr_qi waiter counter, word1 = metis deadline. */
-	ANDROID_OEM_DATA_ARRAY(1, 2);
+	ANDROID_OEM_DATA(1);
 };
 
 #else /* !CONFIG_PREEMPT_RT */
@@ -68,9 +66,7 @@ struct mutex {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	/* rodin: OEM slot widened to u64[2] (same shape as rwsem): word0 low u32
-	 * = metis tag, high u32 = xr_qi waiter counter, word1 = metis deadline. */
-	ANDROID_OEM_DATA_ARRAY(1, 2);
+	ANDROID_OEM_DATA(1);
 };
 
 #endif /* CONFIG_PREEMPT_RT */
