@@ -98,14 +98,12 @@ struct dma_buf *dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
 	if (!len)
 		return ERR_PTR(-EINVAL);
 
-	pr_info("F6TRACE halloc enter %s len=%zu\n", heap->name, len);
 	trace_android_vh_dma_heap_buffer_alloc_start(heap->name, len,
 			fd_flags, heap_flags);
 	trace_android_vh_dma_heap_buffer_alloc_lat_start(&stime);
 	dma_buf = heap->ops->allocate(heap, len, fd_flags, heap_flags);
 	trace_android_vh_dma_heap_buffer_alloc_end(heap->name, len);
 	trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len, dma_buf);
-	pr_info("F6TRACE halloc done %s len=%zu %s\n", heap->name, len, IS_ERR(dma_buf) ? "ERR" : "ok");
 
 	return dma_buf;
 }
