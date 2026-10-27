@@ -12,8 +12,6 @@
 #include <linux/debugfs.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
-#include <linux/moduleparam.h>
-#include <linux/sched/clock.h>
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/printk.h>
@@ -182,22 +180,11 @@ int psci_set_osi_mode(bool enable)
 	return psci_to_linux_errno(err);
 }
 
-/* 冻结判别打点 v2（门控）：
- * 本机 CPU_SUSPEND 每次 idle 都被调用且 100% 返 -2（INVALID_PARAMETERS，
- * 实测 idle 期每核 ~4000 次/s）。v1 全量 ent/ret 打印 = 每秒千行级洪水，
- * 既扰动 idle 路径时序也灌满 console ring。v2：
- *   - -2 配对静默（纯噪音）；
- *   - 返回值 != -2 全打（odd，含成功——本机从未成功过的状态）；
- *   - 单次耗时 >1ms 打 slow（近悬挂）；
- *   - 每 PSCIT_HB_INTERVAL 次打一行心跳，wedge 核的心跳停止可定位到秒级；
- *   - pscit_verbose=1（/sys/module/psci/parameters/）回到 v1 全量模式。
+/* 冻结判别打点：ent/ret 配对读法（末条 ent 无 ret = 该核 wedge 在 CPU_SUSPEND 内）。
+ * per-CPU 序号使乱序 console 尾段可按 cpu 子序列配对；idle 进入路径 IRQ 已关，
+ * printk 只入 ringbuffer（store 为 NMI 安全），死亡 flush 由 ramoops 兜底。
  */
 static DEFINE_PER_CPU(unsigned int, pscit_seq);
-static bool pscit_verbose;
-module_param(pscit_verbose, bool, 0644);
-
-#define PSCIT_HB_INTERVAL	8192u
-#define PSCIT_SLOW_NS		1000000ULL
 
 static __always_inline int
 __psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
@@ -205,33 +192,16 @@ __psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
 	int err;
 	bool deny = false;
 	unsigned int seq = this_cpu_inc_return(pscit_seq);
-	u64 t0;
 
 	trace_android_rvh_psci_cpu_suspend(state, &deny);
 	if (deny)
 		return -EPERM;
 
-	if (pscit_verbose) {
-		pr_info("PSCIT ent cpu=%d seq=%u fn=%08x state=%08x\n",
-			smp_processor_id(), seq, fn, state);
-		err = invoke_psci_fn(fn, state, entry_point, 0);
-		pr_info("PSCIT ret cpu=%d seq=%u a0=%ld\n",
-			smp_processor_id(), seq, (long)err);
-		return psci_to_linux_errno(err);
-	}
-
-	if (!(seq & (PSCIT_HB_INTERVAL - 1)))
-		pr_info("PSCIT hb cpu=%d seq=%u\n", smp_processor_id(), seq);
-
-	t0 = sched_clock();
+	pr_info("PSCIT ent cpu=%d seq=%u fn=%08x state=%08x\n",
+		smp_processor_id(), seq, fn, state);
 	err = invoke_psci_fn(fn, state, entry_point, 0);
-	if (err != PSCI_RET_INVALID_PARAMS)
-		pr_info("PSCIT odd ret cpu=%d seq=%u fn=%08x state=%08x a0=%ld\n",
-			smp_processor_id(), seq, fn, state, (long)err);
-	if (sched_clock() - t0 > PSCIT_SLOW_NS)
-		pr_info("PSCIT slow cpu=%d seq=%u dt=%lluns a0=%ld\n",
-			smp_processor_id(), seq, sched_clock() - t0, (long)err);
-
+	pr_info("PSCIT ret cpu=%d seq=%u a0=%ld\n",
+		smp_processor_id(), seq, (long)err);
 	return psci_to_linux_errno(err);
 }
 
