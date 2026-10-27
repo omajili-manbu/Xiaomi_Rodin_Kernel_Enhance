@@ -180,28 +180,17 @@ int psci_set_osi_mode(bool enable)
 	return psci_to_linux_errno(err);
 }
 
-/* 冻结判别打点：ent/ret 配对读法（末条 ent 无 ret = 该核 wedge 在 CPU_SUSPEND 内）。
- * per-CPU 序号使乱序 console 尾段可按 cpu 子序列配对；idle 进入路径 IRQ 已关，
- * printk 只入 ringbuffer（store 为 NMI 安全），死亡 flush 由 ramoops 兜底。
- */
-static DEFINE_PER_CPU(unsigned int, pscit_seq);
-
 static __always_inline int
 __psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
 {
 	int err;
 	bool deny = false;
-	unsigned int seq = this_cpu_inc_return(pscit_seq);
 
 	trace_android_rvh_psci_cpu_suspend(state, &deny);
 	if (deny)
 		return -EPERM;
 
-	pr_info("PSCIT ent cpu=%d seq=%u fn=%08x state=%08x\n",
-		smp_processor_id(), seq, fn, state);
 	err = invoke_psci_fn(fn, state, entry_point, 0);
-	pr_info("PSCIT ret cpu=%d seq=%u a0=%ld\n",
-		smp_processor_id(), seq, (long)err);
 	return psci_to_linux_errno(err);
 }
 
