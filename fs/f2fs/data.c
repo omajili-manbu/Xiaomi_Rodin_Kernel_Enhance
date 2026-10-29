@@ -604,12 +604,12 @@ static void f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 				  gfp_t gfp_mask)
 {
 	/*
-	 * The f2fs garbage collector sets ->encrypted_page when it wants to
+	 * The f2fs garbage collector sets ->encrypted_page or ->is_cache when it wants to
 	 * read/write raw data without encryption.
 	 */
 	if (!fio || (!fio->encrypted_page && !fio->is_cache))
 		fscrypt_set_bio_crypt_ctx(bio, inode, first_idx, gfp_mask);
-	else if (fscrypt_inode_should_skip_dm_default_key(inode))
+	else if (inode && fscrypt_inode_should_skip_dm_default_key(inode))
 		bio_set_skip_dm_default_key(bio);
 }
 
@@ -618,13 +618,14 @@ static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 				     const struct f2fs_io_info *fio)
 {
 	/*
-	 * The f2fs garbage collector sets ->encrypted_page when it wants to
+	 * The f2fs garbage collector sets ->encrypted_page or ->is_cache when it wants to
 	 * read/write raw data without encryption.
 	 */
 	if (fio && (fio->encrypted_page || fio->is_cache))
 		return !bio_has_crypt_ctx(bio) &&
 			(bio_should_skip_dm_default_key(bio) ==
-			 fscrypt_inode_should_skip_dm_default_key(inode));
+			 (inode &&
+			  fscrypt_inode_should_skip_dm_default_key(inode)));
 
 	return fscrypt_mergeable_bio(bio, inode, next_idx);
 }
@@ -1323,6 +1324,8 @@ int f2fs_submit_cache_read(struct f2fs_io_info *fio)
 		return -EFSCORRUPTED;
 
 	bio = __bio_alloc(fio, 1);
+	if (fio->inode)
+		f2fs_set_bio_crypt_ctx(bio, fio->inode, 0, fio, GFP_NOIO);
 
 	bio_add_virt_nofail(bio, cache_address(entry), sbi->blocksize);
 	f2fs_bio_add_cache(fio, bio);
@@ -1366,11 +1369,15 @@ next:
 
 	if (io->bio &&
 	    (!io_is_mergeable(sbi, io->bio, io, fio, io->last_block_in_bio,
-			      fio->new_blkaddr)))
+			      fio->new_blkaddr) ||
+	     !f2fs_crypt_mergeable_bio(io->bio, fio->inode, 0, fio)))
 		__submit_merged_bio(io);
 alloc_new:
 	if (io->bio == NULL) {
 		io->bio = __bio_alloc(fio, BIO_MAX_VECS);
+		if (fio->inode)
+			f2fs_set_bio_crypt_ctx(io->bio, fio->inode,
+					0, fio, GFP_NOIO);
 		io->fio = *fio;
 	}
 

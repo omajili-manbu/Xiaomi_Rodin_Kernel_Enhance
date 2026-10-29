@@ -1370,6 +1370,7 @@ struct f2fs_io_info {
 	enum iostat_type io_type;	/* io type */
 	struct writeback_control *io_wbc; /* writeback control */
 	struct f2fs_cached_block *cache_entry;
+	struct inode *inode;		/* inode */
 	struct bio **bio;		/* bio for ipu */
 	sector_t *last_block;		/* last block number in bio */
 };
