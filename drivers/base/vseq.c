@@ -47,7 +47,7 @@ struct vseq_idx {
 };
 
 /* 稳定序：单元装载序 seq 优先；同单元（同 seq）按 initcall 层级序（= 6.6
- * 模块加载器 do_mod_initcalls 语义，#141 实证链接序会倒挂）；同层级再按
+ * 模块加载器 do_mod_initcalls 语义，实证链接序会倒挂）；同层级再按
  * 段内原序（heapsort 非稳定，用 ord 兜底）。 */
 static int vseq_cmp(const void *a, const void *b)
 {

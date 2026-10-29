@@ -3371,7 +3371,7 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
  *    hundred bytes of comparison instead of a walk over 665 KiB.
  *  - the drop list (CONFIG_RODIN_BLOB_DROP_LIST, CONFIG_RODIN_BLOB_DROP):
  *    configuration, not code - stock blobs with no in-image provider at all
- *    (A-55), maintained in gki_defconfig.  The two sets must stay disjoint;
+ *    maintained in gki_defconfig.  The two sets must stay disjoint;
  *    the build gates assert that.
  *
  * The stock first-stage loader aborts its whole load list on any failure,

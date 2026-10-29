@@ -1519,7 +1519,7 @@ static void __init do_basic_setup(void)
 	init_irq_proc();
 	do_ctors();
 	do_initcalls();
-	/* rodin 第二十四轮：标准 initcall 全部完成后，按原厂装载序重放
+	/* rodin 2026-10-02：标准 initcall 全部完成后，按原厂装载序重放
 	 * vendor ex-module 的 module_init 族（free_initmem 之前，__init 存活）。 */
 	vseq_replay();
 }

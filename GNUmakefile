@@ -35,7 +35,7 @@ RODIN_TREE := $(CURDIR)
 # clang-r596125 的 22.0.2 同代）；LIBCLANG_PATH 必须显式给（r24 教训：不设会落到
 # 系统 libclang 18）。
 # 副作用（刷机判读用）：CONFIG_RUST select EXTENDED_MODVERSIONS + CFI_ICALL_NORMALIZE_INTEGERS，
-# 相对出厂 6.6 是规则面净变化（见 tools/_b566_bootfix/apply_rust_route_b566.py 的 ABI 门禁说明）。
+# 相对出厂 6.6 是规则面净变化（见 ABI 门禁说明）。
 RODIN_CLANG_DIR := clang-r596125
 RODIN_RUST_DIR := rust-toolchain/linux-x86/1.97.0
 export PATH := $(RODIN_TREE)/dwarves:$(RODIN_TREE)/../prebuilts/$(RODIN_RUST_DIR)/bin:$(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/bin:$(PATH)

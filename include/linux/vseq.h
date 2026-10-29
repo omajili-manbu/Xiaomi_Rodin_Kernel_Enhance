@@ -2,17 +2,17 @@
 #ifndef _LINUX_VSEQ_H
 #define _LINUX_VSEQ_H
 /*
- * VSEQ —— 原厂 first-stage 模块装载时序的内核内重放（rodin 第二十四轮）
+ * VSEQ —— 原厂 first-stage 模块装载时序的内核内重放（rodin 2026-10-02）
  *
  * 背景：6.6 原厂 220+ 个 vendor 驱动是 .ko，由 Android init 的 libmodprobe
  * 按 vendor_boot 的 modules.load 行序 × modules.dep 硬依赖拓扑装载；
  * =y 化后全部退化为 initcall（层级+链接序），三条原厂时序契约
- * （文件系统/提供者就绪/晚装载豁免）全部断裂，是前二十三轮真机雷的主根因。
+ * （文件系统/提供者就绪/晚装载豁免）全部断裂，是早期真机雷的主根因。
  *
  * 本机制：被批改为 vseq_* 宏的原 .ko 单元，其 module_init 族不再进入标准
  * initcall 层级，而是落入 .vseq.entries 段；do_initcalls() 全部跑完后由
  * vseq_replay() 按 drivers/base/vseq_order_gen.c 的顺序表（= 6.6 真机
- * 实测 224 条装载序，tools/_b523_vseq/gen_vseq.py 对账生成）逐个同步调用，
+ * 实测 224 条装载序，对账生成）逐个同步调用，
  * 等价于内核自己当一次 init。__init 文本此时仍存活（free_initmem 之前），
  * 与原厂 0.41s insmod 波同语义。
  *
@@ -45,7 +45,7 @@ static inline void vseq_replay(void) {}
 /*
  * Level constants: restore the 6.6 module loader (do_mod_initcalls)
  * semantics - all initcalls of one module run in kernel level order when
- * the module is loaded. Values only need to be monotonic. #141 evidence:
+ * the module is loaded. Values only need to be monotonic. Evidence:
  * lpm_dbg_init.c carries subsys/late_sync/module in one unit; replaying
  * them in section link order let late_sync run before module_init (which
  * creates lpm_entry_rc) -> NULL deref in list_add. Link order != level

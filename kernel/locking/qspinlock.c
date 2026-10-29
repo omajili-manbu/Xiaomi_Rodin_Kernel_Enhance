@@ -34,12 +34,12 @@
  * 楔死形态 = 持锁核无声消失、其余核在本慢路径饿死（expdb LASTPC ×102 实证；
  * 打点追杀三代未中——死点永远在末条之后的未插秧操作）。改为在慢路径入口把
  * {锁地址, 调用链, jiffies} 写入 reserve_mem 暖复位存活区（cmdline
- * reserve_mem=8K:8192:frzconv，同配置启动地址确定），下轮开机 initcall
+ * reserve_mem=8K:8192:frzconv，同配置启动地址确定），后续开机 initcall
  * 读环：静态锁 System.map 直符号化，动态锁按地址段 + RA 链分型。
  * 不依赖活体捕获，绕开打印-死亡竞速。热路径零成本（仅慢路径一次写）。
  */
 struct frz_convoy_rec {
-	u64 magic;	/* 本轮开机 cookie，跨轮区分新旧记录 */
+	u64 magic;	/* 本次开机 cookie，跨次区分新旧记录 */
 	u64 lock;
 	u64 ra0;	/* slowpath 直接调用者（_raw_spin_lock* 家族，辨锁味） */
 	u64 ra1;	/* 上上层调用（frame pointer 最佳努力） */
@@ -49,7 +49,7 @@ struct frz_convoy_rec {
 };
 
 static atomic_t frzq_mute = ATOMIC_INIT(0);
-/* frzq/frzqa 实时 console 打印（用户令：打印与 ramoops 写入必须在死亡
+/* frzq/frzqa 实时 console 打印（打印与 ramoops 写入必须在死亡
  * 事件之前，不依赖 post-mortem 内存取证）。noinit 记录不受影响。 */
 void frzq_set_mute(int m);
 void frzq_set_mute(int m)
@@ -261,7 +261,7 @@ static void __queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
 	frz_convoy_record(lock);
-	/* rodin frz v3: 阻塞式 console 打印（用户令，慢无所谓）——死亡签名 =
+	/* rodin frz v3: 阻塞式 console 打印（慢无所谓）——死亡签名 =
 	 * 楔死瞬间多核涌入同一锁的连发行；ra0/ra1 就地 %pS 符号化。
 	 * 已知反馈面：打印自身争 logbuf 锁会产生 ra1=vprintk_emit 的自噪声行，
 	 * 判读时 grep -v vprintk 过滤。 */

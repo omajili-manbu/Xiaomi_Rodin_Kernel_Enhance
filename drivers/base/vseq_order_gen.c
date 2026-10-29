@@ -2,31 +2,31 @@
 /*
  * vseq_order_gen.c —— 生成的原厂装载序表
  *   seq 0..222    = 6.6 原厂 first-stage libmodprobe 实测装载序（224 条对账一致，
- *                    tools/_b523_vseq/gen_vseq.py 生成）。
- *   seq 1000 起   = 第二十五轮收编的第二批（6.6 vendor_dlkm 后装波次，无设备实测
+ *                    对账生成）。
+ *   seq 1000 起   = 2026-10-02 收编的第二批（6.6 vendor_dlkm 后装波次，无设备实测
  *                    逐条序）；相对序 = =y 现存标准 initcall（层级, 链接址）秩，
- *                    保持前二十四轮真机已验证的两两相对序；与第一批的边界
- *                    （第二批整体后置）恢复 6.6 语义。tools/_b525_recon 生成。
- *   第二十七轮（#142）：1143-1172 相机/热簇按 6.6 真机 dmesg 实测 probe 时刻
+ *                    保持此前真机已验证的两两相对序；与第一批的边界
+ *                    （第二批整体后置）恢复 6.6 语义。
+ *   2026-10-02：1143-1172 相机/热簇按 6.6 真机 dmesg 实测 probe 时刻
  *                    重排（14 单元有实测；静默单元保持组内相对序；块外零改）。
  *                    合成序把 mtk_imgsys_isp8 排在 mtk_imgsys_cmdq_isp8/hcp
  *                    之前，6.6 实序相反（hcp 3.014s / cmdq 3.024s → imgsys
  *                    3.636s）；imgsys probe 的 imgsys_cmdq_init 解引用 cmdq
- *                    单元 drvdata，倒挂即 [NULL+8] 崩（#142 实证）。
- *                    tools/_b527_fix。
- *   T1 七件（2026-10-03）：miev/xm_power 用第一批实测位（seq 23/184）；
+ *                    单元 drvdata，倒挂即 [NULL+8] 崩（实证）。
+ *
+ *   七件（2026-10-03）：miev/xm_power 用第一批实测位（seq 23/184）；
  *                    其余五件 6.6 均为后装波次 .ko、互零依赖，续编 1232+
  *                    组内字母序（tools/_t1）。
  *   T2①（2026-10-04）：binder_prio 续编 1249（6.6 装载位 vendor_dlkm
  *                    modules.load 行 248，零依赖；tools/_t2bp）。
- *   第三十八轮（#158）：sensorhub 1138→1211 挪至 scp(1210) 之后。第二批合成序
+ *   2026-10-03：sensorhub 1138→1211 挪至 scp(1210) 之后。第二批合成序
  *                    把 sensorhub 排在 scp 之前，ipi_comm_init 在 scp_ipidev
  *                    就绪前调 mtk_ipi_register 得 -1 一次性放弃，SCP 固件随后
  *                    发 IPI 32(sensor notify) 命中 pin_buf=NULL 的 recv pin，
  *                    mtk-mbox.c:562 BUG_ON 崩机。相对序对齐 stock
  *                    vendor_dlkm modules.load：scp.ko(行123) < sensorhub.ko(行145)。
- *                    tools/_b538。
- *   第三十九轮（#159）：连通性集群 1179-1189 十一单元整体挪至 scp(1210) 之后，
+ *
+ *   2026-10-03：连通性集群 1179-1189 十一单元整体挪至 scp(1210) 之后，
  *                    按 stock modules.load 136-145 段定序 connscp<connfem<
  *                    conninfra<wmt<wlan<fmradio<gps_drv；bt 按 stock 191 行
  *                    （apusys/mali 之后）置块尾；gps_scp/gps_pwr/mi_gps_pwr
@@ -34,29 +34,29 @@
  *                    conap IPI 34 注册死链（scp_A_register_notify 未执行→
  *                    READY 重试永不触发→pin_buf=NULL 同 IPI 32 型 BUG_ON）。
  *                    1190-1209 段顺势 -11 前移；sensorhub→1222、尾段→+11。
- *                    tools/_b539。
- *   第四十轮（#163）：scp 1210→1071 前移至音频簇（1072-1119）之前，修 A-28
- *                    声卡卡片实例化倒挂。b539 侦察：vseq 第二批序忠实复刻
+ *
+ *   2026-10-03：scp 1210→1071 前移至音频簇（1072-1119）之前，修
+ *                    声卡卡片实例化倒挂。侦察：vseq 第二批序忠实复刻
  *                    stock 纸面序（声卡件 83-89 行 < scp.ko 123 行），但 6.6
  *                    实际存活靠 deferred-probe 有效序——scp probe 2.578s ≪
  *                    音频链 2.93-3.04s（机器驱动 mt6899-mt6368 2.965s 才首次
  *                    probe，零 defer 重试）。=y 重放下卡片实例化在
  *                    [299]-[311] 段 one-shot 跑完：snd_soc_component_probe
  *                    (snd-scp-ultra) 撞 scp_get_reserve_mem_phys(ULTRA_MEM_ID)
- *                    ==0 返 -1 不再 defer，card0 全程零注册（#158 实证）。
+ *                    ==0 返 -1 不再 defer，card0 全程零注册（实证）。
  *                    scp 二批依赖为零（mbox/clk/regulator/emi-mpu 全第一批），
  *                    前移无新倒挂；ccci_fsm_scp(1175) ready 重试自愈、
  *                    audio_ipi(1178) 运行期惰性调用、aov/aod 本机无 DT 节点。
  *                    判据 = snd_soc_register_card pss 0 + card0 注册。
- *                    tools/_b540。
+ *
  *   T2③-⑧（2026-10-04）：scene_swappiness 223/simtray 224（vendorboot 段，6.6
  *                    init/probe 2.441s/2.482s 在 libmodprobe 224 波后）；
  *                    cpu_isolate_cooling 1250/mi_exception_log 1251/
  *                    xiaomi_spi_tee 1252（vendor_dlkm 段尾续编，stock
  *                    modules.load 行 102/251/5，六件互零符号依赖，
- *                    tools/_b542_build）。
- *   第五十七轮（#186）：usb_offload 1095→1120、snd_soc_audiodsp_common
- *                    1108→1121，双双挪至 adsp_v2(1119) 之后，修 A-52。
+ *                    同步重建）。
+ *   2026-10-05：usb_offload 1095→1120、snd_soc_audiodsp_common
+ *                    1108→1121，双双挪至 adsp_v2(1119) 之后，修复倒挂。
  *                    vseq dep 符号拓扑编码不了"提供者 probe 填全局表→消费者
  *                    probe 读表"的运行时数据依赖：usb_offload probe 读 ADSP
  *                    mblock 表（adsp_reserve_mblocks，由 adsp-v2 单元
@@ -71,8 +71,8 @@
  *                    mtk_soc_offload_common(1109) 为死条目（vmlinux 仅表
  *                    rodata 字符串、System.map 零符号）；usb_offload 导出面
  *                    （mtk_offload_* 共 8 符号）=y 集内零外部调用者；
- *                    xhci_mtk=126/mtu3=127 第一波不动。tools/_b555_a52_vseqfix。
- *   第六十一轮（#236）：第二批四处相对倒挂复位 stock 序，修 A-63/A-64。
+ *                    xhci_mtk=126/mtu3=127 第一波不动。
+ *   2026-10-05：第二批四处相对倒挂复位 stock 序。
  *                    ①audio_ipi 1178→1120（与 usb_offload/jpeg_driver 共槽，
  *                    tie 由 (seq,lvl,ord) 决胜，三者零耦合）：dsp_pcm（
  *                    snd_soc_audiodsp_common=1121 成员）probe 同步逐 task 发
@@ -104,18 +104,18 @@
  *                    （kicker_pbm_by_md 在 MD 上下电、init_md_section_level
  *                    有空表守卫、ccmni_ops 为编译期初始化函数表、后两者零
  *                    符号边）；fsm_scp(1032) 在 scp(1071) 前同 stock 行序
- *                    （36<123），#163 前实机旧序 1175<1210 ready 重试自愈，
+ *                    （36<123），旧序时代实机 1175<1210 ready 重试自愈，
  *                    mtk_ipi(42)/mbox(40/41) 全第一批。跨序区间预检：ccci
  *                    导出的外部消费者 usip(1072)/mddp(1074)/md_power_
  *                    throttling(1055)/pmic_oc_debug(1079)/c2k_usb(1092)/
  *                    md_cooling(1150)/mbraink(1170+) 全在 1032 后，前移零新
  *                    倒挂，备选 B（后移消费者）不触发。
- *                    ③mtk_swpm_dbg_v6899 1012→1095（#186 usb_offload 让出的
+ *                    ③mtk_swpm_dbg_v6899 1012→1095（usb_offload 让出的
  *                    空洞）：init 调 sspm_sbuf_get 早于 sspm_v3(1013) probe，
  *                    重放打 "get sspm dram addr failed"；1095>1013 修复；
  *                    nm 反查全表零外部消费者，后移无风险；qos 命令
- *                    （mtk_qos=1231）为 A-22 下游不改。
- *                    ④mtk_ccuv 1167→1138（#158 sensorhub 让出的空洞）：
+ *                    （mtk_qos=1231）为下游不改。
+ *                    ④mtk_ccuv 1167→1138（sensorhub 让出的空洞）：
  *                    相机簇（mtk_cam_isp8=1143 起）rproc_get_by_phandle 拿
  *                    ccu handle（mtk_imgsys-v4l2.c:2793，probe 一次性、NULL
  *                    即 goto out 不重试），映射要等 ccu probe 的 rproc_add
@@ -126,15 +126,15 @@
  *                    =31、五 ccci=32-36、sspm=47、ged=67、mali=70、adsp-v2=
  *                    71、audio_ipi=72、usb_offload=73、audiodsp=81、usip=83、
  *                    mddp=90、gpu_qos=104、scp=123、cam=128、swpm 族=132-135、
- *                    wlan=141、mtk_qos=150。tools/_b585_vseq_order。
- *   第一百一十六轮（dmesg 时序类 A）：修 vseq 合成序两处倒挂（对照真机
+ *                    wlan=141、mtk_qos=150。
+ *   2026-10-17（dmesg 时序类）：修 vseq 合成序两处倒挂（对照真机
  *                    dmesg 差异报告 §1.5 usip/adsp + §1.1 qos）。
  *                    ①snd_soc_mtk_common 1072→1167：该 KBUILD_MODNAME 唯一
  *                    vseq 入口 = usip_init（mtk-usip.c:609），其内注册
  *                    speech_usip_mem driver → probe 同步调
  *                    adsp_register_feature(VOICE_CALL)（mtk-usip.c:382）。
  *                    feature_set 位图由 adsp_v2 的 adsp_core_drv_probe 填
- *                    （adsp_driver_v2.c:352）。#236 注释判该调用"运行期惰性"
+ *                    （adsp_driver_v2.c:352）。先前注释判该调用"运行期惰性"
  *                    有误：platform_driver_register 后 DT 同步匹配触发 probe，
  *                    非惰性。真机日志铁证：报错 4.585s，register_adsp_core
  *                    4.619s（晚 33ms），ipi_dsp_id_to_adsp_cid total 0。
@@ -142,7 +142,7 @@
  *                    全部依赖，且不与任何 seq 共槽（比较器先比 seq，故与表内
  *                    位置 ord 无关）。stock 行序 usip(83) 本就晚于
  *                    adsp-v2(71)。usip 与 mddp(1074) 无互相依赖（双向符号
- *                    grep 零命中，二者只是 md_all 的共同下游，见 #236 ②），
+ *                    grep 零命中，二者只是 md_all 的共同下游），
  *                    后移到 1167 晚于 mddp 可接受。
  *                    ②mtk_qos 1231→1210：与 gki_defconfig 开
  *                    CONFIG_MTK_QOS_MT6893=y（b4003a83 已做）+ qos-v6893.c:223
@@ -150,9 +150,9 @@
  *                    lpm(1224)，与 6.6 实测序 qos(2.913s)<swpm(3.542s)/
  *                    SPM(3.685s) 相反；改后 1210 > scp(1071) 满足 qos_ipi
  *                    依赖 SCP IPI 通道就绪、< swpm/lpm 恢复 6.6 序。
- *                    打破 #236 ③"mtk_qos=1231 为 A-22 下游不改"的边界裁决。
+ *                    打破先前"mtk_qos=1231 为下游不改"的边界裁决。
  *                    1210 区间前后（audio/gpu/camera/thermal、sensorhub=1222）
- *                    不依赖 qos_ipi。A-22 当时未修，本次补。
+ *                    不依赖 qos_ipi。当时未修，本次补。
  *                    —— 曾试图 1210→1072 以消除 swpm_dbg_v6899(1095)
  *                    的 3 条 "qos ipi not ready skip cmd=5"，真机复验触发
  *                    VCP core0 watchdog 超时（PC 卡死 0x1b370）⇒ vcp_aed
@@ -161,7 +161,7 @@
  *                    出去，打在过渡窗口打挂固件。复验结论：该 skip 是
  *                    vendor 设计的优雅降级（mtk_qos_ipi_v2.c:69），非 bug，
  *                    1210 允许残留；勿再前移。
- *   第一百二十轮（2026-10-18）：两处相对序对齐 6.6 实测 + 一件新入表。
+ *   2026-10-18：两处相对序对齐 6.6 实测 + 一件新入表。
  *                    ①rt4831a_drv 93→70：门 IC 的 i2c driver 注册必须先于
  *                    i2c_mt65xx(71) 建设备；6.6 实测门 IC(0.848s) 先取
  *                    gate-power(pio64) 并立即释放，功放(3.190s) 后取并持有。
@@ -997,19 +997,19 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "cpu_isolate_cooling", .seq = 1250 },
 	{ .name = "mi_exception_log", .seq = 1251 },
 	{ .name = "xiaomi_spi_tee", .seq = 1252 },
-	/* ---- rodin b567: touch 三件 =y（第六十九轮）。6.6 装载位 = vendor_dlkm
+	/* ---- rodin 2026-10-06: touch 三件 =y。6.6 装载位 = vendor_dlkm
 	 * modules.load 行 211/212/213，框架先于 IC（212/213 依赖 211 的导出）；
 	 * scp=1071 之后（goodix/focaltech scp_tp_init 消费 scp_ipidev/mtk_ipi_*），
 	 * miev=23 早已就绪（框架消费 cdev_tevent_*）。段尾续编 1253-1255。 */
 	{ .name = "xiaomi_touch_rodin", .seq = 1253 },
 	{ .name = "goodix_core_rodin", .seq = 1254 },
 	{ .name = "focaltech_touch_rodin", .seq = 1255 },
-	/* ---- rodin b260: mi_mempool =y（dmesg 对查第③项）。6.6 装载位 =
+	/* ---- rodin 2026-10-16: mi_mempool =y（dmesg 对查第③项）。6.6 装载位 =
 	 * vendor_dlkm modules.load 行 252；零依赖零消费者，段尾续编 1256。 */
 	{ .name = "mi_mempool", .seq = 1256 },
-	/* ---- rodin: metis 移植四件 =y（S4-3 拍板）。6.6 stock 为 vendor_dlkm
+	/* ---- rodin: metis 移植四件 =y（2026-10-26 定案）。6.6 stock 为 vendor_dlkm
 	 * 后装波次（modules.load 无行，kernel_initcall device 级自然序）；
-	 * #139 ramoops 实测 metis_init 0.415s（device 级时点）。四件互零依赖、
+	 * ramoops 实测 metis_init 0.415s（device 级时点）。四件互零依赖、
 	 * 与表内既有单元零依赖交叉，段尾续编 1257-1260。 */
 	{ .name = "metis", .seq = 1257 },
 	{ .name = "mi_schedule", .seq = 1258 },

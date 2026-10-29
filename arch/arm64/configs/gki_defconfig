@@ -530,7 +530,7 @@ CONFIG_USB_HIDDEV=y
 CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
 CONFIG_USB_OTG=y
 CONFIG_USB_XHCI_HCD=y
-# rodin 修复18（A-24，b246 起改写）：DbC/debugfs/dbg/trace/ext-caps 交还内核树，
+# rodin（2026-10-11 起改写）：DbC/debugfs/dbg/trace/ext-caps 交还内核树，
 # vendor usb_xhci 只保留改名后的核心副本并经 -I 落到内核头；DbC 胶水回到内核
 # xhci-dbgcap.c/xhci-dbgtty.c，打开 DBGCAP 由内核 xhci_hcd_init 统一拉起。
 CONFIG_USB_XHCI_DBGCAP=y
@@ -799,9 +799,9 @@ CONFIG_KUNIT_EXAMPLE_TEST=m
 # CONFIG_RUNTIME_TESTING_MENU is not set
 CONFIG_RUST_INLINE_HELPERS=y
 CONFIG_RODIN_BLOB_DROP=y
-# rodin A-102 丢载名单本体：仅未内建件（内建面由 .modinfo 名册自动覆盖）；改名单只动这一行
+# rodin 丢载名单本体：仅未内建件（内建面由 .modinfo 名册自动覆盖）；改名单只动这一行
 CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule binder_gki millet_binder millet_core millet_hs millet_oem_cgroup millet_pkg millet_sig miicmpfilter minet miwill miwill_mode_redudancy sla mi_mem_epoll perf_helper lb mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em mkp"
-# rodin A-102 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
+# rodin 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
 CONFIG_RODIN_BUILTIN_SKIP=y
 CONFIG_ARM64_BTI_KERNEL=y
 # CONFIG_CFI_PERMISSIVE is not set
@@ -819,8 +819,8 @@ CONFIG_ARM_DSU_PMU=y
 CONFIG_DEVICE_MODULES_ALLOW_BUILTIN=y
 # r24: 首批内建 —— vendor MTK systimer（修 irqaction handler 错位崩点）
 CONFIG_DEVICE_MODULES_MTK_TIMER=y
-# --- rodin r25 batch2 (P0-core + system_dlkm B0) ---
-# == vendor P0-core clusters (devmod mgk_64_k66_defconfig mirrored, =m -> =y) ==
+# --- rodin 2026-10-02: vendor 核心簇 + system_dlkm 内建 ---
+# == vendor 核心簇 (devmod mgk_64_k66_defconfig mirrored, =m -> =y) ==
 CONFIG_ARCH_MEDIATEK=y
 CONFIG_MTK_AEE_FEATURE=y
 CONFIG_MTK_AEE_AED=y
@@ -873,10 +873,10 @@ CONFIG_MTK_IOMMU_MISC_DBG=y
 CONFIG_MTK_IOMMU_MISC_SECURE=y
 CONFIG_DEVICE_MODULES_DMABUF_HEAPS_SYSTEM=y
 CONFIG_DEVICE_MODULES_DMABUF_HEAPS_REFILL=y
-# rodin b247 A-107: 启用厂商自带的无前缀 dmabuf_page_pool_* 实现（6.18 化过），
+# rodin 2026-10-12: 启用厂商自带的无前缀 dmabuf_page_pool_* 实现（6.18 化过），
 # 供预编译 blob mtk_sec_heap.ko 的导入解析（其期望的就是这套名字/结构体布局）。
 CONFIG_DEVICE_MODULES_DMABUF_HEAPS_PAGE_POOL=y
-# == system_dlkm B0 (6.18 in-tree sources, =m -> =y; diag stays blob) ==
+# == system_dlkm (6.18 in-tree sources, =m -> =y; diag stays blob) ==
 # (6LOWPAN/VLAN_8021Q =y live in their native lines above)
 CONFIG_NET_9P=y
 CONFIG_NET_9P_FD=y
@@ -1009,7 +1009,7 @@ CONFIG_MTK_GZVM=y
 # CONFIG_PINCTRL_MT8516 is not set
 # CONFIG_COMMON_CLK_MT8516 is not set
 # --- end rodin r25 disable block ---
-# == stage2 批1 P0 底座残余（smi/PMIC 族/存储底座/i2c/spmi/emi 簇/dcm；rpmb 双件与 ufs-dbg 另行处置） ==
+# == 底座残余（smi/PMIC 族/存储底座/i2c/spmi/emi 簇/dcm；rpmb 双件与 ufs-dbg 另行处置） ==
 CONFIG_DEVICE_MODULES_MTK_SMI=y
 CONFIG_HAVE_MTK_MC=y
 CONFIG_MFD_MT6685=y
@@ -1052,7 +1052,7 @@ CONFIG_MTK_DVFSRC=y
 CONFIG_INTERCONNECT_MTK_EMI=y
 CONFIG_INTERCONNECT_MTK_MMQOS_MT6899=y
 
-# == stage2 批3 TypeC/充电/USB/串口簇（含 mt6375-adc 与 IIO buffer 两个 B0 配对件） ==
+# == TypeC/充电/USB/串口簇（含 mt6375-adc 与 IIO buffer 两个配对件） ==
 CONFIG_MTK_USB_TYPEC=y
 CONFIG_TCPC_CLASS=y
 CONFIG_TCPC_MT6375=y
@@ -1100,7 +1100,7 @@ CONFIG_MTK_CLKBUF_CTRL=y
 CONFIG_MTK_CMDQ_MBOX_EXT=y
 CONFIG_LEDS_AW21024=y
 CONFIG_LEDS_MTK=y
-# CONFIG_LEDS_MTK_DISP deferred to B3 display batch (rodin b4): leds-mtk-disp consumes mtkfb/drm backlight APIs
+# CONFIG_LEDS_MTK_DISP deferred to display batch (rodin 2026-10-11): leds-mtk-disp consumes mtkfb/drm backlight APIs
 CONFIG_MMEVENT=y
 CONFIG_MMPROFILE=y
 CONFIG_SND_SOC_MTK_SMART_PHONE=y
@@ -1120,7 +1120,7 @@ CONFIG_RT4831A_I2C=y
 CONFIG_TEE_PERF_SUPPORT=y
 CONFIG_DEVICE_MODULES_PWM_MTK_DISP=y
 CONFIG_DEVICE_MODULES_RESET_TI_SYSCON=y
-# ---- rodin B2 点修批: pmic-wrap 纯翻 + pcie-gen3 挂载(ffa_v11 转研究) ----
+# ---- rodin 点修批: pmic-wrap 纯翻 + pcie-gen3 挂载(ffa_v11 转研究) ----
 CONFIG_DEVICE_MODULES_MTK_PMIC_WRAP=y
 CONFIG_DEVICE_MODULES_PCIE_MEDIATEK_GEN3=y
 CONFIG_DEVICE_MODULES_ARM_FFA_TRANSPORT=y
@@ -1179,7 +1179,7 @@ CONFIG_KSHRINK_SLABD=y
 CONFIG_MTPROF=y
 CONFIG_XIAOMI_BOOTMONITOR=y
 CONFIG_GENERIC_ADC_THERMAL=y
-# ---- stage4 batch4-2 (B2 点修 16 件 + iommu_engine 连带; offload-common 顺延 4-5) ----
+# ---- 点修 16 件 + iommu_engine 连带（offload-common 顺延）----
 CONFIG_MTK_IOMMU_MISC_TEST=y
 CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM=y
 CONFIG_DEVICE_MODULES_TMEM_FFA=y
@@ -1261,7 +1261,7 @@ CONFIG_BUILD_XIAOMI_CAMERA_IMAGE_NAMES="rodin"
 # 设备真值(mgk_64_k66_defconfig)：MTK_CCCI_DEVICES=y / MTK_MD1_SUPPORT=25 /
 # MTK_ECCI_DRIVER=m / MTK_ECCI_C2K=y / MTK_ECCI_C2K_USB=m /
 # DEVICE_MODULES_MEDIATEK_MT6577_AUXADC=m。
-# 本批只把 ECCCI 驱动门翻 =y（内建）；C2K_USB/AUXADC 保持 =m —— 它们在本批只作
+# 此节只把 ECCCI 驱动门翻 =y（内建）；C2K_USB/AUXADC 保持 =m —— 它们在此节只作
 # 源码门（IS_ENABLED / ifneq(...,n) 对 =m 同样成立）：C2K_USB 门内提供
 # ccci_c2k_set_usb_callback 等（设备 c2k_usb.ko 的消费面，必须编），AUXADC 门决定
 # ccci_auxadc 成员是否入 ccci 家族（=m 时编、=y 时会把 vendor iio 的 mt6577_auxadc
@@ -1273,7 +1273,7 @@ CONFIG_MTK_ECCCI_C2K=y
 CONFIG_DEVICE_MODULES_MEDIATEK_MT6577_AUXADC=m
 
 # 批4-3b 追加：audio_ipi 内建（mtk-usip.o 的 audio_send_ipi_msg 提供者；
-# 设备 blob=audio_ipi.ko，闭包自足、零导出重叠，本批随 eccci 一起拉入）
+# 设备 blob=audio_ipi.ko，闭包自足、零导出重叠，随 eccci 一起拉入）
 CONFIG_MTK_AUDIO_IPI=y
 
 # ---- stage4 batch4-5 round A (19 件翻门批：thermal7/power_throttling2/cm_mgr/gz3/fhctl/sensorhub/btcvsd/regulator2/nvmem) ----
@@ -1350,7 +1350,7 @@ CONFIG_MTK_ECCCI_C2K_USB=y
 
 # ---- stage4 batch4-6 (连接/wlan 簇 15 件) ----
 # 设备真值：mgk_64_k66_defconfig 中 MTK_COMBO/BT/GPS/WIFI/CONN_SCP/WIFI_THERMAL 全 =m
-#（翻 =y 即本批内建形态）、芯片 CONSYS_6899=y；CFG80211/MAC80211 =m（内核门翻 y）。
+#（翻 =y 即内建形态）、芯片 CONSYS_6899=y；CFG80211/MAC80211 =m（内核门翻 y）。
 CONFIG_MTK_COMBO=y
 CONFIG_MTK_COMBO_CHIP_CONSYS_6899=y
 CONFIG_MTK_COMBO_BT=y
@@ -1365,7 +1365,7 @@ CONFIG_MAC80211=y
 # 设备真值 =y（connectivity/Kconfig 的 GPS 总开关，mgk defconfig =y）
 CONFIG_MTK_GPS_SUPPORT=y
 # ---- stage4 batch4-7 (杂项簇 16 件: lpm 族/ssc/wla/atf/pwm/irtx/adsp_v2/mtk_aov) ----
-# 设备真值 mgk_64_k66_defconfig：以下全 =m；翻 =y = 本批内建形态。
+# 设备真值 mgk_64_k66_defconfig：以下全 =m；翻 =y = 内建形态。
 CONFIG_MTK_LOW_POWER_MODULE=y
 CONFIG_MTK_LPM_MT6899=y
 CONFIG_MTK_CPU_IDLE_GOV=y
@@ -1379,7 +1379,7 @@ CONFIG_MTK_ATF_LOGGER=y
 CONFIG_MTK_PWM=y
 CONFIG_MTK_IRTX_PWM_SUPPORT=y
 CONFIG_VIDEO_MTK_ISP_AOV=y
-# 设备真值 =n / 无 blob 出货（显式记账，压回设备形态）
+# 设备真值 =n / 无 blob 出货（显式压回设备形态）
 # CONFIG_MTK_SSC_DBG_V1 is not set
 # CONFIG_MTK_ADSP_V1 is not set
 # CONFIG_MTK_SWPM_ISP is not set
@@ -1425,7 +1425,7 @@ CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
 # ---- stage4 batch4-9 (perf/sched 栈 18 件 =y 内建) ----
 # 取值依据：vendor defconfig（mgk_64_k66_defconfig）+ 设备 blob 符号实证（设备真值）。
 # 25 件里 18 件纯源走 =y；6 件 .o_shipped 预编译件 + 1 件空壳留 blob（形态二）。
-# MAX_NR_CPUS 是本批关键项：sched/Kconfig 的 `int default "8"`（设备真值 = 默认值，
+# MAX_NR_CPUS 是关键项：sched/Kconfig 的 `int default "8"`（设备真值 = 默认值，
 # vendor defconfig 未设它；c2ps 的 MAX_NUMBER_OF_CLUSTERS 直接取它）。
 CONFIG_MAX_NR_CPUS=8
 CONFIG_MTK_SCHEDULER=y
@@ -1468,14 +1468,14 @@ CONFIG_MTK_DVFSRC_MB=y
 # 本树 GEARLESS=y ⇒ 死配置）；MTK_MBRAINK_MT8678（hypervisor 路径，设备不编）。
 
 
-# rodin 修复18（A-25）：A-20 取证前置——硬件看门狗在挂起后 ~20s 强制断电复位，
+# rodin（2026-10-11）：取证前置——硬件看门狗在挂起后 ~20s 强制断电复位，
 # 120s 的 hung_task 超时永不可达；无 boot cmdline 参数（仅 /proc/sys，挂死期不可达），
 # Kconfig 是唯一杠杆（kernel/hung_task.c 的 sysctl_hung_task_timeout_secs 编译期常量）。
 # BOOTPARAM_HUNG_TASK_PANIC 保持关（打印后靠硬件复位收 pstore）；
 # DETECT_HUNG_TASK_BLOCKER=y 已开（报告附 blocker 任务栈）。
 CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=10
 
-# ---- rodin T1 七件（=y 内建，开源维度报告 v4 G1 批）----
+# ---- rodin 七件（=y 内建，开源维度报告 v4）----
 # 门值 = 设备真值（blob 在场 =m）+ blob 串证据（mi_thermal blob 带 usb_online/atc_enable
 # ⇒ MULTI_CHARGE/ATC 两 inline 门 =y）。
 CONFIG_XM_POWER=y
@@ -1495,7 +1495,7 @@ CONFIG_BINDER_PRIO=y
 # ---- rodin T2② hwid（=y 内建，blob 合并代对齐重建）----
 CONFIG_HWID=y
 
-# ---- rodin T2③-⑧ 六件 =y 内建（blob 对齐重建，#166）----
+# ---- rodin 六件 =y 内建（blob 对齐重建，2026-10-11）----
 CONFIG_MTK_CPU_ISOLATE_THERMAL=y
 CONFIG_XIAOMI_SIMTRAY=y
 CONFIG_SCENE_SWAPPINESS=y
@@ -1507,10 +1507,10 @@ CONFIG_XIAOMI_XR_QI=y
 CONFIG_XIAOMI_PERF_ACTUATOR=y
 CONFIG_XIAOMI_SPI_TEE=y
 
-# ---- rodin b564: mitee =y 内建（T3→=y；6.6 真值 rodin.config: MITEE_SUPPORT=m /
+# ---- rodin 2026-10-11: mitee =y 内建（6.6 真值 rodin.config: MITEE_SUPPORT=m /
 # MITEE_TUI_SUPPORT=n / OPTEE_BENCHMARK 未设 / SHM_NUM_PRIV_PAGES 默认 1）----
 CONFIG_MITEE_SUPPORT=y
-# ---- rodin b567: touch 三件 =y 内建（第六十九轮；defconfig 链纪律=改门后手动
+# ---- rodin 2026-10-11: touch 三件 =y 内建（2026-10-06；defconfig 链纪律=改门后手动
 # gki_defconfig+olddefconfig 两步，否则 (NEW) 静默落 N 假绿）----
 CONFIG_TOUCHSCREEN_XIAOMI_TOUCH_RODIN=y
 CONFIG_TOUCHSCREEN_GOODIX_BRL_RODIN=y

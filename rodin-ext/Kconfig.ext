@@ -16,15 +16,15 @@ config RODIN_BLOB_DROP
 	bool "skip loading policy-dropped 6.6 vendor blobs"
 	default y
 	help
-	  Closed-source 6.6 blobs dropped by the A-55 recon decision: the
-	  scheduler family (metis/mi_schedule, the b543 rq-recode consumers),
+	  Closed-source 6.6 blobs dropped after recon: the
+	  scheduler family (metis/mi_schedule, the rq-recode consumers),
 	  the millet and xiaomi net/memory MIUI-private endpoint families,
 	  misc io/debug/info utilities, and two dead modules (migt has no
 	  symbol providers since the sched =y batch, scheduler_ext is an
 	  empty shell).  The stock load list still names them; the loader is
 	  answered success and nothing is loaded.  mitee and the touch /
 	  fpsgo-cus / bootmonitor blobs are NOT covered and keep loading.
-	  rodin A-102: the name list itself now lives in
+	  rodin: the name list itself now lives in
 	  CONFIG_RODIN_BLOB_DROP_LIST below (maintained in gki_defconfig),
 	  not in C code.
 	  If unsure, say Y.
@@ -59,7 +59,7 @@ config RODIN_BUILTIN_SKIP
 
 # ---- r24 batch 1 ----
 source "$(KCONFIG_EXT_PREFIX)drivers/clocksource/Kconfig"
-# ---- r25 batch 2 (P0-core) ----
+# ---- vendor 核心簇 ----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/aee/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/monitor_hang/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/sda/Kconfig"
@@ -83,7 +83,7 @@ source "$(KCONFIG_EXT_PREFIX)drivers/iommu/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/dma-buf/heaps/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/rpmsg/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/gpu/drm/mediatek/Kconfig"
-# ---- stage2 batch 1 (P0 底座残余: smi/PMIC 族/存储底座/i2c/spmi/emi 簇/dcm) ----
+# ---- 底座残余: smi/PMIC 族/存储底座/i2c/spmi/emi 簇/dcm ----
 source "$(KCONFIG_EXT_PREFIX)drivers/mfd/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/iio/adc/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/rtc/Kconfig"
@@ -136,7 +136,7 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/clkbuf/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/reset/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/tee/teeperf/Kconfig"
 
-# ---- rodin b564: mitee =y 内建（T3→=y；骨架 = dash 26d0c19 对齐代，blob 三维对账）----
+# ---- rodin 2026-10-11: mitee =y 内建（骨架 = dash 26d0c19 对齐代，blob 三维对账）----
 source "$(KCONFIG_EXT_PREFIX)drivers/tee/mitee/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/devfreq/Kconfig"
 
@@ -150,7 +150,7 @@ config SND_SOC_MTK_SMART_PHONE
 	help
 	  Mediatek PCM operation which is specific for smart phone product.
 
-# ---- stage2 B2 ffa_v11 (vendor FFA v1.1 fork; kernel CONFIG_ARM_FFA_TRANSPORT
+# ---- ffa_v11 (vendor FFA v1.1 fork; kernel CONFIG_ARM_FFA_TRANSPORT
 # must stay =n: kernel arm_ffa and this fork both define ffa_bus_type etc.) ----
 config DEVICE_MODULES_ARM_FFA_TRANSPORT
 	bool "vendor ffa_v11 (FF-A v1.1 fork) builtin gate (rodin inline)"
@@ -180,9 +180,9 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/scp/Kconfig"
 
 
 source "$(KCONFIG_EXT_PREFIX)drivers/pci/controller/Kconfig"
-# ---- stage4 batch4-1(bootprof 新挂载 mtprof; thermal_generic_adc 内核树 B0 翻=y) ----
+# ---- bootprof 新挂载 mtprof (thermal_generic_adc 内核树翻=y) ----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mtprof/Kconfig"
-# ---- stage4 batch4-2 (B2 点修 16+连带 iommu_engine; offload-common 顺延 4-5) ----
+# ---- 点修 16+连带 iommu_engine (offload-common 顺延) ----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/jpeg/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/vdec_fmt/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/widevine_drm/Kconfig"
@@ -287,7 +287,7 @@ config VIDEO_MEDIATEK_VCODEC_ENC_V2
 	help
 	  vendor mtk-vcodec/Makefile 的 V2 块同时编 mtk-vcodec-dec-v2.o 与
 	  mtk-vcodec-enc-v2.o。enc-v2 的符号闭包压在 perf/sched 簇（含闭源
-	  metis/mi_schedule），本批只能收 dec-v2；拆分门默认 n，enc-v2 顺延。
+	  metis/mi_schedule），此处只能收 dec-v2；拆分门默认 n，enc-v2 顺延。
 	  **4-9 已复活 =y**：闭包里的 metis/mi_schedule 是设备 blob 侧 Xiaomi 私有补丁
 	  的产物，源码内建后不再被引用。复活时必须在 mtk-vcodec/Makefile 里去掉 enc-v2
 	  对 v2/vcodec_dvfs.o 的重复引用（同列在 dec-v2/enc-v2 两条 objs ⇒ 18 个
@@ -314,7 +314,7 @@ source "$(KCONFIG_EXT_PREFIX)drivers/media/platform/mtk-isp/Kconfig"
 config MTK_CAMERA_ISP_SUPPORT
 	tristate "Camera ISP Driver Support (rodin inline: vendor cameraisp/Kconfig 带 9 个子 source)"
 	help
-	  dpe 家族的父门。设备真值 =m。本批只由 camera_dpe_isp8 消费。
+	  dpe 家族的父门。设备真值 =m。此处只由 camera_dpe_isp8 消费。
 
 config MTK_CAMERA_ISP_PDA_SUPPORT
 	tristate "[PDA] Phase Distortion point Accelerator (rodin inline: vendor cameraisp/pda/Kconfig)"
@@ -336,7 +336,7 @@ config CUSTOM_KERNEL_IMGSENSOR
 	  src-isp8/Kbuild 的 sensor subdrv 名单：Kbuild 按名单从 common/ 逐个
 	  include 子 Makefile 进 imgsensor_isp8 单元，并生成 IMGSENSOR_SUBDRVS
 	  宏供 adaptor-drv.c 建 subdrv 注册表；名单为空 = imgsensor_subdrvs[]
-	  0 长 = search_sensor 全灭（#178 真机 A-46 根因）。设备真值见
+	  0 长 = search_sensor 全灭（真机根因）。设备真值见
 	  gki_defconfig 同名行（= rodin.config 逐字同串）。
 
 config MTK_V4L2_LENS
@@ -375,7 +375,7 @@ config MTK_MBRAINK_BRIDGE
 	tristate "MTK MBRAINK BRIDGE support (rodin inline: vendor def depends MTK_MBRAINK=主体属 4-5)"
 	help
 	  mtk_mbraink_bridge 的门（devmod mbraink/bridge）。去 depends 的依据＝设备 blob
-	  闭包实测对 mbraink 主体零引用（仅注册 ops 面），可独立编。本批拉入它是因为
+	  闭包实测对 mbraink 主体零引用（仅注册 ops 面），可独立编。此处拉入它是因为
 	  imgsys/cmdq 的 imgsys2mbrain_notify_hw_time_info 唯一提供者就是它。
 
 config BUILD_XIAOMI_CAMERA_IMAGE_NAMES
@@ -402,7 +402,7 @@ config MTK_AUDIO_IPI
 	  依据＝实测：audio_ipi.ko 的 61 个 UND 相对 4-4 基线 0 缺失（链接期自足），
 	  adsp/include 等 -I 在 vendor Makefile 里本就是无条件行。
 
-# ---- stage4 batch4-5 轮C source（vendor 各目录 Kconfig）----
+# ---- vendor 各目录 Kconfig source ----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mddp/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/mmstat/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/pmic_protect/Kconfig"
@@ -421,7 +421,7 @@ config MTK_PLAT_POWER_6893
 	help
 	  mcupm/v1 下钻门（vendor 命名为 6893，实为 v1 tinysys 平台开关；6.6 设备真值 y）。
 
-# --- rodin inline 门（批4-5 轮B：声卡大簇；vendor 定义在未 source 的 sound/soc/{mediatek,codecs}/Kconfig）---
+# --- rodin inline 门（声卡大簇；vendor 定义在未 source 的 sound/soc/{mediatek,codecs}/Kconfig）---
 config DEVICE_MODULES_SND_SOC_MT6899
 	tristate "ASoC support for Mediatek MT6899 chip (rodin inline)"
 	depends on ARCH_MEDIATEK
@@ -479,7 +479,7 @@ config USB_SWITCH_ET7480
 	tristate "TYPE-C switch ET7480 (rodin inline)"
 	depends on I2C
 	help
-	  et7480.o 门（codecs/Makefile → et7480/；vendor Makefile 是无条件 obj-m，本批加门）。
+	  et7480.o 门（codecs/Makefile → et7480/；vendor Makefile 是无条件 obj-m，此处加门）。
 
 config MTK_ULTRASND_PROXIMITY
 	tristate "MTK ultrasound proximity (rodin inline)"
@@ -504,12 +504,12 @@ config MTK_VOW_DSP_VERSION
 	string "MediaTek VOW DSP Version (rodin inline)"
 	depends on MTK_VOW_SUPPORT
 
-# --- rodin inline 门（批4-5 轮A）---
+# --- rodin inline 门 ---
 config DEVICE_MODULES_SND_SOC_MTK_BTCVSD
 	tristate "ALSA BT SCO CVSD/MSBC (rodin inline: vendor def 在未 source 的 sound/soc/mediatek/Kconfig)"
 	help
 	  mtk-btcvsd.o 的门（sound/soc/mediatek/common/Makefile，目录 4-3 已挂）。
-	  批4-5 轮B 若 source sound/soc/mediatek/Kconfig 需删除本 inline 定义防重定义。
+	  若 source sound/soc/mediatek/Kconfig 需删除本 inline 定义防重定义。
 
 # --- 批4-6 source（连接/wlan 簇）---
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/mediatek/connectivity/Kconfig"
@@ -627,7 +627,7 @@ config MALI_PROTECTED_MEMORY_ALLOCATOR
 	default n
 # ---- stage4 batch4-9: perf/sched 栈（18 件纯源 =y 内建）----
 # source 五棵 vendor Kconfig（经 rodin-ext/drivers/... 的符号链接镜像可达）：
-#   * sched/Kconfig —— 本批**必须** source：它是 MAX_NR_CPUS 的**唯一**定义处
+#   * sched/Kconfig —— **必须** source：它是 MAX_NR_CPUS 的**唯一**定义处
 #     （`int "..." range 2 32 default "8"`；全树 grep 实证无第二处）。三个子代理
 #     曾把它误判为"缺失符号 blocker"，实际只是当时没被 source。**不要**改成本树
 #     CONFIG_NR_CPUS=32。同时提供 MTK_SCHEDULER / MTK_EAS / VIP / CORE_PAUSE / FLT /
@@ -693,16 +693,16 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_exception_log/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/memory/xiaomi/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/fingerprint/xiaomi_fp/Kconfig"
 
-# ---- rodin b251: bootmonitor =y 内建（门 = rodin 侧补写，两树无源；骨架 = blob 反汇编重建）----
+# ---- rodin 2026-10-12: bootmonitor =y 内建（门 = rodin 侧补写，两树无源；骨架 = blob 反汇编重建）----
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/bootmonitor/Kconfig"
 
-# ---- rodin b567: touch 三件 =y 内建（第六十九轮；骨架 = MiCode
+# ---- rodin 2026-10-11: touch 三件 =y 内建（2026-10-06；骨架 = MiCode
 # vendor_xiaomi_proprietary_touch-driver popsicle/warsaw + blob 反汇编重建缺口）----
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/xiaomi_touch_rodin/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_brl_rodin/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/focaltech_rodin/Kconfig"
 
-# ---- rodin b260: mi_mempool =y 内建（dmesg 对查第③项；A-55 丢载名单同步摘除）----
+# ---- rodin 2026-10-16: mi_mempool =y 内建（dmesg 对查第③项；丢载名单同步摘除）----
 # 骨架 = sm8550 树 drivers/staging/mi-perf/mi_mempool（blob 自记构建路径同款），
 # 全函数按 rodin blob（6.6.77 vendor_dlkm，depends= 空）机器码/.data/.rodata 对齐重建。
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mempool/Kconfig"

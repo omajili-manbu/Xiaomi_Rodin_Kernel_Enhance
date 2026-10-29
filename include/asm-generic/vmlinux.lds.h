@@ -962,7 +962,7 @@
 #define CON_INITCALL							\
 	BOUNDED_SECTION_POST_LABEL(.con_initcall.init, __con_initcall, _start, _end)
 
-/* rodin 第二十四轮：VSEQ 条目段（原 .ko 单元 module_init 族的重放清单） */
+/* rodin 2026-10-02：VSEQ 条目段（原 .ko 单元 module_init 族的重放清单） */
 #ifdef CONFIG_DEVICE_MODULES_ALLOW_BUILTIN
 #define VSEQ_ENTRIES						\
 	. = ALIGN(8);						\
