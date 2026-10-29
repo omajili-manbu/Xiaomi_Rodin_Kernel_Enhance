@@ -2838,6 +2838,7 @@ ufshcd_prepare_req_desc_hdr(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
  * for scsi commands
  * @lrbp: local reference block pointer
  * @upiu_flags: flags
+ * @iid: Initiator ID to set in the UPIU header
  */
 static
 void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u8 upiu_flags,
@@ -2871,6 +2872,7 @@ void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u8 upiu_flags,
  * @hba: UFS hba
  * @lrbp: local reference block pointer
  * @upiu_flags: flags
+ * @iid: Initiator ID to set in the UPIU header
  */
 static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 			struct ufshcd_lrb *lrbp, u8 upiu_flags, u8 iid)
@@ -4733,12 +4735,49 @@ void ufshcd_auto_hibern8_update(struct ufs_hba *hba, u32 ahit)
 	if (!pm_runtime_suspended(&hba->ufs_device_wlun->sdev_gendev)) {
 		ufshcd_rpm_get_sync(hba);
 		ufshcd_hold(hba);
-		ufshcd_configure_auto_hibern8(hba);
+		/*
+		 * Serialize with the host driver's AHIT control. Skip the
+		 * register write while the driver has AHIT forced off; the
+		 * driver programs hba->ahit back when it re-enables it.
+		 * Mutex is taken here (not across the rpm calls above) so it
+		 * never blocks a resume that the driver's path may need.
+		 */
+		mutex_lock(&to_hba_priv(hba)->ahit_mutex);
+		if (!to_hba_priv(hba)->ahit_disable_depth)
+			ufshcd_configure_auto_hibern8(hba);
+		mutex_unlock(&to_hba_priv(hba)->ahit_mutex);
 		ufshcd_release(hba);
 		ufshcd_rpm_put_sync(hba);
 	}
 }
 EXPORT_SYMBOL_GPL(ufshcd_auto_hibern8_update);
+
+void ufshcd_ahit_disable(struct ufs_hba *hba)
+{
+	struct ufs_hba_priv *priv = to_hba_priv(hba);
+
+	if (!ufshcd_is_auto_hibern8_supported(hba))
+		return;
+
+	mutex_lock(&priv->ahit_mutex);
+	priv->ahit_disable_depth++;
+	mutex_unlock(&priv->ahit_mutex);
+}
+EXPORT_SYMBOL_GPL(ufshcd_ahit_disable);
+
+void ufshcd_ahit_enable(struct ufs_hba *hba)
+{
+	struct ufs_hba_priv *priv = to_hba_priv(hba);
+
+	if (!ufshcd_is_auto_hibern8_supported(hba))
+		return;
+
+	mutex_lock(&priv->ahit_mutex);
+	if (!--priv->ahit_disable_depth)
+		ufshcd_writel(hba, hba->ahit, REG_AUTO_HIBERNATE_IDLE_TIMER);
+	mutex_unlock(&priv->ahit_mutex);
+}
+EXPORT_SYMBOL_GPL(ufshcd_ahit_enable);
 
  /**
  * ufshcd_init_pwr_info - setting the POR (power on reset)
@@ -4784,7 +4823,9 @@ static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
 	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
 			&pwr_info->lane_tx);
 
-	if (!pwr_info->lane_rx || !pwr_info->lane_tx) {
+	if (!pwr_info->lane_rx || !pwr_info->lane_tx ||
+	    pwr_info->lane_rx > UFS_MAX_LANES ||
+	    pwr_info->lane_tx > UFS_MAX_LANES) {
 		dev_err(hba->dev, "%s: invalid connected lanes value. rx=%d, tx=%d\n",
 				__func__,
 				pwr_info->lane_rx,
@@ -4962,8 +5003,12 @@ int ufshcd_change_power_mode(struct ufs_hba *hba,
 
 	ret = ufshcd_dme_change_power_mode(hba, pwr_mode, pmc_policy);
 
-	if (!ret)
-		ufshcd_vops_pwr_change_notify(hba, POST_CHANGE, pwr_mode);
+	/*
+	 * Always notify POST_CHANGE to pair with PRE_CHANGE, even on failure.
+	 * On failure, pass dev_req_params = NULL to indicate nothing to apply.
+	 * POST_CHANGE return value is advisory and does not mask @ret.
+	 */
+	ufshcd_vops_pwr_change_notify(hba, POST_CHANGE, ret ? NULL : pwr_mode);
 
 	return ret;
 }
@@ -5930,6 +5975,37 @@ static void ufshcd_clear_polled(struct ufs_hba *hba,
 }
 
 /*
+ * Return a bitmask of the transfer requests cleared from
+ * @hba->outstanding_reqs.
+ */
+static unsigned long __ufshcd_clear_outstanding_reqs(struct ufs_hba *hba,
+						     unsigned long mask,
+						     bool from_irq)
+	__must_hold(&hba->outstanding_lock)
+{
+	unsigned long completed_reqs = mask & hba->outstanding_reqs;
+
+	if (from_irq) {
+		/* Do not complete polled requests from interrupt context. */
+		ufshcd_clear_polled(hba, &completed_reqs);
+	}
+	hba->outstanding_reqs &= ~completed_reqs;
+
+	return completed_reqs;
+}
+
+/*
+ * Return a bitmask of the transfer requests cleared from
+ * @hba->outstanding_reqs.
+ */
+static unsigned long ufshcd_clear_outstanding_reqs(struct ufs_hba *hba,
+						   unsigned long mask)
+{
+	guard(spinlock_irqsave)(&hba->outstanding_lock);
+	return __ufshcd_clear_outstanding_reqs(hba, mask, false);
+}
+
+/*
  * Return: > 0 if one or more commands have been completed or 0 if no
  * requests have been completed.
  */
@@ -5939,6 +6015,7 @@ static int ufshcd_poll(struct Scsi_Host *shost, unsigned int queue_num)
 	unsigned long completed_reqs, flags;
 	u32 tr_doorbell;
 	struct ufs_hw_queue *hwq;
+	bool from_irq;
 
 	if (hba->mcq_enabled) {
 		hwq = &hba->uhq[queue_num];
@@ -5948,15 +6025,9 @@ static int ufshcd_poll(struct Scsi_Host *shost, unsigned int queue_num)
 
 	spin_lock_irqsave(&hba->outstanding_lock, flags);
 	tr_doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
-	completed_reqs = ~tr_doorbell & hba->outstanding_reqs;
-	WARN_ONCE(completed_reqs & ~hba->outstanding_reqs,
-		  "completed: %#lx; outstanding: %#lx\n", completed_reqs,
-		  hba->outstanding_reqs);
-	if (queue_num == UFSHCD_POLL_FROM_INTERRUPT_CONTEXT) {
-		/* Do not complete polled requests from interrupt context. */
-		ufshcd_clear_polled(hba, &completed_reqs);
-	}
-	hba->outstanding_reqs &= ~completed_reqs;
+	from_irq = queue_num == UFSHCD_POLL_FROM_INTERRUPT_CONTEXT;
+	completed_reqs = __ufshcd_clear_outstanding_reqs(hba, ~tr_doorbell,
+							 from_irq);
 	spin_unlock_irqrestore(&hba->outstanding_lock, flags);
 
 	if (completed_reqs)
@@ -7822,6 +7893,37 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 	return err ? : result;
 }
 
+static bool ufshcd_clear_lu_cmds(struct request *req, void *priv)
+{
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct scsi_device *sdev = cmd->device;
+	struct Scsi_Host *shost = sdev->host;
+	struct ufs_hba *hba = shost_priv(shost);
+	const u64 lun = *(u64 *)priv;
+	const u32 tag = req->tag;
+
+	if (sdev->lun != lun)
+		return true;
+
+	if (ufshcd_clear_cmd(hba, tag) < 0) {
+		dev_err(hba->dev, "%s: failed to clear request %d\n", __func__,
+			tag);
+		return true;
+	}
+
+	if (hba->mcq_enabled) {
+		struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, req);
+
+		if (hwq)
+			ufshcd_mcq_poll_cqe_lock(hba, hwq);
+		return true;
+	}
+
+	if (ufshcd_clear_outstanding_reqs(hba, BIT(tag)))
+		ufshcd_compl_one_cqe(hba, tag, NULL);
+	return true;
+}
+
 /**
  * ufshcd_eh_device_reset_handler() - Reset a single logical unit.
  * @cmd: SCSI command pointer
@@ -7830,12 +7932,8 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
  */
 static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	unsigned long flags, pending_reqs = 0, not_cleared = 0;
 	struct Scsi_Host *host;
 	struct ufs_hba *hba;
-	struct ufs_hw_queue *hwq;
-	struct ufshcd_lrb *lrbp;
-	u32 pos, not_cleared_mask = 0;
 	int err;
 	u8 resp = 0xF, lun;
 
@@ -7844,50 +7942,16 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 
 	lun = ufshcd_scsi_to_upiu_lun(cmd->device->lun);
 	err = ufshcd_issue_tm_cmd(hba, lun, 0, UFS_LOGICAL_RESET, &resp);
-	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
-		if (!err)
-			err = resp;
-		goto out;
+	if (err) {
+	} else if (resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
+		err = resp;
+	} else {
+		/* clear the commands that were pending for corresponding LUN */
+		blk_mq_tagset_busy_iter(&hba->host->tag_set,
+					ufshcd_clear_lu_cmds,
+					&cmd->device->lun);
 	}
 
-	if (hba->mcq_enabled) {
-		for (pos = 0; pos < hba->nutrs; pos++) {
-			lrbp = &hba->lrb[pos];
-			if (ufshcd_cmd_inflight(lrbp->cmd) &&
-			    lrbp->lun == lun) {
-				ufshcd_clear_cmd(hba, pos);
-				hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
-				ufshcd_mcq_poll_cqe_lock(hba, hwq);
-			}
-		}
-		err = 0;
-		goto out;
-	}
-
-	/* clear the commands that were pending for corresponding LUN */
-	spin_lock_irqsave(&hba->outstanding_lock, flags);
-	for_each_set_bit(pos, &hba->outstanding_reqs, hba->nutrs)
-		if (hba->lrb[pos].lun == lun)
-			__set_bit(pos, &pending_reqs);
-	hba->outstanding_reqs &= ~pending_reqs;
-	spin_unlock_irqrestore(&hba->outstanding_lock, flags);
-
-	for_each_set_bit(pos, &pending_reqs, hba->nutrs) {
-		if (ufshcd_clear_cmd(hba, pos) < 0) {
-			spin_lock_irqsave(&hba->outstanding_lock, flags);
-			not_cleared = 1U << pos &
-				ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
-			hba->outstanding_reqs |= not_cleared;
-			not_cleared_mask |= not_cleared;
-			spin_unlock_irqrestore(&hba->outstanding_lock, flags);
-
-			dev_err(hba->dev, "%s: failed to clear request %d\n",
-				__func__, pos);
-		}
-	}
-	__ufshcd_transfer_req_compl(hba, pending_reqs & ~not_cleared_mask);
-
-out:
 	hba->req_abort_count = 0;
 	ufshcd_update_evt_hist(hba, UFS_EVT_DEV_RESET, (u32)err);
 	if (!err) {
@@ -7998,7 +8062,6 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
 	unsigned long flags;
 	int err = FAILED;
-	bool outstanding;
 	u32 reg;
 
 	ufshcd_hold(hba);
@@ -8036,15 +8099,6 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		ufshcd_print_tr(hba, tag, false);
 	}
 	hba->req_abort_count++;
-
-	if (!hba->mcq_enabled && !(reg & (1 << tag))) {
-		/* only execute this code in single doorbell mode */
-		dev_err(hba->dev,
-		"%s: cmd was completed, but without a notifying intr, tag = %d",
-		__func__, tag);
-		__ufshcd_transfer_req_compl(hba, 1UL << tag);
-		goto release;
-	}
 
 	/*
 	 * Task abort to the device W-LUN is illegal. When this command
@@ -8089,11 +8143,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	 * Clear the corresponding bit from outstanding_reqs since the command
 	 * has been aborted successfully.
 	 */
-	spin_lock_irqsave(&hba->outstanding_lock, flags);
-	outstanding = __test_and_clear_bit(tag, &hba->outstanding_reqs);
-	spin_unlock_irqrestore(&hba->outstanding_lock, flags);
-
-	if (outstanding)
+	if (ufshcd_clear_outstanding_reqs(hba, BIT(tag)))
 		ufshcd_release_scsi_cmd(hba, lrbp);
 
 	err = SUCCESS;
@@ -11082,6 +11132,8 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	mutex_init(&hba->ee_ctrl_mutex);
 
 	mutex_init(&hba->wb_mutex);
+
+	mutex_init(&to_hba_priv(hba)->ahit_mutex);
 
 	init_rwsem(&hba->clk_scaling_lock);
 

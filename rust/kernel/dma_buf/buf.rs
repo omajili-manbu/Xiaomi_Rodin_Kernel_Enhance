@@ -7,14 +7,22 @@
 use crate::{
     bindings,
     device::Device,
-    dma::DataDirection,
+    dma::{
+        Attrs,
+        DataDirection,
+        DmaAddress, //
+    },
     error::{from_err_ptr, to_result},
     fs::File,
     prelude::*,
+    scatterlist::SGTable,
+    sync::SpinLock,
     types::{ARef, AlwaysRefCounted, Opaque},
 };
 use core::{
     marker::PhantomData,
+    ops::Deref,
+    ops::{Bound, RangeBounds},
     ptr::{self, NonNull},
 };
 
@@ -128,6 +136,94 @@ impl DmaBuf {
         // SAFETY: `self.opaque.get()` is valid.
         unsafe { File::from_raw_file((*self.as_ptr()).file) }
     }
+
+    /// Returns the exporter name `exp_name` of the underlying `dma_buf`.
+    pub fn exporter_name(&self) -> &CStr {
+        // SAFETY: `self.as_ptr()` returns a valid pointer to `struct dma_buf`. There's no need
+        // to hold any lock as `exp_name` is immutable after the dma-buf's creation, it's also
+        // guaranteed not to be NULL.
+        let exporter_name = unsafe { (*self.as_ptr()).exp_name };
+
+        // SAFETY: `exporter_name` is a valid pointer to a `NUL`-terminated C string.
+        unsafe { CStr::from_char_ptr(exporter_name) }
+    }
+
+    /// Calls the closure `f` with the dmabuf's `name` (or None if the field is NULL).
+    /// Holds the dmabuf's `name_lock` SpinLock for the duration.
+    pub fn with_name<T>(&self, f: impl FnOnce(Option<&CStr>) -> T) -> T {
+        // SAFETY: `self.as_ptr()` returns a valid pointer to `struct dma_buf`.
+        let name_lock = unsafe { &raw mut (*self.as_ptr()).name_lock };
+
+        // SAFETY: `name_lock` is a valid pointer to a `spinlock_t`.
+        let _guard = unsafe { SpinLock::from_raw(name_lock) }.lock();
+
+        // SAFETY: `self.as_ptr()` returns a valid pointer to `struct dma_buf`. We're holding
+        // the `name_lock` as long as we're accessing `name`.
+        let name = unsafe { (*self.as_ptr()).name };
+
+        let opt_name = if name.is_null() {
+            None
+        } else {
+            // SAFETY: `name` is a valid pointer to a `NUL`-terminated C string.
+            let name_as_cstr = unsafe { CStr::from_char_ptr(name) };
+            Some(name_as_cstr)
+        };
+
+        f(opt_name)
+    }
+
+    /// Prepares the DMA-BUF for CPU access.
+    ///
+    /// After the CPU access is complete, the caller should call [`Self::end_cpu_access`].
+    pub fn begin_cpu_access(&self, dir: DataDirection) -> Result {
+        // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer by the type invariants.
+        to_result(unsafe { bindings::dma_buf_begin_cpu_access(self.as_ptr(), dir.into()) })
+    }
+
+    /// Completes CPU access to the DMA-BUF started with [`Self::begin_cpu_access`].
+    pub fn end_cpu_access(&self, dir: DataDirection) -> Result {
+        // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer by the type invariants.
+        to_result(unsafe { bindings::dma_buf_end_cpu_access(self.as_ptr(), dir.into()) })
+    }
+
+    /// Prepares a sub-range of the DMA-BUF for CPU access.
+    ///
+    /// If the exporter does not implement `begin_cpu_access_partial`, this falls back to
+    /// [`Self::begin_cpu_access`] for the entire buffer.
+    ///
+    /// After the CPU access is complete, the caller should call [`Self::end_cpu_access_partial`].
+    pub fn begin_cpu_access_partial(&self, dir: DataDirection, offset: u32, len: u32) -> Result {
+        // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer and `ops` is valid and immutable
+        // for the lifetime of the `dma_buf`.
+        let has_partial = unsafe { (*(*self.as_ptr()).ops).begin_cpu_access_partial.is_some() };
+        if has_partial {
+            // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer by the type invariants.
+            to_result(unsafe {
+                bindings::dma_buf_begin_cpu_access_partial(self.as_ptr(), dir.into(), offset, len)
+            })
+        } else {
+            self.begin_cpu_access(dir)
+        }
+    }
+
+    /// Completes CPU access to a sub-range of the DMA-BUF started with
+    /// [`Self::begin_cpu_access_partial`].
+    ///
+    /// If the exporter does not implement `end_cpu_access_partial`, this falls back to
+    /// [`Self::end_cpu_access`] for the entire buffer.
+    pub fn end_cpu_access_partial(&self, dir: DataDirection, offset: u32, len: u32) -> Result {
+        // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer and `ops` is valid and immutable
+        // for the lifetime of the `dma_buf`.
+        let has_partial = unsafe { (*(*self.as_ptr()).ops).end_cpu_access_partial.is_some() };
+        if has_partial {
+            // SAFETY: `self.as_ptr()` is a valid `dma_buf` pointer by the type invariants.
+            to_result(unsafe {
+                bindings::dma_buf_end_cpu_access_partial(self.as_ptr(), dir.into(), offset, len)
+            })
+        } else {
+            self.end_cpu_access(dir)
+        }
+    }
 }
 
 /// A wrapper for the kernel's `struct dma_buf_attachment`.
@@ -146,6 +242,31 @@ unsafe impl Send for DmaBufAttachment {}
 unsafe impl Sync for DmaBufAttachment {}
 
 impl DmaBufAttachment {
+    /// Returns a raw pointer to the dma-buf attachment.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut bindings::dma_buf_attachment {
+        self.ptr.as_ptr()
+    }
+
+    /// Returns the DMA mapping attributes for this attachment.
+    #[inline]
+    pub fn dma_map_attrs(&self) -> Attrs {
+        // SAFETY: `self.ptr` is a valid `dma_buf_attachment` pointer and `&self` guarantees
+        // shared access to the unmapped attachment.
+        let raw = unsafe { (*self.ptr.as_ptr()).dma_map_attrs };
+        Attrs::from_raw(raw)
+    }
+
+    /// Sets the DMA mapping attributes for this attachment.
+    ///
+    /// These attributes are used when the exporter maps the buffer via [`Self::map`].
+    #[inline]
+    pub fn set_dma_map_attrs(&mut self, attrs: Attrs) {
+        // SAFETY: `self.ptr` is a valid `dma_buf_attachment` pointer and `&mut self` guarantees
+        // exclusive access to the unmapped attachment.
+        unsafe { (*self.ptr.as_ptr()).dma_map_attrs = attrs.as_raw() };
+    }
+
     /// Map the attachment.
     pub fn map(self, dir: DataDirection) -> Result<DmaBufMapping> {
         // SAFETY: A DmaBufAttachment contains a valid attachment.
@@ -187,6 +308,29 @@ unsafe impl Send for DmaBufMapping {}
 // SAFETY: `DmaBufMapping` is safe to share between threads.
 unsafe impl Sync for DmaBufMapping {}
 
+impl DmaBufMapping {
+    /// Returns the starting DMA address of the mapping if all segments form a single contiguous
+    /// DMA address range.
+    ///
+    /// This is useful for devices that expect a single contiguous mapping.
+    #[inline]
+    pub fn iova(&self) -> Option<DmaAddress> {
+        let mut iter = self.iter();
+        let first = iter.next()?;
+        let start = first.dma_address();
+        let mut end = start.checked_add(first.dma_len() as DmaAddress)?;
+
+        for entry in iter {
+            if entry.dma_address() != end {
+                return None;
+            }
+            end = end.checked_add(entry.dma_len() as DmaAddress)?;
+        }
+
+        Some(start)
+    }
+}
+
 impl Drop for DmaBufMapping {
     fn drop(&mut self) {
         // SAFETY: This is a valid sg-table and attachment that are associated with each other, and
@@ -198,6 +342,16 @@ impl Drop for DmaBufMapping {
                 self.dir.into(),
             )
         };
+    }
+}
+
+impl Deref for DmaBufMapping {
+    type Target = SGTable;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `self.sgt` is valid for the lifetime of `Self`.
+        unsafe { SGTable::from_raw(self.sgt.as_ptr()) }
     }
 }
 
@@ -235,10 +389,26 @@ impl DmaBufVmap {
         }
     }
 
-    /// Internal helper for cpu access.
-    fn begin_cpu_access<const READ: bool, const WRITE: bool, F>(&self, f: F) -> Result
+    /// Internal helper for cpu access. This is the fallible version, i.e. the closure passed
+    /// returns some Result type that can express errors of type kernel::Error.
+    fn begin_cpu_access_fallible<const READ: bool, const WRITE: bool, F, T, E>(
+        &self,
+        f: F,
+    ) -> Result<T, E>
     where
-        F: FnOnce(CpuAccess<'_, READ, WRITE>),
+        F: FnOnce(CpuAccess<'_, READ, WRITE>) -> Result<T, E>,
+        E: From<Error>,
+    {
+        match self.begin_cpu_access::<READ, WRITE, _, _>(f) {
+            Ok(res) => res,
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Internal helper for cpu access.
+    fn begin_cpu_access<const READ: bool, const WRITE: bool, F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(CpuAccess<'_, READ, WRITE>) -> T,
     {
         let dir = const {
             match (READ, WRITE) {
@@ -249,39 +419,64 @@ impl DmaBufVmap {
             }
         };
         let mut map = self.map;
-        // SAFETY: It's always safe to begin cpu access.
-        to_result(unsafe { bindings::dma_buf_begin_cpu_access(self.dmabuf.as_ptr(), dir.into()) })?;
+        self.dmabuf.begin_cpu_access(dir)?;
         // INVARIANT: Cpu access has begin with the given direction.
-        f(CpuAccess {
+        let result = f(CpuAccess {
             map: &raw mut map,
             size: self.dmabuf.size(),
             _lifetime: PhantomData,
         });
-        // SAFETY: We started cpu access, so we can end it.
-        to_result(unsafe { bindings::dma_buf_end_cpu_access(self.dmabuf.as_ptr(), dir.into()) })?;
-        Ok(())
+        self.dmabuf.end_cpu_access(dir)?;
+        Ok(result)
+    }
+
+    /// Perform cpu-access that only writes to the device. Fallible version.
+    pub fn begin_cpu_access_to_fallible<F, T, E>(&self, f: F) -> Result<T, E>
+    where
+        F: FnOnce(CpuAccess<'_, false, true>) -> Result<T, E>,
+        E: From<Error>,
+    {
+        self.begin_cpu_access_fallible(f)
     }
 
     /// Perform cpu-access that only writes to the device.
-    pub fn begin_cpu_access_to<F>(&self, f: F) -> Result
+    pub fn begin_cpu_access_to<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(CpuAccess<'_, false, true>),
+        F: FnOnce(CpuAccess<'_, false, true>) -> T,
     {
         self.begin_cpu_access(f)
+    }
+
+    /// Perform cpu-access that only reads from the device. Fallible version.
+    pub fn begin_cpu_access_from_fallible<F, T, E>(&self, f: F) -> Result<T, E>
+    where
+        F: FnOnce(CpuAccess<'_, true, false>) -> Result<T, E>,
+        E: From<Error>,
+    {
+        self.begin_cpu_access_fallible(f)
     }
 
     /// Perform cpu-access that only reads from the device.
-    pub fn begin_cpu_access_from<F>(&self, f: F) -> Result
+    pub fn begin_cpu_access_from<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(CpuAccess<'_, true, false>),
+        F: FnOnce(CpuAccess<'_, true, false>) -> T,
     {
         self.begin_cpu_access(f)
     }
 
-    /// Perform bidirectional cpu-access.
-    pub fn begin_cpu_access_bidirectional<F>(&self, f: F) -> Result
+    /// Perform bidirectional cpu-access. Fallible version.
+    pub fn begin_cpu_access_bidirectional_fallible<F, T, E>(&self, f: F) -> Result<T, E>
     where
-        F: FnOnce(CpuAccess<'_, true, true>),
+        F: FnOnce(CpuAccess<'_, true, true>) -> Result<T, E>,
+        E: From<Error>,
+    {
+        self.begin_cpu_access_fallible(f)
+    }
+
+    /// Perform bidirectional cpu-access.
+    pub fn begin_cpu_access_bidirectional<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(CpuAccess<'_, true, true>) -> T,
     {
         self.begin_cpu_access(f)
     }
@@ -324,6 +519,19 @@ impl<'a, const READ: bool> CpuAccess<'a, READ, true> {
         // enabled.
         unsafe { bindings::iosys_map_memcpy_to(self.map, offset, src.as_ptr().cast(), src.len()) };
     }
+
+    /// Sets a range of `len` bytes starting at `offset` into the buffer to `value`.
+    #[inline]
+    #[track_caller]
+    pub fn memset(&mut self, offset: usize, value: u8, len: usize) {
+        let (end, end_overflow) = offset.overflowing_add(len);
+        if end_overflow || end > self.size {
+            panic!("memset of {len} bytes at {offset} in dma-buf out of bounds",);
+        }
+        // SAFETY: The bounds check ensures we don't write out of bounds. The guard has WRITE
+        // enabled.
+        unsafe { bindings::iosys_map_memset(self.map, offset, value as c_int, len) };
+    }
 }
 
 impl<'a, const WRITE: bool> CpuAccess<'a, true, WRITE> {
@@ -344,5 +552,56 @@ impl<'a, const WRITE: bool> CpuAccess<'a, true, WRITE> {
         unsafe {
             bindings::iosys_map_memcpy_from(dst.as_mut_ptr().cast(), self.map, offset, dst.len())
         };
+    }
+}
+
+impl<'a> CpuAccess<'a, true, true> {
+    /// Copies bytes from one part of the buffer to another part of itself, using `memmove`.
+    ///
+    /// `src` is the range within the buffer to copy from. `dst` is the starting index of the
+    /// range within the buffer to copy to, which will have the same length as `src`. The two
+    /// ranges may overlap.
+    ///
+    /// Fails with [`EINVAL`] if the mapping is in I/O memory (`is_iomem`), if either the source
+    /// or destination range exceeds the end of the buffer, or if the start of `src` is after the
+    /// end.
+    #[inline]
+    pub fn copy_within<R: RangeBounds<usize>>(&mut self, src: R, dst: usize) -> Result {
+        let src_start = match src.start_bound() {
+            Bound::Included(&start) => start,
+            Bound::Excluded(&start) => start.checked_add(1).ok_or(EINVAL)?,
+            Bound::Unbounded => 0,
+        };
+        let src_end = match src.end_bound() {
+            Bound::Included(&end) => end.checked_add(1).ok_or(EINVAL)?,
+            Bound::Excluded(&end) => end,
+            Bound::Unbounded => self.size,
+        };
+        let len = src_end.checked_sub(src_start).ok_or(EINVAL)?;
+        if src_end > self.size {
+            return Err(EINVAL);
+        }
+        let dst_end = dst.checked_add(len).ok_or(EINVAL)?;
+        if dst_end > self.size {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: `self.map` is a valid pointer to `struct iosys_map`.
+        let map = unsafe { &*self.map };
+        if map.is_iomem {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: `map.__bindgen_anon_1.vaddr` is valid if `is_iomem` is false.
+        let vaddr = unsafe { map.__bindgen_anon_1.vaddr }.cast::<u8>();
+        if vaddr.is_null() {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: The bounds checks above ensure that both `src_start..src_start + len` and
+        // `dst..dst + len` are within `[0, self.size)`. The guard has both READ and WRITE
+        // enabled.
+        unsafe { ptr::copy(vaddr.add(src_start), vaddr.add(dst), len) };
+        Ok(())
     }
 }

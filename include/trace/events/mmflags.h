@@ -176,7 +176,8 @@ IF_HAVE_PG_ARCH_3(arch_3)						\
 IF_HAVE_PG_OEM_RESERVED(oem_reserved_1)					\
 IF_HAVE_PG_OEM_RESERVED(oem_reserved_2)					\
 IF_HAVE_PG_OEM_RESERVED(oem_reserved_3)					\
-IF_HAVE_PG_OEM_RESERVED(oem_reserved_4)
+IF_HAVE_PG_OEM_RESERVED(oem_reserved_4)					\
+IF_HAVE_PG_OEM_RESERVED(oem_reserved_5)
 
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
@@ -224,6 +225,7 @@ IF_HAVE_PG_OEM_RESERVED(oem_reserved_4)
 	{VM_UFFD_MISSING,		"uffd_missing"	},		\
 IF_HAVE_UFFD_MINOR(VM_UFFD_MINOR,	"uffd_minor"	)		\
 	{VM_PFNMAP,			"pfnmap"	},		\
+	{VM_MAYBE_GUARD,		"maybe_guard"	},		\
 	{VM_UFFD_WP,			"uffd_wp"	},		\
 	{VM_LOCKED,			"locked"	},		\
 	{VM_IO,				"io"		},		\

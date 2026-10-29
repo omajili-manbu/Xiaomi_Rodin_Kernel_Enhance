@@ -215,6 +215,7 @@
   build_skb
   bus_find_device
   bus_for_each_dev
+  bus_get_dev_root
   bus_register
   bus_register_notifier
   bus_unregister
@@ -334,6 +335,7 @@
   cppc_get_perf_caps
   cpu_bit_bitmap
   cpu_core_map
+  cpu_die_map
   cpufreq_cpu_get
   cpufreq_cpu_get_raw
   cpufreq_cpu_put
@@ -359,6 +361,7 @@
   cpu_sibling_map
   cpus_read_lock
   cpus_read_unlock
+  cpu_subsys
   crc16
   crc32_be
   crc32_le
@@ -518,6 +521,8 @@
   devm_gpiod_get
   devm_gpiod_get_index
   devm_gpiod_get_optional
+  devm_hwmon_device_register_with_groups
+  devm_hwmon_device_register_with_info
   devm_i2c_new_dummy_device
   devm_iio_device_alloc
   __devm_iio_device_register
@@ -2036,6 +2041,7 @@
   of_device_is_compatible
   of_dma_controller_free
   of_dma_controller_register
+  of_find_node_opts_by_path
   of_find_property
   of_fwnode_ops
   of_get_child_by_name
@@ -2660,7 +2666,10 @@
   setattr_prepare
   set_capacity
   set_default_d_op
+  set_disk_ro
   set_freezable
+  set_memory_decrypted
+  set_memory_encrypted
   set_memory_uc
   set_memory_wb
   set_nlink
@@ -3716,6 +3725,7 @@
   woken_wake_function
   writeback_iter
   wrmsr_on_cpu
+  wrmsrq_on_cpu
   wrmsr_safe_on_cpu
   wrmsr_safe_regs_on_cpu
   wwan_create_port

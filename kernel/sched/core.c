@@ -3978,7 +3978,8 @@ static inline void proxy_set_task_cpu(struct task_struct *p, int cpu)
 	p->wake_cpu = wake_cpu;
 }
 
-static void do_activate_blocked_waiter(struct rq *target_rq, struct task_struct *p, int en_flags)
+static void do_activate_blocked_waiter(struct rq *target_rq, struct task_struct *owner,
+				       struct task_struct *p, int en_flags)
 {
 	unsigned int state;
 	struct rq_flags rf;
@@ -4010,6 +4011,19 @@ static void do_activate_blocked_waiter(struct rq *target_rq, struct task_struct 
 			 */
 			return;
 		}
+
+		scoped_guard (raw_spinlock, &p->blocked_lock) {
+			/*
+			 * Again, if activation is delayed, its possible
+			 * the task has been woken and is no longer
+			 * blocked_on or blocked on a different mutex
+			 * so double check we're still blocked on
+			 * the owner who is activating us.
+			 */
+			if (task_blocked_on_owner(p) != owner)
+				return;
+		}
+
 		/*
 		 * Have to make sure we handle nr_iowait adjustment before
 		 * we call proxy_set_task_cpu() to ensure we are adjusting
@@ -4020,7 +4034,12 @@ static void do_activate_blocked_waiter(struct rq *target_rq, struct task_struct 
 			delayacct_blkio_end(p);
 			atomic_dec(&task_rq(p)->nr_iowait);
 		}
-		proxy_set_task_cpu(p, target_cpu);
+
+		if (task_cpu(p) != target_cpu) {
+			en_flags |= ENQUEUE_MIGRATED;
+			psi_ttwu_dequeue(p);
+			proxy_set_task_cpu(p, target_cpu);
+		}
 		rq_lock_irqsave(target_rq, &rf);
 		/*
 		 * proxy_enqueue_on_owner() called block_task() which
@@ -4085,9 +4104,6 @@ static void activate_blocked_waiters(struct rq *target_rq,
 	list_add_tail(&owner->blocked_activation_node, &bal_head);
 	raw_spin_unlock_irqrestore(&owner->blocked_lock, flags);
 
-	if (wake_flags & WF_MIGRATED)
-		en_flags |= ENQUEUE_MIGRATED;
-
 	while (!list_empty(&bal_head)) {
 		struct list_head tmp_head;
 
@@ -4108,7 +4124,7 @@ static void activate_blocked_waiters(struct rq *target_rq,
 			__proxy_remove_from_sleeping_owner(owner, p);
 			raw_spin_unlock_irqrestore(&owner->blocked_lock, flags);
 
-			do_activate_blocked_waiter(target_rq, p, en_flags);
+			do_activate_blocked_waiter(target_rq, owner, p, en_flags);
 			trace_sched_pe_activate_blocked_entity(owner, p);
 
 			raw_spin_lock_irqsave(&p->blocked_lock, flags);
@@ -5905,6 +5921,12 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	 */
 	kmap_local_sched_in();
 
+	/*
+	 * Any cached block-layer timestamp (plug->cur_ktime) is stale now,
+	 * invalidate it.
+	 */
+	blk_plug_invalidate_ts();
+
 	fire_sched_in_preempt_notifiers(current);
 	/*
 	 * When switching through a kernel thread, the loop in
@@ -6760,7 +6782,7 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	unsigned long cookie;
 	int i, cpu, occ = 0;
 	struct rq *rq_i;
-	bool need_sync;
+	bool need_sync = false;
 
 	if (!sched_core_enabled(rq))
 		return __pick_next_task(rq, rf);
@@ -6803,7 +6825,9 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	prev_balance(rq, rf);
 
 	smt_mask = cpu_smt_mask(cpu);
-	need_sync = !!rq->core->core_cookie;
+
+restart:
+	need_sync |= !!rq->core->core_cookie;
 
 	/* reset state */
 	rq->core->core_cookie = 0UL;
@@ -6838,10 +6862,15 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	 * and there are no cookied tasks running on siblings.
 	 */
 	if (!need_sync) {
-restart_single:
 		next = pick_task(rq, rf);
-		if (unlikely(next == RETRY_TASK))
-			goto restart_single;
+		if (unlikely(next == RETRY_TASK)) {
+			/* rq lock may have been dropped, clocks invalidated */
+			core_clock_updated = false;
+			if (!(rq->clock_update_flags & RQCF_UPDATED))
+				update_rq_clock(rq);
+			goto restart;
+		}
+
 		if (!next->core_cookie) {
 			rq->core_pick = NULL;
 			rq->core_dl_server = NULL;
@@ -6861,7 +6890,6 @@ restart_single:
 	 *
 	 * Tie-break prio towards the current CPU
 	 */
-restart_multi:
 	max = NULL;
 	for_each_cpu_wrap(i, smt_mask, cpu) {
 		rq_i = cpu_rq(i);
@@ -6875,8 +6903,13 @@ restart_multi:
 			update_rq_clock(rq_i);
 
 		p = pick_task(rq_i, rf);
-		if (unlikely(p == RETRY_TASK))
-			goto restart_multi;
+		if (unlikely(p == RETRY_TASK)) {
+			/* rq lock may have been dropped, clocks invalidated */
+			core_clock_updated = false;
+			if (!(rq->clock_update_flags & RQCF_UPDATED))
+				update_rq_clock(rq);
+			goto restart;
+		}
 
 		rq_i->core_pick = p;
 		rq_i->core_dl_server = rq_i->dl_server;
@@ -7922,12 +7955,10 @@ static inline void sched_submit_work(struct task_struct *tsk)
 
 static void sched_update_worker(struct task_struct *tsk)
 {
-	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER | PF_BLOCK_TS)) {
-		if (tsk->flags & PF_BLOCK_TS)
-			blk_plug_invalidate_ts(tsk);
+	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER)) {
 		if (tsk->flags & PF_WQ_WORKER)
 			wq_worker_running(tsk);
-		else if (tsk->flags & PF_IO_WORKER)
+		else
 			io_wq_worker_running(tsk);
 	}
 }
