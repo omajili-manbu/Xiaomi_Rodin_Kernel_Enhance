@@ -15,6 +15,30 @@ targets :=
 %.o: %.S FORCE
 	$(call if_changed_rule,as_o_S)
 
+# Rodin built-in skip registry
+# ---------------------------------------------------------------------------
+# RODIN: harvest the .modinfo input sections out of vmlinux.o into a
+# rodin-owned loaded section (.rodin_skip_reg, placed by RODIN_SKIP_REG in
+# the arch lds) so CONFIG_RODIN_BUILTIN_SKIP's registry does not depend on
+# where/whether upstream emits the .modinfo output section.  Consumer =
+# kernel/module/main.c rodin_bindex.
+
+targets += .rodin_skip_reg.S .rodin_skip_reg.o
+quiet_cmd_rodin_skip_reg = RODINREG $@
+      cmd_rodin_skip_reg = $(OBJCOPY) -O binary --only-section=.modinfo	\
+		vmlinux.o $@.bin &&					\
+		{ echo '.section .rodin_skip_reg,"a"';			\
+		  echo '.balign 8';					\
+		  echo '.incbin "$@.bin"';				\
+		  echo '.balign 8'; } > $@
+
+.rodin_skip_reg.S: vmlinux.o FORCE
+	$(call if_changed,rodin_skip_reg)
+
+ifdef CONFIG_RODIN_BUILTIN_SKIP
+vmlinux.unstripped: .rodin_skip_reg.o
+endif
+
 # Built-in dtb
 # ---------------------------------------------------------------------------
 

@@ -73,6 +73,11 @@ vmlinux_link()
 		objs="${objs} .builtin-dtbs.o"
 	fi
 
+	# RODIN: built-in skip registry (see scripts/Makefile.vmlinux)
+	if is_enabled CONFIG_RODIN_BUILTIN_SKIP; then
+		objs="${objs} .rodin_skip_reg.o"
+	fi
+
 	objs="${objs} .vmlinux.export.o"
 	objs="${objs} init/version-timestamp.o"
 

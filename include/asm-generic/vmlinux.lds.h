@@ -838,13 +838,21 @@
 		.shstrtab 0 : { *(.shstrtab) }
 
 #define MODINFO								\
-		/* RODIN: bounds for CONFIG_RODIN_BUILTIN_SKIP - the section is
-		 * kept in the image and read back as the registry of built-in
-		 * module names (kernel/module/main.c). */	\
-		.modinfo : {						\
-			BOUNDED_SECTION_BY(.modinfo, ___modinfo)	\
-			. = ALIGN(8);					\
-		}
+		.modinfo : { *(.modinfo) . = ALIGN(8); }
+
+/* RODIN: loaded bounds-marked copy of the built-in modinfo blob, harvested
+ * from vmlinux.o by scripts/Makefile.vmlinux (CONFIG_RODIN_BUILTIN_SKIP).
+ * Fully rodin-owned (macro/section/symbols) on purpose: upstream MODINFO
+ * stays verbatim above and may be moved/stripped freely.  Consumer =
+ * kernel/module/main.c rodin_bindex. */
+#define RODIN_SKIP_REG							\
+	. = ALIGN(8);							\
+	.rodin_skip_reg : {					\
+		__start_rodin_skip_reg = .;			\
+		KEEP(*(.rodin_skip_reg))			\
+		__stop_rodin_skip_reg = .;			\
+	}							\
+	. = ALIGN(8);
 
 #ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\

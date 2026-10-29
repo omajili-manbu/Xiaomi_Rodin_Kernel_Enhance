@@ -3410,8 +3410,11 @@ static bool rodin_name_eq(const char *a, const char *b, size_t len)
  * ("a:b.file=..." covers both a and b).  Names stay dash->underscore as
  * kbuild sanitises them.
  */
-/* Defined by the linker script (include/asm-generic/vmlinux.lds.h, MODINFO). */
-extern const char __start___modinfo[], __stop___modinfo[];
+/* Defined by the linker script (include/asm-generic/vmlinux.lds.h,
+ * RODIN_SKIP_REG); the blob is harvested from vmlinux.o .modinfo by
+ * scripts/Makefile.vmlinux - byte-identical to what this code read when it
+ * lived in the upstream .modinfo output section. */
+extern const char __start_rodin_skip_reg[], __stop_rodin_skip_reg[];
 
 static struct {
 	unsigned int count;
@@ -3421,7 +3424,7 @@ static struct {
 
 static int __init rodin_bindex_init(void)
 {
-	const char *start = __start___modinfo, *end = __stop___modinfo;
+	const char *start = __start_rodin_skip_reg, *end = __stop_rodin_skip_reg;
 	const char *p;
 	unsigned int count = 0, i = 0;
 	size_t blob = 0;

@@ -216,13 +216,14 @@ SECTIONS
 	RO_DATA(PAGE_SIZE)
 
 	/*
-	 * RODIN: the build-generated .modinfo section is kept in the image on
-	 * purpose (upstream strips it): CONFIG_RODIN_BUILTIN_SKIP reads it
-	 * back as the registry of built-in module names.  It must sit inside
-	 * [RO_DATA, __init_begin) so that _end covers it (kernel image
-	 * memblock reservation) and it is mapped read-only.
+	 * RODIN: the built-in skip registry (CONFIG_RODIN_BUILTIN_SKIP) is a
+	 * rodin-owned loaded section, harvested from vmlinux.o by
+	 * scripts/Makefile.vmlinux - it must sit inside [RO_DATA,
+	 * __init_begin) so that _end covers it (kernel image memblock
+	 * reservation) and it is mapped read-only.  Upstream's MODINFO stays
+	 * wherever upstream places it; we no longer depend on it.
 	 */
-	MODINFO
+	RODIN_SKIP_REG
 
 	HYPERVISOR_RODATA_SECTIONS
 
@@ -386,6 +387,8 @@ SECTIONS
 
 	STABS_DEBUG
 	DWARF_DEBUG
+	PROPELLER_DATA
+	MODINFO
 	ELF_DETAILS
 
 	HEAD_SYMBOLS
