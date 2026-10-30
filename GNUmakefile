@@ -21,6 +21,10 @@
 
 RODIN_TREE := $(CURDIR)
 
+# -j 并行度（2026-10-31 用户令）：仅默认目标 rodin-default 固化全核并行；
+# 显式目标（make Image.lz4 等）与 rodin-config 不经此路径，并行度仍由调用方决定。
+RODIN_JOBS := $(shell nproc)
+
 # ---- 工具链（= _r25fix17_fullbuild.sh 原样；2026-10-31 换代 clang-r614150） ----
 # pahole 不走 PATH：Makefile:558 硬编码 $(srctree)/tools/pahole/pahole
 # （自包含 wrapper + libdwarves，v1.32；2026-10-11 接线提交引入）。
@@ -91,7 +95,7 @@ endif
 
 .PHONY: rodin-default
 rodin-default:
-	+$(MAKE) Image.lz4
+	+$(MAKE) -j$(RODIN_JOBS) Image.lz4
 
 .DEFAULT_GOAL := rodin-default
 
