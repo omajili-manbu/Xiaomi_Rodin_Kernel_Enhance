@@ -379709,6 +379709,11 @@ function {
   parameter_id: 0x6720d32f
 }
 function {
+  id: 0x9eb58cd1
+  return_type_id: 0x6720d32f
+  parameter_id: 0x0cd5bff8
+}
+function {
   id: 0x9eb5f3eb
   return_type_id: 0xf435685e
   parameter_id: 0x2628eae6
@@ -474691,6 +474696,15 @@ elf_symbol {
   full_name: "xhci_sideband_get_event_buffer"
 }
 elf_symbol {
+  id: 0x68e64031
+  name: "xhci_sideband_interrupter_id"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x9d45cf82
+  type_id: 0x9eb58cd1
+  full_name: "xhci_sideband_interrupter_id"
+}
+elf_symbol {
   id: 0xb312c6b6
   name: "xhci_sideband_register"
   is_defined: true
@@ -485020,6 +485034,7 @@ interface {
   symbol_id: 0xe8738bea
   symbol_id: 0x94dbbb66
   symbol_id: 0x66828ebf
+  symbol_id: 0x68e64031
   symbol_id: 0xb312c6b6
   symbol_id: 0x4438c268
   symbol_id: 0xf2371f33
