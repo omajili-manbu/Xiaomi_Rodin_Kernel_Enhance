@@ -22,8 +22,10 @@ config RODIN_BLOB_DROP
 	  misc io/debug/info utilities, and two dead modules (migt has no
 	  symbol providers since the sched =y batch, scheduler_ext is an
 	  empty shell).  The stock load list still names them; the loader is
-	  answered success and nothing is loaded.  mitee and the touch /
-	  fpsgo-cus / bootmonitor blobs are NOT covered and keep loading.
+	  answered success and nothing is loaded.  No exception remains:
+	  mitee and bootmonitor are built into this image, and the
+	  fpsgo-cus pair (fpsgo, game) is on the drop list below, its
+	  function provided by the in-tree fpsgo_v3.
 	  rodin: the name list itself now lives in
 	  CONFIG_RODIN_BLOB_DROP_LIST below (maintained in gki_defconfig),
 	  not in C code.
