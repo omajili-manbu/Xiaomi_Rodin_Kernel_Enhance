@@ -4203,6 +4203,12 @@ void move_queued_task_locked(struct rq *src_rq, struct rq *dst_rq, struct task_s
 
 		if (!task_queued_on_rq(src_rq, task) || task_current_donor(src_rq, task))
 			break;
+		/*
+		 * Never move a task that is running on src_rq (e.g. rq->curr
+		 * acting as the execution context for a different donor).
+		 */
+		if (task_on_cpu(src_rq, task))
+			break;
 
 		if (task_is_blocked(task))
 			owner = task_blocked_on_owner(task);
