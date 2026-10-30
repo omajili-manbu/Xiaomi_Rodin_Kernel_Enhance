@@ -24,112 +24,48 @@
 #include <asm/qspinlock.h>
 #include <trace/events/lock.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/memblock.h>
 #include <linux/jiffies.h>
-#include <linux/random.h>
+#include <linux/jump_label.h>
+#include <linux/debugfs.h>
 
 /*
- * rodin frz: noinit convoy recorder —— 冻结线楔死取证人（2026-10-29，用户逐案批准）
- * 楔死形态 = 持锁核无声消失、其余核在本慢路径饿死（expdb LASTPC ×102 实证；
- * 打点追杀三代未中——死点永远在末条之后的未插秧操作）。改为在慢路径入口把
- * {锁地址, 调用链, jiffies} 写入 reserve_mem 暖复位存活区（cmdline
- * reserve_mem=8K:8192:frzconv，同配置启动地址确定），后续开机 initcall
- * 读环：静态锁 System.map 直符号化，动态锁按地址段 + RA 链分型。
- * 不依赖活体捕获，绕开打印-死亡竞速。热路径零成本（仅慢路径一次写）。
+ * rodin 2026-10-30: 慢路径实时取证双流（冻结线楔死取证人）。楔死形态 =
+ * 持锁核无声消失、其余核在本慢路径饿死，死亡签名 = 楔死瞬间多核涌入同
+ * 一把锁的连发行。frzq = 慢路径入口行（cpu/lock/val/ra0/ra1，%pS 就地
+ * 符号化）；frzqa = 等待 ≥1 jiffy 才拿到的锁（持有者归因流："A 拿了
+ * L1 → A 末条在等 L2" 可手工重建楔死环；即时交接常态不打）。门控 =
+ * static key，默认关：关态每个观测点只余一条 NOP，零内存访问、零参数
+ * 求值；武装口 /sys/kernel/debug/frzq/enable。
  */
-struct frz_convoy_rec {
-	u64 magic;	/* 本次开机 cookie，跨次区分新旧记录 */
-	u64 lock;
-	u64 ra0;	/* slowpath 直接调用者（_raw_spin_lock* 家族，辨锁味） */
-	u64 ra1;	/* 上上层调用（frame pointer 最佳努力） */
-	u64 jf;
-	u32 cpu;
-	u32 pad;
-};
+static DEFINE_STATIC_KEY_FALSE(frzq_key);
 
-static atomic_t frzq_mute = ATOMIC_INIT(0);
-/* frzq/frzqa 实时 console 打印（打印与 ramoops 写入必须在死亡
- * 事件之前，不依赖 post-mortem 内存取证）。noinit 记录不受影响。 */
-void frzq_set_mute(int m);
-void frzq_set_mute(int m)
+static int frzq_enable_get(void *data, u64 *val)
 {
-	atomic_set(&frzq_mute, m);
-}
-EXPORT_SYMBOL_GPL(frzq_set_mute);
-
-#define FRZ_CONVY_NCPU	8	/* CONFIG_MAX_NR_CPUS */
-/* 固定物理地址 = rk1 底部（远离 LK 载荷区 0x43B00000 与固件顶部缓冲；
- * reserve_mem 自动选址撞了固件定址缓冲被改此案）。保留由 cmdline
- * frzconv=0x400800000 的 early_param 在 memblock 阶段完成。 */
-#define FRZ_CONVY_PHYS	0x400800000ULL
-#define FRZ_CONVY_SIZE	0x2000
-
-/*
- * 每核独立"最后一次慢路径"槽：抗跨核冲刷（持锁者死后其他核的无关竞争
- * 不会盖掉本核记录）；核内自旋后即饿死者，槽内就是它等的那把锁。
- */
-static void *frz_convy_base;
-static u64 frz_convy_cookie;
-
-static noinline void frz_convoy_record(struct qspinlock *lock)
-{
-	struct frz_convoy_rec *r;
-	int cpu = raw_smp_processor_id();
-
-	if (!frz_convy_base || cpu >= FRZ_CONVY_NCPU)
-		return;
-	r = frz_convy_base + cpu * sizeof(*r);
-	r->magic = frz_convy_cookie;
-	r->lock = (u64)lock;
-	r->ra0 = (u64)_RET_IP_;
-	r->ra1 = (u64)__builtin_return_address(1);
-	r->jf = jiffies;
-	r->cpu = cpu;
-	/* 暖复位丢脏缓存行，逐条 clean 保证落 DRAM */
-	asm volatile("dc cvac, %0" :: "r"(r) : "memory");
-	dsb(ish);
-}
-
-static int __init frz_convoy_init(void)
-{
-	struct frz_convoy_rec *r;
-	int i;
-
-	frz_convy_base = memremap(FRZ_CONVY_PHYS, FRZ_CONVY_SIZE, MEMREMAP_WB);
-	if (!frz_convy_base)
-		return 0;
-	frz_convy_cookie = get_random_u64();
-
-	/* 上一轮遗言：cookie 非本次且 jiffies 合理才认 */
-	for (i = 0; i < FRZ_CONVY_NCPU; i++) {
-		r = frz_convy_base + i * sizeof(*r);
-		if (r->magic && r->magic != frz_convy_cookie &&
-		    r->jf < 0x10000000ULL)
-			pr_info("frzrec: PREVBOOT cpu=%u lock=0x%px ra0=0x%px ra1=0x%px jf=%lu\n",
-				r->cpu, (void *)r->lock, (void *)r->ra0,
-				(void *)r->ra1, (unsigned long)r->jf);
-	}
-	/* 诊断：无论过滤结果如何，先看原始内容（判零页/错址/有效数据） */
-	print_hex_dump(KERN_INFO, "frzrec: raw ", DUMP_PREFIX_OFFSET,
-		       16, 8, frz_convy_base, 64, false);
-	memset(frz_convy_base, 0, FRZ_CONVY_SIZE);
-	pr_info("frzrec: armed phys=0x%llx size=0x%x cookie=0x%llx\n",
-		FRZ_CONVY_PHYS, (unsigned)FRZ_CONVY_SIZE, frz_convy_cookie);
+	*val = static_key_enabled(&frzq_key);
 	return 0;
 }
-fs_initcall(frz_convoy_init);
 
-/* cmdline frzconv=<phys>：memblock 阶段保留存活区（早于页分配器） */
-static int __init early_frzconv(char *p)
+static int frzq_enable_set(void *data, u64 val)
 {
-	phys_addr_t base = memparse(p, NULL);
-
-	if (base)
-		memblock_reserve(base, FRZ_CONVY_SIZE);
+	if (val)
+		static_branch_enable(&frzq_key);
+	else
+		static_branch_disable(&frzq_key);
 	return 0;
 }
-early_param("frzconv", early_frzconv);
+
+DEFINE_DEBUGFS_ATTRIBUTE(frzq_enable_fops, frzq_enable_get, frzq_enable_set,
+			 "%llu\n");
+
+static int __init frzq_debugfs_init(void)
+{
+	struct dentry *dir;
+
+	dir = debugfs_create_dir("frzq", NULL);
+	debugfs_create_file("enable", 0644, dir, NULL, &frzq_enable_fops);
+	return 0;
+}
+fs_initcall(frzq_debugfs_init);
 
 /*
  * Include queued spinlock definitions and statistics code
@@ -238,14 +174,17 @@ static void __queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 
 void __lockfunc queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 {
-	u64 t0 = get_jiffies_64();
+	u64 t0 = 0;
+
+	if (static_branch_unlikely(&frzq_key))
+		t0 = get_jiffies_64();
 
 	__queued_spin_lock_slowpath(lock, val);
 
-	/* rodin frz v5: 长等待获取行——持有者归因流。等 ≥1 jiffy 才拿到的锁
-	 * 打一行：死亡环里 "A 拿了 L1 → A 末条在等 L2" 的链可手工重建楔死环。
-	 * 即时交接（常态）不打，零洪水增量。 */
-	if (get_jiffies_64() - t0 && !atomic_read(&frzq_mute))
+	/* 长等待获取行——持有者归因流。等 ≥1 jiffy 才拿到的锁打一行：死亡
+	 * 环里 "A 拿了 L1 → A 末条在等 L2" 的链可手工重建楔死环。即时交接
+	 * （常态）不打，零洪水增量；t0=0 = 入口时门未开（中途武装不补打）。 */
+	if (t0 && get_jiffies_64() - t0)
 		pr_info("frzqa: cpu=%u lock=0x%px waited=%llums ra0=%pS\n",
 			raw_smp_processor_id(), lock,
 			jiffies64_to_msecs(get_jiffies_64() - t0),
@@ -260,12 +199,10 @@ static void __queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
-	frz_convoy_record(lock);
-	/* rodin frz v3: 阻塞式 console 打印（慢无所谓）——死亡签名 =
-	 * 楔死瞬间多核涌入同一锁的连发行；ra0/ra1 就地 %pS 符号化。
-	 * 已知反馈面：打印自身争 logbuf 锁会产生 ra1=vprintk_emit 的自噪声行，
-	 * 判读时 grep -v vprintk 过滤。 */
-	if (!atomic_read(&frzq_mute))
+	/* 慢路径入口行——死亡签名 = 楔死瞬间多核涌入同一锁的连发行；ra0/ra1
+	 * 就地 %pS 符号化。已知反馈面：打印自身争 logbuf 锁会产生
+	 * ra1=vprintk_emit 的自噪声行，判读时 grep -v vprintk 过滤。 */
+	if (static_branch_unlikely(&frzq_key))
 		pr_info("frzq: cpu=%u lock=0x%px val=0x%x ra0=%pS ra1=%pS\n",
 			raw_smp_processor_id(), lock, val, (void *)_RET_IP_,
 			__builtin_return_address(1));
