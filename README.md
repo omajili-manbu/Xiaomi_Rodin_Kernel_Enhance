@@ -27,7 +27,7 @@
 | `dwarves/` | pahole v1.32 历史遗迹（BTF 实际走 `tools/pahole`，见 `Makefile:558`，不经 PATH） |
 | `tools/` | 构建 / 审计 / 刷机脚本 |
 
-工具链 prebuilts（clang-r596125、Rust 1.97.0）与 6.6 构建树共用，放在本树上级 `prebuilts/` 目录，不在树内。
+工具链 prebuilts（clang-r614150、Rust 1.98.1）放在本树上级 `prebuilts/` 目录，不在树内。
 
 ## 构建
 

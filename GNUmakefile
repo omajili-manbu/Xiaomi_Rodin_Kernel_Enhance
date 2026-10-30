@@ -21,7 +21,7 @@
 
 RODIN_TREE := $(CURDIR)
 
-# ---- 工具链（= _r25fix17_fullbuild.sh 原样：clang-r596125） ----
+# ---- 工具链（= _r25fix17_fullbuild.sh 原样；2026-10-31 换代 clang-r614150） ----
 # pahole 不走 PATH：Makefile:558 硬编码 $(srctree)/tools/pahole/pahole
 # （自包含 wrapper + libdwarves，v1.32；2026-10-11 接线提交引入）。
 # 下方 PATH 首位的树内 dwarves/ 为历史遗迹：其内 pahole 的 RUNPATH 烧死
@@ -34,13 +34,14 @@ RODIN_TREE := $(CURDIR)
 # 上 FATAL 崩、启动循环）。
 # 旧注记里"编不过"的两条实锤属兼容层树（该树路径历史上曾用本名）：本树无 *_k618 改名、
 # drm_driver 亦无 lastclose/date 槽位，两处修法均不适用（2026-10-12 grep 复核）。
-# 工具链 = ../prebuilts/rust-toolchain/linux-x86/1.97.0（rustc 的 LLVM 22.1.6 与
-# clang-r596125 的 22.0.2 同代）；LIBCLANG_PATH 必须显式给（r24 教训：不设会落到
-# 系统 libclang 18）。
+# 工具链 = ../prebuilts/rust-toolchain/linux-x86/1.98.1（rustc 内嵌 LLVM 23.0.1 与
+# clang-r614150 的 23.0.1 同源配对，2026-10-31 换代）；LIBCLANG_PATH 必须显式给
+# （r24 教训：不设会落到系统 libclang 18）。bindgen 0.73.2 自 1.97.0 迁入
+# 1.98.1/bin：llvm-sys 运行期加载 libclang，实测兼容 23.0.1。
 # 副作用（刷机判读用）：CONFIG_RUST select EXTENDED_MODVERSIONS + CFI_ICALL_NORMALIZE_INTEGERS，
 # 相对出厂 6.6 是规则面净变化（见 ABI 门禁说明）。
-RODIN_CLANG_DIR := clang-r596125
-RODIN_RUST_DIR := rust-toolchain/linux-x86/1.97.0
+RODIN_CLANG_DIR := clang-r614150
+RODIN_RUST_DIR := rust-toolchain/linux-x86/1.98.1
 export PATH := $(RODIN_TREE)/dwarves:$(RODIN_TREE)/../prebuilts/$(RODIN_RUST_DIR)/bin:$(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/bin:$(PATH)
 export LIBCLANG_PATH := $(RODIN_TREE)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/lib
 
