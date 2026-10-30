@@ -24,7 +24,7 @@
 | `MTK_kernel_modules-rodin/` | 技术模块 vendor 仓（独立 git 仓，分支 `bsp-rodin-v-oss`；mali / conninfra 等） |
 | `rodin-ext/` | 接线层：`Kconfig.ext` / `Makefile.ext` + 24 个相对 symlink 镜像，把两棵 vendor 树挂进内核 Kconfig 与 obj-y |
 | `GNUmakefile` | 构建入口：固化 vendor 接线 5 变量与 `MTK_PLATFORM=mt6899`、工具链路径、`ARCH=arm64 LLVM=1` |
-| `dwarves/` | pahole v1.32（BTF） |
+| `dwarves/` | pahole v1.32 历史遗迹（BTF 实际走 `tools/pahole`，见 `Makefile:558`，不经 PATH） |
 | `tools/` | 构建 / 审计 / 刷机脚本 |
 
 工具链 prebuilts（clang-r596125、Rust 1.97.0）与 6.6 构建树共用，放在本树上级 `prebuilts/` 目录，不在树内。

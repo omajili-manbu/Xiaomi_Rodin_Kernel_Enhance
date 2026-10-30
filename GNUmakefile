@@ -21,10 +21,13 @@
 
 RODIN_TREE := $(CURDIR)
 
-# ---- 工具链（= _r25fix17_fullbuild.sh 原样：dwarves 的 pahole v1.32 + clang-r596125） ----
+# ---- 工具链（= _r25fix17_fullbuild.sh 原样：clang-r596125） ----
+# pahole 不走 PATH：Makefile:558 硬编码 $(srctree)/tools/pahole/pahole
+# （自包含 wrapper + libdwarves，v1.32；2026-10-11 接线提交引入）。
+# 下方 PATH 首位的树内 dwarves/ 为历史遗迹：其内 pahole 的 RUNPATH 烧死
+# 旧绝对路径，仅在该目录内可运行；保留仅供符号面参照，BTF 不消费。
 # clang 工具链不放树内（2026-09-26 定案）：prebuilts（clang/pahole/rust）留在
-# rodin-build 顶层与 bp 树共用，本文件以 $(RODIN_TREE)/../prebuilts 引用；
-# 树内只保留 dwarves。
+# rodin-build 顶层与 bp 树共用，本文件以 $(RODIN_TREE)/../prebuilts 引用。
 # rust：2026-10-12 起启用（目的 = 恢复 /dev/ashmem：6.18 的 ashmem 是 Rust 实现
 # （drivers/staging/android/ashmem.rs，Kconfig `depends on SHMEM && RUST`），RUST 不开时
 # CONFIG_ASHMEM 被静默丢弃，stock HyperOS 的 system_server 会在 ApplicationSharedMemory
