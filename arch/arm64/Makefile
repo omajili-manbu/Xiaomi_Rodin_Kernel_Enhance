@@ -42,6 +42,9 @@ CC_FLAGS_NO_FPU	:= -mgeneral-regs-only
 
 KBUILD_CFLAGS	+= $(CC_FLAGS_NO_FPU) \
 		   $(compat_vdso) $(cc_has_k_constraint)
+# rodin 6.18（2026-10-31）：MT6899 全同构 Cortex-A725，全核 -mcpu 显式指定
+#（cc-option 兜底：工具链不支持该 -mcpu 时自动跳过）；形态 = 6.6 树同位接线。
+KBUILD_CFLAGS	+= $(call cc-option,-mcpu=cortex-a725)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
 KBUILD_AFLAGS	+= $(compat_vdso)
 
