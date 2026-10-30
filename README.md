@@ -20,8 +20,8 @@
 | 路径 | 说明 |
 |---|---|
 | 内核源码（树根） | AOSP `android17-6.18-lts` 基线 + rodin 设备补丁 |
-| `MTK_kernel_device_modules-rodin/` | 设备模块 vendor 仓（独立 git 仓，分支 `bsp-rodin-v-oss`），6.18 化修改的主要落点 |
-| `MTK_kernel_modules-rodin/` | 技术模块 vendor 仓（独立 git 仓，分支 `bsp-rodin-v-oss`；mali / conninfra 等） |
+| `MTK_kernel_device_modules/` | 设备模块 vendor 仓（独立 git 仓，分支 `bsp-rodin-v-oss`），6.18 化修改的主要落点 |
+| `MTK_kernel_modules/` | 技术模块 vendor 仓（独立 git 仓，分支 `bsp-rodin-v-oss`；mali / conninfra 等） |
 | `rodin-ext/` | 接线层：`Kconfig.ext` / `Makefile.ext` + 24 个相对 symlink 镜像，把两棵 vendor 树挂进内核 Kconfig 与 obj-y |
 | `GNUmakefile` | 构建入口：固化 vendor 接线 5 变量与 `MTK_PLATFORM=mt6899`、工具链路径、`ARCH=arm64 LLVM=1` |
 | `dwarves/` | pahole v1.32 历史遗迹（BTF 实际走 `tools/pahole`，见 `Makefile:558`，不经 PATH） |

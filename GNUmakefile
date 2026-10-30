@@ -61,18 +61,18 @@ export LLVM := 1
 # KCONFIG_EXT_PREFIX 必须相对 srctree 且带尾斜杠（两处钩子都是前缀拼接）。
 export KCONFIG_EXT_PREFIX := rodin-ext/
 # obj 路径：drivers/ 下 ../<名> = 树根/<名>。外部时代靠 Makefile.ext 的
-# KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin 兜底，入树后必须显式去掉 ../。
-export DEVICE_MODULES_REL_DIR := MTK_kernel_device_modules-rodin
-export KMOD_REL_DIR := MTK_kernel_modules-rodin
+# KMOD_REL_DIR ?= ../MTK_kernel_modules 兜底，入树后必须显式去掉 ../。
+export DEVICE_MODULES_REL_DIR := MTK_kernel_device_modules
+export KMOD_REL_DIR := MTK_kernel_modules
 # 这两个必须用 := 简单变量 + $(CURDIR) 绝对路径，不能用 = $(srctree)/... 递归式：
 # export 出去的递归变量在首层 make 构造子进程环境时就会被展开，而那一刻内核
 # Makefile 还没定义 srctree ⇒ 环境里落成 "/MTK_..."（指向文件系统根），vendor
 # 的 -I（含 timer-mediatek-trace.h 的 trace 重包含路径）全部失联（mig5 实测）。
 # r25 命令行写法能活是因为命令行变量经 MAKEFLAGS 逐层展开。绝对路径仅影响
 # .cmd 里的字面量，不影响产物。
-export DEVICE_MODULES_PATH := $(CURDIR)/MTK_kernel_device_modules-rodin
+export DEVICE_MODULES_PATH := $(CURDIR)/MTK_kernel_device_modules
 # MTK 自己的拼写错误（DEVCIE_），照 _r25fix17 原样保留。
-export DEVCIE_MODULES_INCLUDE := -I$(CURDIR)/MTK_kernel_device_modules-rodin/include
+export DEVCIE_MODULES_INCLUDE := -I$(CURDIR)/MTK_kernel_device_modules/include
 export MTK_PLATFORM := mt6899
 
 # ---- 默认目标：必须包一层 ----

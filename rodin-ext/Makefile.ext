@@ -28,7 +28,7 @@ subdir-ccflags-y += -I$(DEVICE_MODULES_PATH)/include \
 # <mtk_ccci_common.h>（该头在 include/mt-plat/ 下），CCCI 门翻 =y 后
 # sound/soc/mediatek/common/mtk-usip.o 首次进入构建图即触发缺头。
 MTK_PLATFORM ?= mt6899
-KMOD_REL_DIR ?= ../MTK_kernel_modules-rodin
+KMOD_REL_DIR ?= ../MTK_kernel_modules
 
 # ---- r24 batch 1 (MTK systimer) ----
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/clocksource/
@@ -316,7 +316,7 @@ obj-y += ../$(KMOD_REL_DIR)/gpu/mt6899/
 # 注意 sched/common.o 同时被 scheduler 与 cpufreq_sugov_ext 两个模块引用：kbuild 各建
 # 一份（KBUILD_MODNAME 不同），不是重复定义。
 # hbt 走 kmod 叶子直挂（方式同 mtk_aov / mali：由 drivers/ 起算的相对路径，经内核树根的
-# MTK_kernel_modules-rodin 目录可达，无需新增软链镜像）。
+# MTK_kernel_modules 目录可达，无需新增软链镜像）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/sched/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/cache-auditor/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/mediatek/perf_common/
