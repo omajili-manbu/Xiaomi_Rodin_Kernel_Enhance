@@ -576,7 +576,7 @@ static void mtdoops_do_dump(struct mtdoops_context *cxt,
 		return;
 	kmsg_dump_get_buffer(&iter, true,
 			     cxt->oops_buf + MTDOOPS_HEADER_SIZE + MTDOOPS_BANNER_MAX,
-			     lkmsg_record_size - MTDOOPS_HEADER_SIZE - MTDOOPS_BANNER_MAX,
+			     min(record_size, lkmsg_record_size) - MTDOOPS_HEADER_SIZE - MTDOOPS_BANNER_MAX,
 			     &ret_len);
 	clear_bit(0, &cxt->oops_buf_busy);
 
@@ -831,10 +831,13 @@ static int __init mtdoops_init(void)
 	if (*endp == '\0')
 		cxt->mtd_index = mtd_index;
 
-	cxt->oops_buf = kmalloc(lkmsg_record_size, GFP_KERNEL);
+	/* rodin 2026-10-30: the buffer must cover a full record; the dump path
+	 * reads/writes it end-to-end by record_size, while lkmsg_record_size
+	 * only caps how much kmsg is collected into it. */
+	cxt->oops_buf = kvmalloc(record_size, GFP_KERNEL);
 	if (!cxt->oops_buf)
 		return -ENOMEM;
-	memset(cxt->oops_buf, 0xff, lkmsg_record_size);
+	memset(cxt->oops_buf, 0xff, record_size);
 	cxt->oops_buf_busy = 0;
 
 	INIT_WORK(&cxt->work_erase, mtdoops_workfunc_erase);
@@ -850,7 +853,7 @@ static void __exit mtdoops_exit(void)
 
 	unregister_mtd_user(&mtdoops_notifier);
 	platform_driver_unregister(&mtdoops_pmsg_driver);
-	kfree(cxt->oops_buf);
+	kvfree(cxt->oops_buf);
 	vfree(cxt->oops_page_used);
 }
 
