@@ -45,6 +45,16 @@ KBUILD_CFLAGS	+= $(CC_FLAGS_NO_FPU) \
 # rodin 6.18（2026-10-31）：MT6899 全同构 Cortex-A725，全核 -mcpu 显式指定
 #（cc-option 兜底：工具链不支持该 -mcpu 时自动跳过）；形态 = 6.6 树同位接线。
 KBUILD_CFLAGS	+= $(call cc-option,-mcpu=cortex-a725)
+# rodin 6.18（2026-10-31）：响信号告警——cc-option 兜底是静默降级，工具链一旦
+# 不认 -mcpu=cortex-a725，全核调度优化会无声消失且构建照常成功；此处用同款
+# 探针 $(warning) 点名放行（不拦截，是否升级为硬失败由调用方决断）。守卫 =
+# CONFIG_ARM64（仅真实构建加载 auto.conf）：clean/mrproper 等无配置目标
+# CONFIG_* 全空，告警自动旁路，不添 clean 地雷。
+ifeq ($(CONFIG_ARM64),y)
+ifneq ($(call cc-option-yn,-mcpu=cortex-a725),y)
+$(warning toolchain lacks -mcpu=cortex-a725 support; Cortex-A725 scheduling optimization is dropped)
+endif
+endif
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
 KBUILD_AFLAGS	+= $(compat_vdso)
 
