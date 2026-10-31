@@ -1,0 +1,210 @@
+name: sync-sukisu-618
+
+# bsp-rodin-c-rebase (6.18) 专用的 SukiSU-Ultra release tag 同步器：
+# 拉上游 stable release 的 kernel/ 原码直栽 drivers/kernelsu（uapi 符号链接
+# 解引用为实体目录），按裸 rev-list count 钉版（pin 脚本在目标分支
+# .github/scripts/pin_sukisu_version.py），锚点 = drivers/kernelsu/.sukisu_tag。
+# 与 bsp-rodin-v-upstream 的 sync-sukisu.yml 相互独立：6.6 线带 SUSFS 桥接与
+# override 语义层，6.18 线为上游原码净栽，无 override 层。
+# 任何一步失败：什么都不推，开 issue。
+
+on:
+  schedule:
+    - cron: '10 19 * * *'   # 03:10 UTC+8 daily，错开 6.6 线的 02:50
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'SukiSU-Ultra release tag (e.g. v4.3.1); empty = latest stable'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: sync-sukisu-618
+
+env:
+  KERNEL_BRANCH: bsp-rodin-c-rebase
+  SUKISU_REPO: SukiSU-Ultra/SukiSU-Ultra
+  ANCHOR: drivers/kernelsu/.sukisu_tag
+  ISSUE_TITLE: '[sync-sukisu-618] SukiSU-Ultra sync failed - manual attention needed'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout kernel branch
+        uses: actions/checkout@v4
+        with:
+          ref: bsp-rodin-c-rebase
+          fetch-depth: 1
+
+      - name: Configure git identity
+        run: |
+          set -euo pipefail
+          git config user.name  'omajili-manbu'
+          git config user.email 'qwer12777332899@gmail.com'
+
+      - name: Resolve target release tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh api "repos/$SUKISU_REPO/releases/latest" --jq .tag_name)
+          fi
+          REL=$(gh api "repos/$SUKISU_REPO/releases/tags/$TAG")
+          [ "$(echo "$REL" | jq -r .draft)" = "false" ] || { echo "::error::$TAG is a draft"; exit 1; }
+          [ "$(echo "$REL" | jq -r .prerelease)" = "false" ] || { echo "::error::$TAG is a prerelease"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Compare against landed anchor
+        id: anchor
+        run: |
+          set -euo pipefail
+          if [ ! -f "$ANCHOR" ]; then
+            echo "::error::$ANCHOR missing - initial landing not present on $KERNEL_BRANCH"
+            exit 1
+          fi
+          LANDED=$(cat "$ANCHOR")
+          if [ "$LANDED" = "${{ steps.resolve.outputs.tag }}" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### sync-sukisu-618"
+              echo "- already up to date: \`${LANDED}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone upstream at tag
+        id: clone
+        if: steps.anchor.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.resolve.outputs.tag }}"
+          git clone -q --filter=blob:none --no-checkout \
+            "https://github.com/$SUKISU_REPO.git" "$RUNNER_TEMP/sukisu"
+          git -C "$RUNNER_TEMP/sukisu" checkout -q "$TAG"
+          COUNT=$(git -C "$RUNNER_TEMP/sukisu" rev-list --count "$TAG")
+          SHA8=$(git -C "$RUNNER_TEMP/sukisu" rev-parse --short=8 "$TAG")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "sha8=$SHA8" >> "$GITHUB_OUTPUT"
+          echo "upstream $TAG: bare count $COUNT, sha8 $SHA8"
+
+      - name: Land upstream kernel/ into drivers/kernelsu
+        if: steps.anchor.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.resolve.outputs.tag }}"
+          rm -rf drivers/kernelsu
+          # cp -L：解引用上游 include/uapi 符号链接为实体目录
+          cp -rL "$RUNNER_TEMP/sukisu/kernel" drivers/kernelsu
+          printf '%s\n' "$TAG" > "$ANCHOR"
+
+      - name: Pin version into Kbuild
+        if: steps.anchor.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/pin_sukisu_version.py \
+            --kbuild drivers/kernelsu/Kbuild \
+            --tag "${{ steps.resolve.outputs.tag }}" \
+            --count "${{ steps.clone.outputs.count }}" \
+            --sha8 "${{ steps.clone.outputs.sha8 }}" \
+            --branch main
+
+      - name: Gates
+        if: steps.anchor.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.resolve.outputs.tag }}"
+          COUNT="${{ steps.clone.outputs.count }}"
+          SHA8="${{ steps.clone.outputs.sha8 }}"
+          # 1) 镜像门：落地文件清单 = 上游 deref 清单 + .sukisu_tag，一个不多一个不少
+          diff <(cd "$RUNNER_TEMP/sukisu/kernel" && find -L . -type f | sed 's|^\./||' | sort) \
+               <(cd drivers/kernelsu && find . -type f | sed 's|^\./||' | sort) > /tmp/mirror.diff || true
+          if grep -q '^<' /tmp/mirror.diff; then
+            echo '::error::landed tree missing upstream files:'; cat /tmp/mirror.diff; exit 1
+          fi
+          EXTRA=$(grep '^>' /tmp/mirror.diff | grep -vc '^> \.sukisu_tag$' || true)
+          [ "$EXTRA" = "0" ] || { echo '::error::landed tree has unexpected extra files:'; cat /tmp/mirror.diff; exit 1; }
+          grep -q '^> \.sukisu_tag$' /tmp/mirror.diff || { echo '::error::anchor file missing after landing'; exit 1; }
+          # 2) 钉版门：字面量必须等于本次解析值
+          grep -qx "git_short_sha    = $SHA8"     drivers/kernelsu/Kbuild
+          grep -qx "git_commit_count = $COUNT"    drivers/kernelsu/Kbuild
+          grep -qx "KSU_GITHUB_VER   := ${TAG#v}" drivers/kernelsu/Kbuild
+          # 3) 架构门：完整 hook 架构与入口在 Kbuild
+          grep -q 'kernelsu-objs := core/init.o'  drivers/kernelsu/Kbuild
+          grep -q 'hook/syscall_hook.o'           drivers/kernelsu/Kbuild
+          # 4) uapi 门：解引用后的实体头必须被 git 跟踪（防 .gitignore 吞文件）
+          git add -A drivers/kernelsu
+          UAPI_N=$(git ls-files drivers/kernelsu/include/uapi | wc -l)
+          [ "$UAPI_N" -ge 6 ] || { echo "::error::uapi headers tracked = $UAPI_N (< 6) - .gitignore swallowing?"; exit 1; }
+
+      - name: Commit and push
+        if: steps.anchor.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.resolve.outputs.tag }}"
+          COUNT="${{ steps.clone.outputs.count }}"
+          SHA8="${{ steps.clone.outputs.sha8 }}"
+          if git diff --cached --quiet; then
+            echo '::notice::no effective diff after landing - nothing to commit'
+            exit 0
+          fi
+          V_BASE=$(grep -E '^VERSION_BASE[[:space:]]+:=[[:space:]]+[0-9]+$' drivers/kernelsu/Kbuild | awk '{print $3}')
+          V_OFFSET=$(grep -E '^VERSION_OFFSET[[:space:]]+:=[[:space:]]+[0-9]+$' drivers/kernelsu/Kbuild | awk '{print $3}')
+          FORMULA=$(( V_BASE + COUNT - V_OFFSET ))
+          git add -A drivers/kernelsu
+          # 提交消息 = 标题三段式无括号，细节沉正文（与提交规范一致）
+          MSG_FILE="$RUNNER_TEMP/sync_commit_msg.txt"
+          {
+            echo "chore: drivers/kernelsu: 同步 SukiSU-Ultra 至 ${TAG}"
+            echo
+            echo "Release tag ${TAG}，裸 rev-list count ${COUNT}，sha ${SHA8}。"
+            echo "钉版公式值 ${V_BASE} + ${COUNT} - ${V_OFFSET} = ${FORMULA}，与 manager 资产名同源配对。"
+            echo "落地 = 上游 kernel/ 净栽（cp -rL 解引用 include/uapi 符号链接）+ Kbuild 钉版字面量化。"
+          } > "$MSG_FILE"
+          git commit -F "$MSG_FILE"
+          git push origin "HEAD:$KERNEL_BRANCH"
+          {
+            echo "### sync-sukisu-618"
+            echo "- landed [${SUKISU_REPO}@${TAG}](https://github.com/${SUKISU_REPO}/releases/tag/${TAG}) -> \`drivers/kernelsu\` on \`${KERNEL_BRANCH}\`"
+            echo "- bare count ${COUNT}, formula value ${FORMULA}, sha8 \`${SHA8}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch kernel build
+        if: steps.anchor.outputs.up_to_date == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # GITHUB_TOKEN 的推送不触发其他 workflow（GitHub 防递归），显式 dispatch 补全 sync->build 链
+          gh workflow run build-kernel-618.yml --ref "$KERNEL_BRANCH"
+          echo "build-kernel-618 dispatched on $KERNEL_BRANCH"
+
+      - name: Open failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(gh issue list --search "$ISSUE_TITLE in:title" --state open --json number --jq '.[].number' | head -1)" ]; then
+            echo 'failure issue already open - skip'
+            exit 0
+          fi
+          gh issue create --title "$ISSUE_TITLE" --body "$(cat <<'EOF'
+          自动同步失败（workflow: sync-sukisu-618，branch: bsp-rodin-c-rebase）。
+          失败步骤与日志见对应 run；**本次没有推送任何提交**。
+          常见原因：
+          - 上游 Kbuild 结构变化 -> .github/scripts/pin_sukisu_version.py 锚点失配（exit 2 拒绝瞎钉）
+          - 落地镜像门发现多/缺文件（uapi 符号链接形态变化）
+          - release 为 draft/prerelease 或显式 tag 不存在
+          EOF
+          )"
