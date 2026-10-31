@@ -112,16 +112,22 @@ jobs:
           RUST_DIR="$PRE/rust-toolchain/linux-x86/$RUST_VER"
           mkdir -p "$CLANG_DIR" "$RUST_DIR"
 
+          # +archive 对大包会中途掐流（64M 处 stall -> 截断 EOF，run 41211581064 实锤），
+          # --retry-all-errors 让 curl 对传输中断整段重试；稀疏克隆是可靠兜底通道
+          # （googlesource git 端点实测 2.5 分钟取齐），用 cp -a 落位（mv 不接受 /. 点路径，
+          # "Device or resource busy"，run 41211581064 实锤）
           fetch_archive() { # $1=url $2=dest_dir
             rm -rf "$2"; mkdir -p "$2"
-            curl -fL --retry 3 --connect-timeout 30 --max-time 2400 "$1" -o "$RUNNER_TEMP/pkg.tgz" \
+            curl -fL --retry 3 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 2400 "$1" -o "$RUNNER_TEMP/pkg.tgz" \
               && tar -xzf "$RUNNER_TEMP/pkg.tgz" -C "$2"
           }
-          fetch_sparse() { # $1=repo $2=branch $3=subdir $4=dest_dir
-            rm -rf "$2" "$RUNNER_TEMP/sparse-src"; mkdir -p "$4"
+          fetch_sparse() { # $1=repo_url $2=branch $3=subdir $4=dest_dir
+            rm -rf "$RUNNER_TEMP/sparse-src"
             git clone -q --depth=1 --filter=blob:none --sparse -b "$2" "$1" "$RUNNER_TEMP/sparse-src"
             git -C "$RUNNER_TEMP/sparse-src" sparse-checkout set "$3"
-            mv "$RUNNER_TEMP/sparse-src/$3/." "$4/"
+            mkdir -p "$4"
+            cp -a "$RUNNER_TEMP/sparse-src/$3/." "$4/"
+            rm -rf "$RUNNER_TEMP/sparse-src"
           }
 
           # clang：1) 分支直链 2) 固定 commit 直链 3) 稀疏克隆兜底
