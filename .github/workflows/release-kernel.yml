@@ -1,6 +1,8 @@
 name: release-kernel
 
 # 手动触发：取最近一次成功的 build-kernel 构建产物，发布 release（默认 prerelease）。
+# build-kernel 双目标化后（618/66 同名工作流、同 head_branch），按 kernel_target
+# 输入甄别目标 run（依 job 步骤名，无标记的历史 run 视为 66）；显式 run_id 时不甄别。
 # 正文格式对齐 v1.3（内核版本 / 构建时间 / 构建工具链 / 下载说明 / 变更）：
 #   - 内核版本 / 构建时间 / 构建工具链 从 AK3 包内 Image 的 Linux banner 中提取，
 #     提取失败时回退到 artifact 名 / 构建记录时间
@@ -32,6 +34,10 @@ on:
         description: 'build-kernel 运行 ID（留空则取最近一次成功构建，仅对带 root 内核生效）'
         required: false
         default: ''
+      kernel_target:
+        description: '构建目标甄别：66 = 6.6 KMI（历史默认），618 = 6.18 rebase 树；显式 run_id 时忽略'
+        required: false
+        default: '66'
       include_noroot:
         description: '是否附带无 root 内核 AK3（取 noroot 分支最近一次成功构建；false 只发带 root 内核）'
         required: false
@@ -68,14 +74,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           IN_RUN_ID: ${{ inputs.run_id }}
           IN_INCLUDE_NOROOT: ${{ inputs.include_noroot }}
+          IN_TARGET: ${{ inputs.kernel_target }}
         run: |
           set -euo pipefail
           RUN_ID="${IN_RUN_ID}"
           if [ -z "$RUN_ID" ]; then
-            RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${BUILD_WORKFLOW}/runs?branch=${KERNEL_BRANCH}&status=success&per_page=1" \
-                     --jq '.workflow_runs[0].id // empty')
+            # 双目标 build-kernel 的 618/66 run 同 head_branch，按 job 步骤名甄别：
+            # 带 "(6.6 KMI" 为 66、带 "(618," 为 618；两都不带的历史 run 一律视为
+            # 66（双目标化前该工作流只有 6.6 构建）
+            run_target() { # $1=run_id -> echo 66/618
+              local names
+              # 条件步被跳过时也出现在步骤表（conclusion=skipped），只认真跑过的
+              names=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$1/jobs?per_page=1" \
+                      --jq '.jobs[0].steps[] | select(.conclusion=="success") | .name' 2>/dev/null || true)
+              case "$names" in
+                *"6.6 KMI"*) echo 66 ;;
+                *"618,"*)    echo 618 ;;
+                *)           echo 66 ;;
+              esac
+            }
+            for rid in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${BUILD_WORKFLOW}/runs?branch=${KERNEL_BRANCH}&status=success&per_page=30" \
+                           --jq '.workflow_runs[].id'); do
+              T=$(run_target "$rid")
+              if [ "$T" = "${IN_TARGET}" ]; then RUN_ID="$rid"; break; fi
+              echo "skip run $rid (target $T != ${IN_TARGET})"
+            done
           fi
-          [ -n "$RUN_ID" ] || { echo "::error::no successful ${BUILD_WORKFLOW} run found on ${KERNEL_BRANCH}"; exit 1; }
+          [ -n "$RUN_ID" ] || { echo "::error::no successful ${BUILD_WORKFLOW} run for target ${IN_TARGET} on ${KERNEL_BRANCH}"; exit 1; }
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
             --jq '"build run: \(.id) (\(.display_title)) head=\(.head_sha) created=\(.created_at)"'
           HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.head_sha')
