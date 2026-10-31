@@ -94,8 +94,16 @@ rodin-default: rodin-config
 endif
 
 .PHONY: rodin-default
+# rodin 6.18（2026-10-31）：外层已并行（MAKEFLAGS 带 jobserver-auth）时不重复传 -j，
+# 让 jobserver 直通子 make——消 "-jN forced in submake" 告警，且保住调用方 -jN 的值。
+# 两支都带 --no-print-directory：内核 Makefile:250 见此旗标即免一次自重入，
+# 少一层 make 少占一个 jobserver 令牌（make -j8 编译段并发 6→7；裸 make 串行外层 7→8）。
 rodin-default:
-	+$(MAKE) -j$(RODIN_JOBS) Image.lz4
+	+@if echo "$${MAKEFLAGS}" | grep -q jobserver; then \
+		$(MAKE) --no-print-directory Image.lz4; \
+	else \
+		$(MAKE) --no-print-directory -j$(RODIN_JOBS) Image.lz4; \
+	fi
 
 .DEFAULT_GOAL := rodin-default
 
