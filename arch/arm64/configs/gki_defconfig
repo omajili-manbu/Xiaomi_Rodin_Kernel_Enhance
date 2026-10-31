@@ -804,7 +804,8 @@ CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule binder_gki millet_binder millet_c
 # rodin 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
 CONFIG_RODIN_BUILTIN_SKIP=y
 CONFIG_ARM64_BTI_KERNEL=y
-# CONFIG_CFI_PERMISSIVE is not set
+# rodin 2026-10-31: CFI permissive（外部模块加载兼容：CFI 失败打警告放行，不 die；外部预编件与内核异链时的兼容姿态）
+CONFIG_CFI_PERMISSIVE=y
 CONFIG_MODULE_FORCE_LOAD=y
 CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS=y
 CONFIG_ZSMALLOC=y
