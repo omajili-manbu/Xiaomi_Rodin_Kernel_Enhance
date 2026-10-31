@@ -185,9 +185,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # GITHUB_TOKEN 的推送不触发其他 workflow（GitHub 防递归），显式 dispatch 补全 sync->build 链
-          gh workflow run build-kernel-618.yml --ref "$KERNEL_BRANCH"
-          echo "build-kernel-618 dispatched on $KERNEL_BRANCH"
+          # GITHUB_TOKEN 的推送不触发其他 workflow（GitHub 防递归），显式 dispatch 补全 sync->build 链；
+          # 工作流本体已迁居默认分支，构建目标由工作流内 KERNEL_BRANCH 钉死，dispatch 不带 --ref
+          gh workflow run build-kernel-618.yml
+          echo "build-kernel-618 dispatched (kernel branch: $KERNEL_BRANCH)"
 
       - name: Open failure issue
         if: failure()
