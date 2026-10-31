@@ -2,8 +2,10 @@ name: build-kernel-618
 
 # 手动/sync 落地后触发的 rodin 6.18 内核构建（结构参考 6.6 树 build-kernel.yml，本地差异三件）：
 # 单 push 不触发构建；sync-sukisu-618 落地步会显式 dispatch 本工作流。
-#   本机构内 ThinLTO（BTF 段 pahole 10.5G 蹭 swap），ThinLTO 构建在此处（CI）跑：
-#   分支 gki_defconfig 携带 CONFIG_LTO_CLANG_THIN=y，checkout 后 gki_defconfig 即得。
+#   LTO 关闭（RUST×LTO Kconfig 互斥：LTO=y 静默丢 RUST 与 ASHMEM，stock
+#   HyperOS 必崩；BTF 段 pahole 内存亦不允许），CI 与树内同跑 LTO_NONE；
+#   构建带 AUTOFDO 旗标置空（rustc 1.98.1 拒收 scripts/Makefile.autofdo 的
+#   -Zdebug-info-for-profiling，LTO_NONE 下 RUST 活跃旗标会进 rustc）。
 #   clang-r614150 + rust 1.98.1 双 prebuilt 下载进 checkout 兄弟位 prebuilts/
 #   （树根 GNUmakefile 以 $(RODIN_TREE)/../prebuilts 引用，布局与本地 rodin-build 一致）；
 #   bindgen 0.73.2 用 prebuilt cargo 现装（上游 1.98.1 不带 bindgen，与本地同源）。
@@ -183,18 +185,21 @@ jobs:
           export PATH="$HOME/.cargo/bin:$PATH"
           make rustavailable
 
-      - name: Build kernel (gki_defconfig -> Image + Image.lz4, ThinLTO on)
+      - name: Build kernel (gki_defconfig -> Image + Image.lz4, LTO off)
         run: |
           set -euo pipefail
           export PATH="$HOME/.cargo/bin:$PATH"
           make gki_defconfig
-          # 配置硬门：KSU 内建 / CFI permissive / ThinLTO（CI 构建的核心差异点）缺一即停
+          # 配置硬门：KSU 内建 / CFI permissive / LTO 关闭（RUST×LTO 互斥保 ashmem）/
+          # RUST 在位（防 Kconfig 静默丢符号）缺一即停
           grep -q '^CONFIG_KSU=y' .config
           grep -q '^CONFIG_CFI_PERMISSIVE=y' .config
-          grep -q '^CONFIG_LTO_CLANG_THIN=y' .config || { echo '::error::ThinLTO not enabled - CI must build with LTO'; exit 1; }
+          grep -q '^CONFIG_LTO_NONE=y' .config || { echo '::error::LTO must stay off (RUSTxLTO Kconfig mutex drops RUST+ASHMEM)'; exit 1; }
+          grep -q '^CONFIG_RUST=y' .config || { echo '::error::CONFIG_RUST dropped - ashmem would vanish'; exit 1; }
           JOBS="$(nproc)"
-          echo "building with ${JOBS} jobs (ThinLTO)"
-          make -j"$JOBS" Image Image.lz4
+          echo "building with ${JOBS} jobs (LTO off)"
+          # AUTOFDO 旗标置空：rustc 1.98.1 拒收 -Zdebug-info-for-profiling
+          make -j"$JOBS" CFLAGS_AUTOFDO_CLANG= RUSTFLAGS_AUTOFDO_CLANG= Image Image.lz4
           # 校验 LZ4 legacy 魔数 0x184C2102；不是 legacy 就用 lz4 -l 重压
           MAGIC=$(od -An -tx1 -N4 arch/arm64/boot/Image.lz4 | tr -d ' \n')
           if [ "$MAGIC" != "02214c18" ]; then
@@ -286,7 +291,7 @@ jobs:
         run: |
           {
             echo "### Rodin 6.18 kernel build"
-            echo "- kernel: \`${KERNEL_RELEASE}\` (ThinLTO, CFI permissive, KSU in-tree; Image.lz4 = lz4 legacy, magic 02214c18 verified)"
+            echo "- kernel: \`${KERNEL_RELEASE}\` (LTO off, CFI permissive, KSU in-tree; Image.lz4 = lz4 legacy, magic 02214c18 verified)"
             echo "- build host: Kbuild@114514"
             echo "- AK3 flashable zip: artifact \`Rodin-${KERNEL_RELEASE}-AnyKernel3\` (downloaded zip is directly flashable, kernel blob Image = lz4 legacy)"
             echo "- SukiSU-Ultra managers: artifacts \`rodin-${KERNEL_RELEASE}-manager\` + \`rodin-${KERNEL_RELEASE}-manager-spoofed\` (when available) from [release]($SUKISU_RELEASE_URL)"
