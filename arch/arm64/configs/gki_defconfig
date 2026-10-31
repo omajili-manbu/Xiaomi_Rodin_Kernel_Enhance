@@ -1531,5 +1531,9 @@ CONFIG_ZRAM_BACKEND_DEFLATE=y
 CONFIG_ZRAM_BACKEND_842=y
 CONFIG_ZRAM_DEF_COMP_LZ4=y
 
+# ---- rodin 2026-10-31: workqueue 功耗友好默认（power-efficient 三队列转
+# unbound，亮屏低负载由调度器复用已醒核）----
+CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
+
 # KernelSU (in-tree, upstream v4.3.0; 6.18 has no SUSFS)
 CONFIG_KSU=y
