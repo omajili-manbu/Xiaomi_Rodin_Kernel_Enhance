@@ -1,0 +1,249 @@
+name: build-kernel-618
+
+# 手动/sync 落地后触发的 rodin 6.18 内核构建（结构参考 6.6 树 build-kernel.yml，本地差异三件）：
+# 单 push 不触发构建；sync-sukisu-618 落地步会显式 dispatch 本工作流。
+#   本机构内 ThinLTO（BTF 段 pahole 10.5G 蹭 swap），ThinLTO 构建在此处（CI）跑：
+#   分支 gki_defconfig 携带 CONFIG_LTO_CLANG_THIN=y，checkout 后 gki_defconfig 即得。
+#   clang-r614150 + rust 1.98.1 双 prebuilt 下载进 checkout 兄弟位 prebuilts/
+#   （树根 GNUmakefile 以 $(RODIN_TREE)/../prebuilts 引用，布局与本地 rodin-build 一致）；
+#   bindgen 0.73.2 用 prebuilt cargo 现装（上游 1.98.1 不带 bindgen，与本地同源）。
+#   产物 = Image + Image.lz4 (LZ4 legacy) -> AnyKernel3 可刷包 + 与
+#   drivers/kernelsu/.sukisu_tag 锚定的 SukiSU-Ultra release 配套管理器（标准版 +
+#   伪装版，资产名公式值与 Kbuild 钉版按公式换算交叉核对）。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  KERNEL_BRANCH: bsp-rodin-c-rebase
+  CLANG_VER: clang-r614150
+  # clang 预编译目录所在的 googlesource 分支（不是 LLVM 源码镜像分支）
+  CLANG_BRANCH: mirror-goog-main-llvm-toolchain-source
+  CLANG_PIN: a83b2dbffadb
+  RUST_VER: '1.98.1'
+  RUST_BRANCH: main-kernel
+  RUST_PIN: 8c84d127f617
+  BINDGEN_VER: '0.73.2'
+  SUKISU_REPO: SukiSU-Ultra/SukiSU-Ultra
+  BUILD_USER: Kbuild
+  BUILD_HOST: '114514'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.KERNEL_BRANCH }}
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost || true
+          df -h /
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flex bison bc libelf-dev libssl-dev dwarves lz4 zip unzip
+
+      - name: Set build host name (Kbuild@114514)
+        run: |
+          set -euo pipefail
+          sudo hostname 'Kbuild@114514' 2>/dev/null \
+            || sudo hostnamectl set-hostname 'Kbuild-114514' 2>/dev/null \
+            || true
+          {
+            echo "KBUILD_BUILD_USER=${BUILD_USER}"
+            echo "KBUILD_BUILD_HOST=${BUILD_HOST}"
+          } >> "$GITHUB_ENV"
+
+      - name: Download toolchain prebuilts into sibling prebuilts/
+        run: |
+          set -euo pipefail
+          PRE="$GITHUB_WORKSPACE/../prebuilts"
+          CLANG_DIR="$PRE/clang/host/linux-x86/$CLANG_VER"
+          RUST_DIR="$PRE/rust-toolchain/linux-x86/$RUST_VER"
+          mkdir -p "$CLANG_DIR" "$RUST_DIR"
+
+          fetch_archive() { # $1=url $2=dest_dir
+            rm -rf "$2"; mkdir -p "$2"
+            curl -fL --retry 3 --connect-timeout 30 --max-time 2400 "$1" -o "$RUNNER_TEMP/pkg.tgz" \
+              && tar -xzf "$RUNNER_TEMP/pkg.tgz" -C "$2"
+          }
+          fetch_sparse() { # $1=repo $2=branch $3=subdir $4=dest_dir
+            rm -rf "$2" "$RUNNER_TEMP/sparse-src"; mkdir -p "$4"
+            git clone -q --depth=1 --filter=blob:none --sparse -b "$2" "$1" "$RUNNER_TEMP/sparse-src"
+            git -C "$RUNNER_TEMP/sparse-src" sparse-checkout set "$3"
+            mv "$RUNNER_TEMP/sparse-src/$3/." "$4/"
+          }
+
+          # clang：1) 分支直链 2) 固定 commit 直链 3) 稀疏克隆兜底
+          CLANG_BASE="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86"
+          ok=""
+          for url in \
+            "$CLANG_BASE/+archive/refs/heads/$CLANG_BRANCH/$CLANG_VER.tar.gz" \
+            "$CLANG_BASE/+archive/$CLANG_PIN/$CLANG_VER.tar.gz"; do
+            echo "trying $url"
+            if fetch_archive "$url" "$CLANG_DIR" && [ -x "$CLANG_DIR/bin/clang" ]; then ok=yes; break; fi
+            echo "::warning::clang download/extract failed: $url"
+          done
+          if [ -z "$ok" ]; then
+            echo "::warning::clang archive endpoints failed, falling back to sparse git clone"
+            fetch_sparse "$CLANG_BASE" "$CLANG_BRANCH" "$CLANG_VER" "$CLANG_DIR"
+          fi
+          test -x "$CLANG_DIR/bin/clang" || { echo "::error::clang binary not found"; ls -la "$CLANG_DIR"; exit 1; }
+          "$CLANG_DIR/bin/clang" --version
+
+          # rust：1) 分支直链（路径限定子目录归档） 2) 固定 commit 直链 3) 稀疏克隆兜底
+          RUST_BASE="https://android.googlesource.com/platform/prebuilts/rust-toolchain/linux-x86"
+          ok=""
+          for url in \
+            "$RUST_BASE/+archive/refs/heads/$RUST_BRANCH/$RUST_VER.tar.gz" \
+            "$RUST_BASE/+archive/$RUST_PIN/$RUST_VER.tar.gz"; do
+            echo "trying $url"
+            if fetch_archive "$url" "$RUST_DIR" && [ -x "$RUST_DIR/bin/cargo" ]; then ok=yes; break; fi
+            echo "::warning::rust download/extract failed: $url"
+          done
+          if [ -z "$ok" ]; then
+            echo "::warning::rust archive endpoints failed, falling back to sparse git clone"
+            fetch_sparse "$RUST_BASE" "$RUST_BRANCH" "$RUST_VER" "$RUST_DIR"
+          fi
+          test -x "$RUST_DIR/bin/cargo" || { echo "::error::cargo binary not found"; ls -la "$RUST_DIR"; exit 1; }
+          "$RUST_DIR/bin/rustc" --version
+          echo "PRE=$PRE" >> "$GITHUB_ENV"
+
+      - name: Install bindgen (cargo install)
+        run: |
+          set -euo pipefail
+          RUST_DIR="$PRE/rust-toolchain/linux-x86/$RUST_VER"
+          CLANG_DIR="$PRE/clang/host/linux-x86/$CLANG_VER"
+          export PATH="$RUST_DIR/bin:$PATH"
+          # bindgen 运行期 dlopen libclang，与本地同源指向 clang-23 自带库
+          export LIBCLANG_PATH="$CLANG_DIR/lib"
+          cargo install bindgen-cli --version "$BINDGEN_VER" --locked
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/bindgen" --version
+
+      - name: Toolchain availability gate
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          make rustavailable
+
+      - name: Build kernel (gki_defconfig -> Image + Image.lz4, ThinLTO on)
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          make gki_defconfig
+          # 配置硬门：KSU 内建 / CFI permissive / ThinLTO（CI 构建的核心差异点）缺一即停
+          grep -q '^CONFIG_KSU=y' .config
+          grep -q '^CONFIG_CFI_PERMISSIVE=y' .config
+          grep -q '^CONFIG_LTO_CLANG_THIN=y' .config || { echo '::error::ThinLTO not enabled - CI must build with LTO'; exit 1; }
+          JOBS="$(nproc)"
+          echo "building with ${JOBS} jobs (ThinLTO)"
+          make -j"$JOBS" Image Image.lz4
+          # 校验 LZ4 legacy 魔数 0x184C2102；不是 legacy 就用 lz4 -l 重压
+          MAGIC=$(od -An -tx1 -N4 arch/arm64/boot/Image.lz4 | tr -d ' \n')
+          if [ "$MAGIC" != "02214c18" ]; then
+            echo "::warning::Image.lz4 magic $MAGIC is not lz4 legacy - recompressing with 'lz4 -l'"
+            lz4 -f -l -9 arch/arm64/boot/Image arch/arm64/boot/Image.lz4
+            MAGIC=$(od -An -tx1 -N4 arch/arm64/boot/Image.lz4 | tr -d ' \n')
+            [ "$MAGIC" = "02214c18" ] || { echo "::error::Image.lz4 still not lz4 legacy (magic: $MAGIC)"; exit 1; }
+          fi
+          KERNEL_RELEASE=$(cat include/config/kernel.release)
+          echo "KERNEL_RELEASE=$KERNEL_RELEASE" >> "$GITHUB_ENV"
+
+      - name: Prepare AnyKernel3 flashable tree
+        run: |
+          set -euo pipefail
+          git clone --depth=1 -b gki-2.0 https://github.com/WildKernels/AnyKernel3.git
+          rm -rf AnyKernel3/.git
+          cp arch/arm64/boot/Image.lz4 AnyKernel3/Image
+          sed -i "s|^kernel.string=.*|kernel.string=Rodin ${KERNEL_RELEASE} (SukiSU-Ultra)|" AnyKernel3/anykernel.sh
+
+      - name: Fetch SukiSU-Ultra manager APKs for the anchored release
+        id: fetch_manager
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(cat drivers/kernelsu/.sukisu_tag 2>/dev/null || true)
+          if [ -z "$TAG" ]; then
+            echo "::warning::no .sukisu_tag anchor - falling back to latest stable release"
+            TAG=$(gh api "repos/$SUKISU_REPO/releases/latest" --jq .tag_name)
+          fi
+          REL=$(gh api "repos/$SUKISU_REPO/releases/tags/$TAG")
+          [ "$(echo "$REL" | jq -r .prerelease)" = "false" ] || { echo "::error::$TAG is a prerelease"; exit 1; }
+          PLAIN_NAME=$(echo "$REL" | jq -r '.assets[].name' | grep -E '^SukiSU_.*\.apk$' | grep -v spoofed | head -n1 || true)
+          SPOOF_NAME=$(echo "$REL" | jq -r '.assets[].name' | grep -E '^SukiSU_.*-spoofed\.apk$' | head -n1 || true)
+          [ -n "$PLAIN_NAME" ] || { echo "::error::no standard manager APK asset on release $TAG"; exit 1; }
+          KSU_KBUILD=drivers/kernelsu/Kbuild
+          V_BASE=$(grep -E '^VERSION_BASE[[:space:]]+:=[[:space:]]+[0-9]+$' "$KSU_KBUILD" | awk '{print $3}')
+          V_OFFSET=$(grep -E '^VERSION_OFFSET[[:space:]]+:=[[:space:]]+[0-9]+$' "$KSU_KBUILD" | awk '{print $3}')
+          PINNED=$(grep -E '^git_commit_count = [0-9]+$' "$KSU_KBUILD" | awk '{print $3}')
+          # 资产名数字 = 公式值 VERSION_BASE + count - VERSION_OFFSET（与 manager 同源），
+          # 不是裸 commit count，须按 Kbuild 常量换算后再比
+          EXPECTED=$(( ${V_BASE:-0} + ${PINNED:-0} - ${V_OFFSET:-0} ))
+          for name in "$PLAIN_NAME" ${SPOOF_NAME:+"$SPOOF_NAME"}; do
+            REL_COUNT=$(echo "$name" | sed -n 's/^SukiSU_v[^_]*_\([0-9]*\).*\.apk$/\1/p')
+            if [ -n "$REL_COUNT" ] && [ -n "$PINNED" ] && [ -n "$V_BASE" ] && [ -n "$V_OFFSET" ] \
+               && [ "$REL_COUNT" != "$EXPECTED" ]; then
+              echo "::error::$name: release $TAG asset value $REL_COUNT != Kbuild formula $EXPECTED (base $V_BASE + count $PINNED - offset $V_OFFSET) - module/manager pairing mismatch"
+              exit 1
+            fi
+          done
+          rm -rf manager manager-spoofed && mkdir -p manager manager-spoofed
+          curl -fL --retry 3 --connect-timeout 30 "$(echo "$REL" | jq -r --arg n "$PLAIN_NAME" '.assets[] | select(.name==$n) | .browser_download_url')" -o "manager/$PLAIN_NAME"
+          [ "$(stat -c%s "manager/$PLAIN_NAME")" -gt 1000000 ] || { echo "::error::standard manager APK looks too small"; exit 1; }
+          HAS_SPOOF=no
+          if [ -n "$SPOOF_NAME" ]; then
+            curl -fL --retry 3 --connect-timeout 30 "$(echo "$REL" | jq -r --arg n "$SPOOF_NAME" '.assets[] | select(.name==$n) | .browser_download_url')" -o "manager-spoofed/$SPOOF_NAME"
+            [ "$(stat -c%s "manager-spoofed/$SPOOF_NAME")" -gt 1000000 ] || { echo "::error::spoofed manager APK looks too small"; exit 1; }
+            HAS_SPOOF=yes
+          else
+            echo "::warning::release $TAG has no spoofed manager asset - shipping standard manager only"
+          fi
+          echo "SUKISU_RELEASE_URL=https://github.com/$SUKISU_REPO/releases/tag/$TAG" >> "$GITHUB_ENV"
+          echo "has_spoofed=${HAS_SPOOF}" >> "$GITHUB_OUTPUT"
+          echo "manager APKs: ${PLAIN_NAME} + ${SPOOF_NAME:-<none>} (release $TAG)"
+
+      - name: Upload AnyKernel3 flashable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rodin-${{ env.KERNEL_RELEASE }}-AnyKernel3
+          path: AnyKernel3/**
+          if-no-files-found: error
+
+      - name: Upload SukiSU-Ultra manager APK (standard)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rodin-${{ env.KERNEL_RELEASE }}-manager
+          path: manager/*.apk
+          if-no-files-found: error
+
+      - name: Upload SukiSU-Ultra manager APK (spoofed)
+        if: steps.fetch_manager.outputs.has_spoofed == 'yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rodin-${{ env.KERNEL_RELEASE }}-manager-spoofed
+          path: manager-spoofed/*.apk
+          if-no-files-found: error
+
+      - name: Build summary
+        run: |
+          {
+            echo "### Rodin 6.18 kernel build"
+            echo "- kernel: \`${KERNEL_RELEASE}\` (ThinLTO, CFI permissive, KSU in-tree; Image.lz4 = lz4 legacy, magic 02214c18 verified)"
+            echo "- build host: Kbuild@114514"
+            echo "- AK3 flashable zip: artifact \`Rodin-${KERNEL_RELEASE}-AnyKernel3\` (downloaded zip is directly flashable, kernel blob Image = lz4 legacy)"
+            echo "- SukiSU-Ultra managers: artifacts \`rodin-${KERNEL_RELEASE}-manager\` + \`rodin-${KERNEL_RELEASE}-manager-spoofed\` (when available) from [release]($SUKISU_RELEASE_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
