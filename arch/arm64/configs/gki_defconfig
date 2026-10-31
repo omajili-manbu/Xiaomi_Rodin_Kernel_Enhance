@@ -1413,8 +1413,8 @@ CONFIG_MALI_MIDGARD=y
 CONFIG_MALI_CSF_SUPPORT=y
 CONFIG_MALI_DEVFREQ=y
 CONFIG_MALI_REAL_HW=y
-CONFIG_MALI_DEBUG=y
-CONFIG_MALI_FENCE_DEBUG=y
+# CONFIG_MALI_DEBUG is not set
+# CONFIG_MALI_FENCE_DEBUG is not set
 CONFIG_LARGE_PAGE_SUPPORT=y
 CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD=y
 CONFIG_MALI_BASE_MODULES=y
@@ -1524,11 +1524,12 @@ CONFIG_OPTEE_SHM_NUM_PRIV_PAGES=1
 # Perf: enable ThinLTO whole-program optimization
 CONFIG_LTO_CLANG_THIN=y
 # ---- rodin 2026-10-31: zram 压缩算法全开（LZ4/ZSTD/LZO 已在，LZO 项含 lzo-rle；
-# 三件 backend 自动 select 对应压缩实现；默认压缩器维持 lzo-rle 不变）----
+# 三件 backend 自动 select 对应压缩实现；默认压缩器维持 lz4 不变）----
 # Perf: zram enable all compression backends
 CONFIG_ZRAM_BACKEND_LZ4HC=y
 CONFIG_ZRAM_BACKEND_DEFLATE=y
 CONFIG_ZRAM_BACKEND_842=y
+CONFIG_ZRAM_DEF_COMP_LZ4=y
 
 # KernelSU (in-tree, upstream v4.3.0; 6.18 has no SUSFS)
 CONFIG_KSU=y
