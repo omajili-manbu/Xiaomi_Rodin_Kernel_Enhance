@@ -3,7 +3,7 @@
 //! String representations.
 
 use crate::{
-    alloc::{flags::*, AllocError, KVec},
+    alloc::{AllocError, KVec},
     error::{to_result, Result},
     fmt::{self, Write},
     prelude::*,
