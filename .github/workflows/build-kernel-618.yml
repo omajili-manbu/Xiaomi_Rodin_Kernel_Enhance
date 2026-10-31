@@ -58,9 +58,10 @@ jobs:
       - name: Clone vendor trees (local info/exclude assets, not in kernel repo)
         run: |
           set -euo pipefail
-          # 两 vendor 树被主仓 .git/info/exclude 本地排除（嵌套独立仓，不进内核仓），
-          # CI 全新 checkout 缺它们 = rodin-ext 镜像 symlink 悬空 = Kconfig.ext 首源即炸；
-          # 两仓 public，默认分支 bsp-rodin-v-oss，远端 tip 与本地检出逐一相等（已对账）
+          # 两 vendor 树被主仓 .git/info/exclude 本地排除（嵌套独立仓，不进内核仓）；
+          # rodin-ext 镜像链接已全部回植为树内相对路径（单物理副本视口），克隆入
+          # 工作区根即满足。两仓 public，默认分支 bsp-rodin-v-oss，远端 tip 与
+          # 本地检出逐一相等（已对账）
           git clone -q --depth=1 -b bsp-rodin-v-oss \
             https://github.com/omajili-manbu/MTK_kernel_device_modules.git \
             "$GITHUB_WORKSPACE/MTK_kernel_device_modules"
@@ -68,6 +69,29 @@ jobs:
             https://github.com/omajili-manbu/MTK_kernel_modules.git \
             "$GITHUB_WORKSPACE/MTK_kernel_modules"
           du -sh MTK_kernel_device_modules MTK_kernel_modules
+
+      - name: Symlink resolution gate (all committed symlinks must resolve)
+        run: |
+          set -euo pipefail
+          # 全仓已提交 symlink（229 条）逐一解析：任何悬空在本步爆名拦停，
+          # 不许漏到 kconfig/kbuild 深处打地鼠
+          python3 - <<'PY'
+          import os, subprocess, sys
+          out = subprocess.check_output(['git', 'ls-files', '-s'], text=True)
+          bad = []
+          for line in out.splitlines():
+              meta, path = line.split('\t', 1)
+              if meta.split()[0] != '120000':
+                  continue
+              if not os.path.exists(path):
+                  bad.append(f'{path} -> {os.readlink(path)}')
+          if bad:
+              print(f'::error::dangling symlinks: {len(bad)}')
+              for b in bad:
+                  print('  ' + b)
+              sys.exit(1)
+          print('all committed symlinks resolve OK')
+          PY
 
       - name: Set build host name (Kbuild@114514)
         run: |
