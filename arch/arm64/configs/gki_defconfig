@@ -105,7 +105,11 @@ CONFIG_KVM=y
 CONFIG_PTDUMP_STAGE2_DEBUGFS=y
 CONFIG_KPROBES=y
 CONFIG_SHADOW_CALL_STACK=y
-CONFIG_AUTOFDO_CLANG=y
+# ---- rodin 6.18（2026-11-01）：关 = 无 profile 纯挂空旗标。AUTOFDO_CLANG 仅
+# 为 profile 采集注入 -fdebug-info-for-profiling 与 fs-discriminator 元数据，
+# 本树从不采 profile；rust 侧 -Zdebug-info-for-profiling 更被 rustc 1.98.1
+# 拒收。置 n 后构建免置空参数，代码生成零影响 ----
+# CONFIG_AUTOFDO_CLANG is not set
 CONFIG_CFI=y
 CONFIG_MODULES=y
 CONFIG_MODULE_UNLOAD=y
