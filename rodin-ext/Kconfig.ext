@@ -19,9 +19,10 @@ config RODIN_BLOB_DROP
 	  Closed-source 6.6 blobs dropped after recon: the
 	  scheduler family (metis/mi_schedule, the rq-recode consumers),
 	  the millet and xiaomi net/memory MIUI-private endpoint families,
-	  misc io/debug/info utilities, and two dead modules (migt has no
-	  symbol providers since the sched =y batch, scheduler_ext is an
-	  empty shell).  The stock load list still names them; the loader is
+	  misc io/debug/info utilities, and two dead modules (migt is no
+	  longer dead: rebuilt on this tree with its provider slots in
+	  metis; the other two have no symbol providers since the sched =y
+	  batch, scheduler_ext is an empty shell).  The stock load list still names them; the loader is
 	  answered success and nothing is loaded.  No exception remains:
 	  mitee and bootmonitor are built into this image, and the
 	  fpsgo-cus pair (fpsgo, game) is on the drop list below, its
@@ -680,6 +681,7 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/xr_qi/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/perf_actuator/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/millet/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/millet_oem_cgroup/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/migt/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/thermal/xiaomi/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/mihw/Kconfig"
 

@@ -392,3 +392,4 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/focaltech_rodin/
 # 签名逐字一致）+ 全内核侧 API；refill kthread 首填 64MB order-0，vseq 段尾续编
 # 1256 复刻 stock 4.33s 装载相位（普通 initcall 会在 0.4s 提前抓内存）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mempool/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/migt/
