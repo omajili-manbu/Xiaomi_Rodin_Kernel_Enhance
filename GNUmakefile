@@ -60,7 +60,16 @@ export KCFLAGS := -Wno-unused-command-line-argument
 
 # ---- 架构 ----
 export ARCH := arm64
-export LLVM := 1
+# rodin 6.18（2026-11-01）：LLVM 由 1 改绝对目录前缀强钉。`$(MAKE) -f Makefile
+# syncconfig` 子 make 不读 GNUmakefile（-f 显式指定），PATH 只剩父 make 进程
+# 环境；环境级 LLVM 会被子 make 继承（Makefile 只读不赋），前缀化后 CC/HOSTCC/
+# LD/AR 全绝对路径，任何上下文都不落系统 clang。detached 脚本漏 shell 层 export
+# 时曾落 clang 18：A725 探针判负告警 + 双代 clang 轮写 config 产物 = SYNC 死循环。
+export LLVM := $(CURDIR)/../prebuilts/clang/host/linux-x86/$(RODIN_CLANG_DIR)/bin/
+# rust 族不override（RUSTC/RUSTFMT/BINDGEN 的普通赋值在内核 Makefile 内，override
+# 只救父 make 一层；syncconfig 子 make 的 auto.conf.cmd 陷阱按子 make 视角记录，
+# 父子不一致会恒判 FORCE）。钉法 = 上方 export PATH 前插 rust bin（一切子进程
+# 继承），RUSTC_VERSION_TEXT 陷阱两侧同串。
 
 # ---- vendor 外挂接线 5 变量（r25 语义，树内布局） ----
 # KCONFIG_EXT_PREFIX 必须相对 srctree 且带尾斜杠（两处钩子都是前缀拼接）。
