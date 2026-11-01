@@ -804,7 +804,7 @@ CONFIG_KUNIT_EXAMPLE_TEST=m
 CONFIG_RUST_INLINE_HELPERS=y
 CONFIG_RODIN_BLOB_DROP=y
 # rodin 丢载名单本体：仅未内建件（内建面由 .modinfo 名册自动覆盖）；改名单只动这一行
-CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule binder_gki millet_binder millet_core millet_hs millet_oem_cgroup millet_pkg millet_sig miicmpfilter minet miwill miwill_mode_redudancy sla mi_mem_epoll perf_helper lb mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em mkp"
+CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule miicmpfilter minet miwill miwill_mode_redudancy sla mi_mem_epoll perf_helper lb mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em mkp"
 # rodin 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
 CONFIG_RODIN_BUILTIN_SKIP=y
 CONFIG_ARM64_BTI_KERNEL=y
@@ -1512,6 +1512,14 @@ CONFIG_XIAOMI_MI_SCHEDULE=y
 CONFIG_XIAOMI_XR_QI=y
 CONFIG_XIAOMI_PERF_ACTUATOR=y
 CONFIG_XIAOMI_SPI_TEE=y
+# rodin 6.18（2026-11-01）：millet 全家内建（冻结链），闸门名册自动接管，见 CONFIG_RODIN_BLOB_DROP_LIST
+CONFIG_XIAOMI_MILLET_CORE=y
+CONFIG_XIAOMI_MILLET_HS=y
+CONFIG_XIAOMI_MILLET_SIG=y
+CONFIG_XIAOMI_MILLET_PKG=y
+CONFIG_XIAOMI_BINDER_GKI=y
+CONFIG_XIAOMI_MILLET_BINDER=y
+CONFIG_XIAOMI_MILLET_OEM_CGROUP=y
 
 # ---- rodin 2026-10-11: mitee =y 内建（6.6 真值 rodin.config: MITEE_SUPPORT=m /
 # MITEE_TUI_SUPPORT=n / OPTEE_BENCHMARK 未设 / SHM_NUM_PRIV_PAGES 默认 1）----
