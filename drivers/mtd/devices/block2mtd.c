@@ -64,7 +64,13 @@ static struct block2mtd_init_info *block2mtd_last_init;
 static struct task_struct *block2mtd_retry_thread;
 static char *block2mtd_device_name;
 
-#define BLOCK2MTD_RETRY_COUNT	2
+/*
+ * rodin 6.18（2026-11-03，block2mtd 异步重试）：normal boot 的等待已
+ * 完全交给 retry 线程，线程每次只做单发尝试，由本循环按 2s 节拍承担
+ * 原同步段（recovery 2s×timeout + early 1s×timeout ≈ 15s/次，2 次≈34s）
+ * 等价窗口；20×2s 保持有界且不短于原预算。
+ */
+#define BLOCK2MTD_RETRY_COUNT	20
 #define BLOCK2MTD_RETRY_DELAY_MS	2000
 #define BLOCK2MTD_NAME_LEN	32
 
@@ -283,7 +289,7 @@ static struct file __ref *mdtblock_early_get_bdev(const char *devname,
 static int block2mtd_retry_fn(void *data);
 
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
-		int timeout, bool retry)
+		int timeout, bool retry, bool async)
 {
 	const blk_mode_t mode = BLK_OPEN_READ | BLK_OPEN_WRITE;
 	struct file *bdev_file;
@@ -319,7 +325,8 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		}
 	}
 
-	if (IS_ERR(bdev_file) && !retry && system_state < SYSTEM_RUNNING) {
+	if (IS_ERR(bdev_file) && !retry && !async &&
+	    system_state < SYSTEM_RUNNING) {
 		/*
 		 * Boot path: the early lookup loop only sleeps (msleep x
 		 * timeout) while waiting for the backing device, and every
@@ -331,8 +338,8 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		goto err_free_block2mtd;
 	}
 	if (IS_ERR(bdev_file))
-		bdev_file = mdtblock_early_get_bdev(devname, mode, timeout,
-						      dev);
+		bdev_file = mdtblock_early_get_bdev(devname, mode,
+						      async ? 0 : timeout, dev);
 	if (IS_ERR(bdev_file)) {
 		pr_err("error: cannot open device %s\n", devname);
 		goto err_free_block2mtd;
@@ -395,7 +402,7 @@ err_free_block2mtd:
 	 * Only the first probe can schedule the late retry: the thread runs
 	 * once and owns the remembered device name afterwards.
 	 */
-	if (block2mtd_first_init && block2mtd_device_name && !retry) {
+	if (block2mtd_first_init && block2mtd_device_name && !retry && !async) {
 		block2mtd_first_init = false;
 		block2mtd_last_init = kzalloc(sizeof(*block2mtd_last_init),
 					      GFP_KERNEL);
@@ -428,6 +435,13 @@ static void block2mtd_free_retry_state(void)
 	block2mtd_device_name = NULL;
 }
 
+/*
+ * rodin 6.18（2026-11-03，block2mtd 异步重试）：async 线程不再以
+ * retry=true 调用 add_device（那会落进 recovery 的 2s×timeout 同步段，
+ * 失败后再进 early 的 1s×timeout 空转，单轮白等 ~15s）；这里传
+ * (retry=false, async=true) 只做单发尝试，节拍与预算由本循环负责。
+ * recovery boot 的同步等待（setup 路径 retry=true）原样保留。
+ */
 static int block2mtd_retry_fn(void *data)
 {
 	struct block2mtd_init_info *info = block2mtd_last_init;
@@ -435,7 +449,7 @@ static int block2mtd_retry_fn(void *data)
 
 	while (info && retry_count > 0) {
 		if (add_device(info->devname, info->erase_size, info->timeout,
-			       true)) {
+			       false, true)) {
 			pr_info("block2mtd: retry succeeded for %s\n",
 				info->devname);
 			break;
@@ -578,7 +592,7 @@ static int block2mtd_setup2(const char *val)
 		return 0;
 	}
 
-	add_device(name, erase_size, timeout, label == 1);
+	add_device(name, erase_size, timeout, label == 1, false);
 	return 0;
 }
 
