@@ -1408,8 +1408,10 @@ int __must_check try_grab_folio(struct folio *folio, int refs,
  * mm/huge_memory.c
  */
 
-/* THP sysfs write-lock, set by thp_anon=/thp_shmem= boot params (mm/huge_memory.c) */
-extern bool thp_sysfs_locked;
+/* THP sysfs write-lock, set by thp_anon=/thp_shmem= boot params (mm/huge_memory.c);
+ * defeats runtime per-size policy rewrites from the vendor framework. */
+bool thp_policy_locked(void);
+void thp_policy_lock(void);
 void touch_pud(struct vm_area_struct *vma, unsigned long addr,
 	       pud_t *pud, bool write);
 void touch_pmd(struct vm_area_struct *vma, unsigned long addr,

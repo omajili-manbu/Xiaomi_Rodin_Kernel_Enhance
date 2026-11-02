@@ -90,7 +90,24 @@ static bool anon_orders_configured __initdata;
  * to the per-size enabled nodes are then accepted but ignored, so that the
  * boot-time policy cannot be flipped back from userspace.
  */
-bool thp_sysfs_locked;
+/*
+ * The lock exists to defeat runtime policy rewrites by the vendor framework:
+ * HyperOS cloud control (MthpControlPolicy) writes the per-size anon enabled
+ * nodes behind the userspace back, silently undoing the boot-time thp_anon=
+ * policy. Deliberately no cmdline escape hatch: nothing rebalances this knob
+ * at runtime, and keeping it shut is the whole point.
+ */
+static bool thp_sysfs_locked;
+
+bool thp_policy_locked(void)
+{
+	return thp_sysfs_locked;
+}
+
+void thp_policy_lock(void)
+{
+	thp_sysfs_locked = true;
+}
 
 static inline bool file_thp_enabled(struct vm_area_struct *vma)
 {
@@ -333,7 +350,7 @@ static ssize_t enabled_store(struct kobject *kobj,
 {
 	ssize_t ret = count;
 
-	if (thp_sysfs_locked) {
+	if (thp_policy_locked()) {
 		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
 		return count;
 	}
@@ -417,7 +434,7 @@ static ssize_t defrag_store(struct kobject *kobj,
 			    struct kobj_attribute *attr,
 			    const char *buf, size_t count)
 {
-	if (thp_sysfs_locked) {
+	if (thp_policy_locked()) {
 		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
 		return count;
 	}
@@ -463,7 +480,7 @@ static ssize_t use_zero_page_show(struct kobject *kobj,
 static ssize_t use_zero_page_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	if (thp_sysfs_locked) {
+	if (thp_policy_locked()) {
 		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
 		return count;
 	}
@@ -491,13 +508,14 @@ static ssize_t split_underused_thp_store(struct kobject *kobj,
 			     struct kobj_attribute *attr,
 			     const char *buf, size_t count)
 {
-	int err = kstrtobool(buf, &split_underused_thp);
+	int err;
 
-	if (thp_sysfs_locked) {
+	if (thp_policy_locked()) {
 		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
 		return count;
 	}
 
+	err = kstrtobool(buf, &split_underused_thp);
 	if (err < 0)
 		return err;
 
@@ -557,7 +575,7 @@ static ssize_t anon_enabled_store(struct kobject *kobj,
 	 * Boot params (thp_anon=/thp_shmem=) define the final policy: pretend
 	 * to accept writes so userspace does not error out, but change nothing.
 	 */
-	if (thp_sysfs_locked) {
+	if (thp_policy_locked()) {
 		pr_info_ratelimited("THP sysfs policy locked by boot param, ignoring write\n");
 		return count;
 	}
