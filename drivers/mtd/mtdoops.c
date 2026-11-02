@@ -15,6 +15,7 @@
 #include <linux/console.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -121,6 +122,9 @@ static struct mtdoops_context {
 
 	int mtd_index;
 	struct work_struct work_erase;
+	struct work_struct reboot_work;
+	struct completion reboot_done;
+	enum mtd_dump_reason reboot_reason;
 	struct mtd_info *mtd;
 	int oops_pages;
 	int nextpage;
@@ -640,15 +644,44 @@ static void mtdoops_kmsg_dump(struct kmsg_dumper *dumper,
 	mtdoops_do_dump(cxt, reason);
 }
 
+/*
+ * rodin 6.18（2026-11-03，mtdoops 关机写）：reboot notifier 里
+ * 同步读 pmsg 环 + 写 MTD 会把 SYS_RESTART/POWER_OFF 关机路径拉长到秒级。
+ * 整段 flush 交给 system_wq，notifier 只做 ≤2s 的有界等待：正常情况写完后
+ * 立即放行，超时则 pr_warn 后继续关机（不无限等待）。panic/oops 路径仍由
+ * mtdoops_kmsg_dump() 同步落盘（mtd_panic_write），语义不变。
+ */
+#define MTDOOPS_REBOOT_FLUSH_TIMEOUT_MS	2000
+
+static void mtdoops_reboot_workfn(struct work_struct *work)
+{
+	struct mtdoops_context *cxt =
+			container_of(work, struct mtdoops_context, reboot_work);
+
+	mtdoops_do_dump(cxt, cxt->reboot_reason);
+	complete(&cxt->reboot_done);
+}
+
 static int mtdoops_reboot_nb_handle(struct notifier_block *this,
 				    unsigned long event, void *ptr)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
+	enum mtd_dump_reason reason;
 
 	if (event == SYS_RESTART)
-		mtdoops_do_dump(cxt, MTD_DUMP_RESTART);
+		reason = MTD_DUMP_RESTART;
 	else if (event == SYS_POWER_OFF)
-		mtdoops_do_dump(cxt, MTD_DUMP_POWEROFF);
+		reason = MTD_DUMP_POWEROFF;
+	else
+		return NOTIFY_OK;
+
+	cxt->reboot_reason = reason;
+	reinit_completion(&cxt->reboot_done);
+	schedule_work(&cxt->reboot_work);
+	if (!wait_for_completion_timeout(&cxt->reboot_done,
+			msecs_to_jiffies(MTDOOPS_REBOOT_FLUSH_TIMEOUT_MS)))
+		pr_warn("mtdoops: reboot flush timed out after %d ms, continuing\n",
+			MTDOOPS_REBOOT_FLUSH_TIMEOUT_MS);
 
 	return NOTIFY_OK;
 }
@@ -722,6 +755,7 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		pr_warn("could not unregister kmsg_dumper\n");
 
 	unregister_reboot_notifier(&cxt->reboot_nb);
+	cancel_work_sync(&cxt->reboot_work);
 
 	cxt->mtd = NULL;
 	flush_work(&cxt->work_erase);
@@ -841,6 +875,8 @@ static int __init mtdoops_init(void)
 	cxt->oops_buf_busy = 0;
 
 	INIT_WORK(&cxt->work_erase, mtdoops_workfunc_erase);
+	INIT_WORK(&cxt->reboot_work, mtdoops_reboot_workfn);
+	init_completion(&cxt->reboot_done);
 
 	platform_driver_register(&mtdoops_pmsg_driver);
 	register_mtd_user(&mtdoops_notifier);
@@ -851,6 +887,7 @@ static void __exit mtdoops_exit(void)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
+	cancel_work_sync(&cxt->reboot_work);
 	unregister_mtd_user(&mtdoops_notifier);
 	platform_driver_unregister(&mtdoops_pmsg_driver);
 	kvfree(cxt->oops_buf);
