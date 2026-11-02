@@ -1015,6 +1015,22 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "mi_schedule", .seq = 1258 },
 	{ .name = "xr_qi", .seq = 1259 },
 	{ .name = "perf_actuator", .seq = 1260 },
+	/* ---- rodin: millet 全家 + migt =y（2026-11-02 五笔批）vseq 补账
+	 *（2026-11-03）。6.6 stock 为 vendor_dlkm 后装 .ko，原厂实测装载序
+	 *（6.6 真机 dmesg）：millet-core 4.2616 < binder_gki 4.2628 <
+	 * millet-binder 4.2641 < millet_hs 4.2652 < millet_pkg 4.2667 <
+	 * millet-sig 4.2679 < oem_cgroup 4.2687 < migt 4.3029；组内零交叉
+	 * 依赖，按原厂序续编。metis 行（1257）暂不激活：rvh 槽位超员拍板
+	 * 前，激活即把 select_task_rq_fair/can_migrate 槽位输家从 mtk EAS
+	 * 移位到 metis game 桥。 */
+	{ .name = "millet_core", .seq = 1261 },
+	{ .name = "binder_gki", .seq = 1262 },
+	{ .name = "millet_binder", .seq = 1263 },
+	{ .name = "millet_hs", .seq = 1264 },
+	{ .name = "millet_pkg", .seq = 1265 },
+	{ .name = "millet_sig", .seq = 1266 },
+	{ .name = "millet_oem_cgroup", .seq = 1267 },
+	{ .name = "migt", .seq = 1268 },
 };
 
 const unsigned int __vseq_mod_order_nr =
