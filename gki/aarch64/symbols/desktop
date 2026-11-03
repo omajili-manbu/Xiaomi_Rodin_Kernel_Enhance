@@ -344,6 +344,8 @@
   dev_pm_domain_attach_by_id
   dev_pm_domain_attach_by_name
   dev_pm_domain_detach
+  dev_pm_genpd_add_notifier
+  dev_pm_genpd_remove_notifier
   dev_pm_opp_adjust_voltage
   dev_pm_opp_clear_config
   dev_pm_opp_find_freq_ceil
@@ -1001,6 +1003,7 @@
   nvmem_device_read
   nvmem_register
   nvmem_unregister
+  object_is_on_stack
   of_address_to_resource
   of_alias_get_id
   of_clk_add_hw_provider
