@@ -393,7 +393,3 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/focaltech_rodin/
 # 1256 复刻 stock 4.33s 装载相位（普通 initcall 会在 0.4s 提前抓内存）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mempool/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/migt/
-# rodin 6.18（2026-11-03）：唤醒 IRQ 中止挂起冷却闸（kprobe
-# pm_system_irq_wakeup -> wakeup source gate_ms），截断 wlan 断言
-# 风暴未平息即快重试的循环（源头 C 节拍病）。
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/rodin_suspend_gate/
