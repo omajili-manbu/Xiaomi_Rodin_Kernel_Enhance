@@ -42,6 +42,8 @@ kernelsu-objs += extension/version_spoof.o
 kernelsu-objs += runtime/boot_event.o
 kernelsu-objs += runtime/ksud_integration.o
 
+kernelsu-objs += infra/btf_parser.o
+kernelsu-objs += selinux/inode.o
 kernelsu-objs += selinux/selinux.o
 kernelsu-objs += selinux/rules.o
 kernelsu-objs += selinux/sepolicy.o
@@ -136,29 +138,29 @@ REPO_BRANCH := main
 VERSION_BASE    := 40000
 VERSION_OFFSET  := 2815
 
-# Vendored as an in-tree copy of SukiSU-Ultra v4.3.0 @ e67b14e6 (release tag v4.3.0, count 3915).
+# Vendored as an in-tree copy of SukiSU-Ultra v4.3.0-r1 @ 0a4c3132 (release tag v4.3.0-r1, rev-list count 3955; asset-name value 41140).
 # count = rev-list count of the release tag; the manager asset name carries the
-# formula value VERSION_BASE + count - VERSION_OFFSET (= 41100 for v4.3.0),
-# never the bare count - pair against the formula, not this line.
+# formula value VERSION_BASE + count - VERSION_OFFSET (= 41140),
+# never the bare count - pair against the formula, not the count line.
 # Do NOT restore the $(shell git/curl) probes below: this directory
 # lives inside the kernel git repository, so they would report the
 # kernel tree's sha/count and hit the network on every build.
-# e67b14e6
+# 0a4c3132
 GIT_BIN  := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git
 CURL_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin curl
 
 KSU_SRC := $(if $(filter $(srctree),$(src)),$(src),$(srctree)/$(src))
 KSU_SRC := $(if $(wildcard $(KSU_SRC)/../.git),$(KSU_SRC),$(MDIR))
 
-git_short_sha    = e67b14e6
+git_short_sha    = 0a4c3132
 git_branch       = main
-git_commit_count = 3915
+git_commit_count = 3955
 git_latest_tag   = $(shell cd $(KSU_SRC) && $(GIT_BIN) describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
 
 # vendored in-tree: no shallow fetch, no git query, no network query
 
 GITHUB_API_BASE  := https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)
-KSU_GITHUB_VER   := 4.3.0
+KSU_GITHUB_VER   := 4.3.0-r1
 GITHUB_COMMITS   :=
 LOCAL_COUNT     := $(if $(GITHUB_COMMITS),$(GITHUB_COMMITS),$(git_commit_count))
 KSU_VERSION     := $(if $(LOCAL_COUNT),$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) - $(VERSION_OFFSET)),$(VERSION_BASE))
