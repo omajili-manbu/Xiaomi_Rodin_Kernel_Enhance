@@ -136,12 +136,12 @@ jobs:
           [ "$EXTRA" = "0" ] || { echo '::error::landed tree has unexpected extra files:'; cat /tmp/mirror.diff; exit 1; }
           grep -q '^> \.sukisu_tag$' /tmp/mirror.diff || { echo '::error::anchor file missing after landing'; exit 1; }
           # 2) 钉版门：字面量必须等于本次解析值
-          grep -qx "git_short_sha    = $SHA8"     drivers/kernelsu/Kbuild
-          grep -qx "git_commit_count = $COUNT"    drivers/kernelsu/Kbuild
-          grep -qx "KSU_GITHUB_VER   := ${TAG#v}" drivers/kernelsu/Kbuild
-          # 3) 架构门：完整 hook 架构与入口在 Kbuild
-          grep -q 'kernelsu-objs := core/init.o'  drivers/kernelsu/Kbuild
-          grep -q 'hook/syscall_hook.o'           drivers/kernelsu/Kbuild
+          grep -qx "git_short_sha    = $SHA8"     drivers/kernelsu/Kbuild || { echo "::error::pin gate: git_short_sha literal != $SHA8"; exit 1; }
+          grep -qx "git_commit_count = $COUNT"    drivers/kernelsu/Kbuild || { echo "::error::pin gate: git_commit_count literal != $COUNT"; exit 1; }
+          grep -qx "KSU_GITHUB_VER   := ${TAG#v}" drivers/kernelsu/Kbuild || { echo "::error::pin gate: KSU_GITHUB_VER literal != ${TAG#v}"; exit 1; }
+          # 3) 架构门：完整 hook 架构与入口在 Kbuild（上游 v4.3.0 起 hook 按 arch 分层）
+          grep -q 'kernelsu-objs := core/init.o'  drivers/kernelsu/Kbuild || { echo '::error::arch gate: core/init.o entry missing'; exit 1; }
+          grep -q 'hook/arm64/syscall_hook.o'     drivers/kernelsu/Kbuild || { echo '::error::arch gate: hook/arm64/syscall_hook.o missing'; exit 1; }
           # 4) uapi 门：解引用后的实体头必须被 git 跟踪（防 .gitignore 吞文件）
           git add -A drivers/kernelsu
           UAPI_N=$(git ls-files drivers/kernelsu/include/uapi | wc -l)
