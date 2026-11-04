@@ -3,7 +3,7 @@ name: release-kernel
 # 手动触发：取最近一次成功的 build-kernel 构建产物，发布 release（默认 prerelease）。
 # build-kernel 双目标化后（618/66 同名工作流、同 head_branch），按 kernel_target
 # 输入甄别目标 run（依 job 步骤名，无标记的历史 run 视为 66）；显式 run_id 时不甄别。
-# 正文格式对齐 v1.3（内核版本 / 构建时间 / 构建工具链 / 下载说明 / 变更）：
+# 正文格式对齐 v1.3.2（### 常规内核 / ### 无 root 内核 信息块 + 下载说明 / 管理器 / 变更）：
 #   - 内核版本 / 构建时间 / 构建工具链 从 AK3 包内 Image 的 Linux banner 中提取，
 #     提取失败时回退到 artifact 名 / 构建记录时间
 #   - 每种内核各自的版本 / 构建时间 / 构建工具链；下载说明按实际收集到的资产生成：
@@ -339,6 +339,7 @@ jobs:
           IN_TAG: ${{ inputs.tag }}
           IN_TITLE: ${{ inputs.title }}
           IN_PRERELEASE: ${{ inputs.prerelease }}
+          IN_TARGET: ${{ inputs.kernel_target }}
         run: |
           set -euo pipefail
           if [ -n "${PAT}" ]; then
@@ -365,16 +366,21 @@ jobs:
           done < <(find "$RUNNER_TEMP/dl/mgr" "$RUNNER_TEMP/dl/spoof" -type f -name '*.apk' 2>/dev/null | sort)
           ls -la out
 
-          # 说明模板按实际收集到的资产生成：两种内核各一条 + 实际附带的管理器
+          # 说明模板对齐 v1.3.2 形态：常规内核 / 无 root 内核两组 ### 信息块各三行
+          # （内核版本 / 构建时间 / 构建工具链）；下载说明与管理器段按实际收集到的
+          # 资产生成；带 root 条目的 SUSFS 描述按 kernel_target 区分（618 树未带
+          # SUSFS；显式 run_id 时不甄别，以输入为准）
           NOTES="$RUNNER_TEMP/notes.md"
           {
-            printf '内核版本（带 root）：%s\n' "$KREL"
-            printf '构建时间（带 root）：%s\n' "$BLDTIME"
-            printf '构建工具链（带 root）：%s\n' "$TOOLCHAIN"
+            printf '### 常规内核\n'
+            printf '内核版本：%s\n' "$KREL"
+            printf '构建时间：%s\n' "$BLDTIME"
+            printf '构建工具链：%s\n' "$TOOLCHAIN"
             if [ -n "${NSHORT:-}" ]; then
-              printf '\n内核版本（无 root）：%s\n' "$NKREL"
-              printf '构建时间（无 root）：%s\n' "${NBLDTIME:-}"
-              printf '构建工具链（无 root）：%s\n' "${NTOOLCHAIN:-}"
+              printf '\n### 无 root 内核\n'
+              printf '内核版本：%s\n' "$NKREL"
+              printf '构建时间：%s\n' "${NBLDTIME:-}"
+              printf '构建工具链：%s\n' "${NTOOLCHAIN:-}"
               if [ "$NSHORT" != "$SHORT" ]; then
                 printf '⚠ 无 root 内核与带 root 内核版本不一致，刷入前请确认。\n'
               fi
@@ -385,15 +391,19 @@ jobs:
             else
               printf '## 下载说明\n\n'
             fi
-            printf -- '- `AnyKernel3_%s.zip`：带 root 内核（内置 SukiSU-Ultra，配合管理器获取 root）\n' "$SHORT"
+            if [ "${IN_TARGET:-66}" = "66" ]; then
+              printf -- '- `AnyKernel3_%s.zip`：内置 SukiSU-Ultra 和 SUSFS，配合管理器使用\n' "$SHORT"
+            else
+              printf -- '- `AnyKernel3_%s.zip`：内置 SukiSU-Ultra，配合管理器使用\n' "$SHORT"
+            fi
             if [ -n "${NSHORT:-}" ]; then
               if [ "$NSHORT" != "$SHORT" ]; then
                 printf -- '- `AnyKernel3_%s_noroot.zip`：无 root 纯净内核（不含 KernelSU；注意其内核版本为 %s，与带 root 版 %s 不一致）\n' "$NSHORT" "$NKREL" "$KREL"
               else
-                printf -- '- `AnyKernel3_%s_noroot.zip`：无 root 纯净内核（不含 KernelSU，不需要 root 的场景使用）\n' "$NSHORT"
+                printf -- '- `AnyKernel3_%s_noroot.zip`：不含 KSU，适用于不需要内置 root 的场景\n' "$NSHORT"
               fi
             fi
-            printf '\n管理器 apk 与带 root 内核配套（刷无 root 内核不需要管理器）：\n\n'
+            printf '\n管理器 apk 与带 root 内核配套：\n\n'
             N_APK=0
             for apk in out/*.apk; do
               [ -e "$apk" ] || continue
