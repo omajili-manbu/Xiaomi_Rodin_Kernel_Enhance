@@ -36,8 +36,8 @@
 
 ## 自动化
 
-- 每日自动合并 AOSP `android15-6.6-lts` 上游到被跟踪的 BSP 分支（矩阵覆盖 `bsp-rodin-v-upstream` 与 `bsp-rodin-v-upstream-noroot`），出现冲突时自动开 issue
-- 每日追踪 [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) 的 stable release tag 并自动合并进 `drivers/kernelsu`，无法干净合并时中止推送并开 issue
+- 每日自动合并 AOSP `android15-6.6-lts` 上游到被跟踪的 BSP 分支（矩阵覆盖 `bsp-rodin-v-upstream` 与 `bsp-rodin-v-upstream-noroot`）
+- 每日追踪 [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) 的 stable release tag 并自动合并
 
 ## 支持设备
 
@@ -50,8 +50,8 @@
 
 ## 分支
 
-- [`bsp-rodin-v-upstream`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-upstream) — 本分支，主构建分支：在小米官方 rodin 源码基础上叠加反向移植与增强（内置 SukiSU-Ultra 与 SuSFS），Releases 由此构建
-- [`bsp-rodin-v-upstream-noroot`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-upstream-noroot) — 本分支的无 Root 变体：移除 SukiSU-Ultra 与 SuSFS，恢复上游语义，构建产物仅提供 AnyKernel3 可刷包
+- [`bsp-rodin-v-upstream`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-upstream) — 本分支，主构建分支（内置 SukiSU-Ultra 与 SuSFS），Releases 由此创建
+- [`bsp-rodin-v-upstream-noroot`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-v-upstream-noroot) — 本分支的无 Root 变体，构建产物仅提供 AnyKernel3 可刷包
 - [`bsp-rodin-c-rebase`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-c-rebase) — 6.18 内核基线重建（进行中，详见该分支 README）
 - [`bsp-rodin-c-port`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/bsp-rodin-c-port) — 在 6.18 内核上兼容 6.6 vendor 模块的实验分支（已冻结）
 - [`c-rebase-16k`](https://github.com/omajili-manbu/Xiaomi_Rodin_Kernel_Enhance/tree/c-rebase-16k) — 6.18 树的 16K 页尺寸实验分支（已冻结）
