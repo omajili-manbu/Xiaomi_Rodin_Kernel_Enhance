@@ -804,9 +804,12 @@ CONFIG_KUNIT_EXAMPLE_TEST=m
 CONFIG_RUST_INLINE_HELPERS=y
 CONFIG_RODIN_BLOB_DROP=y
 # rodin 丢载名单本体：仅未内建件（内建面由 .modinfo 名册自动覆盖）；改名单只动这一行
-CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule miicmpfilter minet miwill miwill_mode_redudancy sla mi_mem_epoll perf_helper lb mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em mkp"
+CONFIG_RODIN_BLOB_DROP_LIST="metis mi_schedule miicmpfilter miwill miwill_mode_redudancy sla mi_mem_epoll perf_helper mpbe crash_module debug_ext hardwareinfo xiaomi_wifi_gpio migt scheduler_ext task_turbo_v fpsgo game eas_ext cpuqos_ext mtk_em mkp"
 # rodin 内建跳过：装载名命中镜像自带 .modinfo 名册即答成功（无手抄名单；残差 7 条见 main.c）
 CONFIG_RODIN_BUILTIN_SKIP=y
+# rodin 2026-11-06：minet/lb 内建（iorapd/minetd 5 秒崩循环修复，丢载名单同步摘名）
+CONFIG_MINET=y
+CONFIG_XIAOMI_LB=y
 CONFIG_ARM64_BTI_KERNEL=y
 # rodin 2026-10-31: CFI permissive（外部模块加载兼容：CFI 失败打警告放行，不 die；外部预编件与内核异链时的兼容姿态）
 CONFIG_CFI_PERMISSIVE=y

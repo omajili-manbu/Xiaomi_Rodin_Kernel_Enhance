@@ -712,3 +712,14 @@ source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/focaltech_rodin/Kconfig"
 # 骨架 = sm8550 树 drivers/staging/mi-perf/mi_mempool（blob 自记构建路径同款），
 # 全函数按 rodin blob（6.6.77 vendor_dlkm，depends= 空）机器码/.data/.rodata 对齐重建。
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mempool/Kconfig"
+
+# ---- rodin 2026-11-06: minet/lb =y 内建（iorapd/minetd 5 秒崩循环修复；丢载名单同步摘除）----
+# 源码底子 = dash-w-oss 重建树 drivers/misc/xiaomi/{minet,lb}，genl/参数/nf/chrdev 面
+# 与 rodin blob（6.6.77 vendor_dlkm）逐项对账；机器码定谳：lb blob = 纯冷面
+# （.text 0x2d94 无 PTE 热引擎、全 .ko 零 mmput hook 引用、__param 0xf0/40 = 6 参）。
+# hook 缺口零内核改动收口：filemap map_pages_range 由 6.18 android_vh_filemap_map_pages
+# 承接（handler 以 orig_start_pgoff 为基，与 blob collect(file,x2,x3-x2) 逐位对齐）；
+# minet 的 ct uid 槽 = nf_conn android_oem_data1，6.18 nf_conntrack.h ANDROID_OEM_DATA(1)
+# 已在场（6.6 基线偏移 0x108 与 blob 读取位吻合）。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/minet/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/lb/Kconfig"

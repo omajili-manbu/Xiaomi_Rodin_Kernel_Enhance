@@ -393,3 +393,10 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/touchscreen/focaltech_rodin/
 # 1256 复刻 stock 4.33s 装载相位（普通 initcall 会在 0.4s 提前抓内存）。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/mi_mempool/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/migt/
+
+# ---- rodin 2026-11-06: minet/lb =y 内建（iorapd/minetd 5 秒崩循环修复）----
+# 6.6 装载位 = vendor_dlkm modules.load 行 242（minet）/ 254（lb）；depends= 空。
+# lb 只带 filemap_read/filemap_map_pages 两个 hook（blob 注册面同款）；
+# vseq 段尾续编 1269/1270 复刻 stock 242<254 装载相对序。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/minet/
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/lb/
