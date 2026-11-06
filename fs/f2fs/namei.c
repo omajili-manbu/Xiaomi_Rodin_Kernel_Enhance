@@ -587,6 +587,25 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	f2fs_delete_entry(de, page, dir, inode);
 	f2fs_unlock_op(sbi, &lc);
 
+#ifdef CONFIG_F2FS_VIP_FILE
+	/* drop the unlinked file from the VIP file table */
+	if (is_inode_flag_set(inode, FI_VIP_FILE)) {
+		struct f2fs_nm_info *nm_i = NM_I(sbi);
+		int ret;
+
+		spin_lock(&nm_i->vip_lock);
+		ret = f2fs_vip_remove(sbi, (u32)inode->i_ino);
+		spin_unlock(&nm_i->vip_lock);
+		if (ret == -ENOENT)
+			f2fs_warn(sbi, "VIP: ino=%lu flag set but not in array",
+					inode->i_ino);
+		else if (ret < 0)
+			f2fs_warn(sbi, "VIP: failed to remove ino=%lu: %d",
+					inode->i_ino, ret);
+		clear_inode_flag(inode, FI_VIP_FILE);
+	}
+#endif
+
 #if IS_ENABLED(CONFIG_UNICODE)
 	/* VFS negative dentries are incompatible with Encoding and
 	 * Case-insensitiveness. Eventually we'll want avoid
