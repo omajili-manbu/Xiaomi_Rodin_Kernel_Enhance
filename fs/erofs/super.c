@@ -683,6 +683,10 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
+	err = erofs_init_iostat(sbi);
+	if (err)
+		return err;
+
 	erofs_info(sb, "mounted with root inode @ nid %llu.", ROOT_NID(sbi));
 	return 0;
 }
@@ -809,6 +813,7 @@ static void erofs_put_super(struct super_block *sb)
 	DBG_BUGON(!sbi);
 
 	erofs_unregister_sysfs(sb);
+	erofs_destroy_iostat(sbi);
 	erofs_shrinker_unregister(sb);
 	erofs_xattr_prefixes_cleanup(sb);
 #ifdef CONFIG_EROFS_FS_ZIP
