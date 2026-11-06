@@ -174,8 +174,8 @@ REPO_BRANCH := main
 VERSION_BASE    := 40000
 VERSION_OFFSET  := 2815
 
-# Vendored as an in-tree copy of SukiSU-Ultra v4.3.0-r1 @ 0a4c3132
-# (release tag v4.3.0-r1, bare rev-list count 3955, formula value 41140).
+# Vendored as an in-tree copy of SukiSU-Ultra v4.3.0-r2 @ 645ef986
+# (release tag v4.3.0-r2, bare rev-list count 3965, formula value 41150).
 # The manager asset name carries the formula value
 # VERSION_BASE + count - VERSION_OFFSET; pair against the formula, not the count.
 # Do NOT restore the $(shell git/curl) probes below: inside the kernel git
@@ -187,15 +187,15 @@ CURL_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin curl
 KSU_SRC := $(if $(filter $(srctree),$(src)),$(src),$(srctree)/$(src))
 KSU_SRC := $(if $(wildcard $(KSU_SRC)/../.git),$(KSU_SRC),$(MDIR))
 
-git_short_sha    = 0a4c3132
+git_short_sha    = 645ef986
 git_branch       = main
-git_commit_count = 3955
-git_latest_tag   = 4.3.0-r1
+git_commit_count = 3965
+git_latest_tag   = 4.3.0-r2
 
 # vendored in-tree: no git query, no network query at build time
 
 GITHUB_API_BASE  := https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)
-KSU_GITHUB_VER   := 4.3.0-r1
+KSU_GITHUB_VER   := 4.3.0-r2
 GITHUB_COMMITS   :=
 LOCAL_COUNT     := $(if $(GITHUB_COMMITS),$(GITHUB_COMMITS),$(git_commit_count))
 KSU_VERSION     := $(if $(LOCAL_COUNT),$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) - $(VERSION_OFFSET)),$(VERSION_BASE))
