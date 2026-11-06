@@ -176,6 +176,9 @@ struct erofs_sb_info {
 	struct erofs_domain *domain;
 	char *fsid;
 	char *domain_id;
+
+	/* read-path IO latency statistics, struct erofs_iostat_obj */
+	void *iostat;
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
@@ -527,6 +530,39 @@ static inline void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache
 {
 }
 #endif
+
+#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
+/* one aggregated {sum, peak, count} cell of a size/latency bucket */
+struct erofs_iostat_entry {
+	u64 sum;
+	u64 peak;
+	u32 cnt;
+};
+
+struct erofs_iostat_obj {
+	unsigned char enable;		/* statistics gate */
+	u64 period_ns;			/* window rotation period */
+	u64 thresholds_ns[5];		/* per-size over-threshold limit */
+	void __percpu *percpu;		/* struct erofs_iostat_cpu */
+};
+
+int erofs_init_iostat(struct erofs_sb_info *sbi);
+void erofs_destroy_iostat(struct erofs_sb_info *sbi);
+void erofs_iostat_record_start(struct erofs_sb_info *sbi, struct bio *bio);
+void erofs_iostat_update(struct erofs_sb_info *sbi, struct bio *bio);
+int erofs_iostat_config_parse(struct erofs_sb_info *sbi, const char *buf);
+int erofs_iostat_daily_stats_reset(struct erofs_sb_info *sbi, const char *buf);
+void erofs_iostat_latency_stats_reset(struct erofs_sb_info *sbi);
+int erofs_iostat_daily_latency_show(struct erofs_sb_info *sbi, char *buf);
+int erofs_iostat_window_latency_show(struct erofs_sb_info *sbi, char *buf);
+#else
+static inline int erofs_init_iostat(struct erofs_sb_info *sbi) { return 0; }
+static inline void erofs_destroy_iostat(struct erofs_sb_info *sbi) {}
+static inline void erofs_iostat_record_start(struct erofs_sb_info *sbi,
+					     struct bio *bio) {}
+static inline void erofs_iostat_update(struct erofs_sb_info *sbi,
+				       struct bio *bio) {}
+#endif	/* !CONFIG_XIAOMI_EROFS_IOSTAT */
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */
 
