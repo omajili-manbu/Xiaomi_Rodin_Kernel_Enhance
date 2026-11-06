@@ -21,6 +21,9 @@
 #include <linux/sched/signal.h>
 #include <linux/fiemap.h>
 #include <linux/iomap.h>
+#ifdef CONFIG_F2FS_VIP_FILE
+#include <linux/ioprio.h>
+#endif
 
 #include "f2fs.h"
 #include "node.h"
@@ -1128,6 +1131,12 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	bio->bi_iter.bi_sector = sector;
 	f2fs_set_bio_crypt_ctx(bio, inode, first_idx, NULL, GFP_NOFS);
 	bio->bi_end_io = f2fs_read_end_io;
+#ifdef CONFIG_F2FS_VIP_FILE
+	/* VIP file read IO goes out with RT priority (118 hardcodes 0x2000) */
+	if (NM_I(sbi)->vip_enabled && NM_I(sbi)->vip_arr &&
+	    NM_I(sbi)->vip_map && is_inode_flag_set(inode, FI_VIP_FILE))
+		bio->bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, 0);
+#endif
 
 	if (fscrypt_inode_uses_fs_layer_crypto(inode))
 		post_read_steps |= STEP_DECRYPT;
