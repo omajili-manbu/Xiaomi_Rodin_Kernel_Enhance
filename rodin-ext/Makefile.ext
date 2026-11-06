@@ -397,6 +397,12 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/migt/
 # ---- rodin 2026-11-06: minet/lb =y 内建（iorapd/minetd 5 秒崩循环修复）----
 # 6.6 装载位 = vendor_dlkm modules.load 行 242（minet）/ 254（lb）；depends= 空。
 # lb 只带 filemap_read/filemap_map_pages 两个 hook（blob 注册面同款）；
-# vseq 段尾续编 1269/1270 复刻 stock 242<254 装载相对序。
+# vseq 序随 miwill 批次（2026-11-06）重排：minet=1271、lb=1272，# 复刻 stock 240<241<242<254 装载相对序。
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/minet/
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/lb/
+
+# ---- rodin 2026-11-06: miwill/miwill_mode_redudancy =y 内建（minetd 崩循环收口）----
+# 6.6 装载位 = vendor_dlkm modules.load 行 240（miwill）< 241（miwill_mode_redudancy）；
+# redudancy depends=miwill（blob modules.dep 同款）。vseq 序随之重排：
+# miwill=1269、redudancy=1270，minet/lb 顺移 1271/1272，复刻 stock 240<241<242<254。
+obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/misc/xiaomi/miwill/
