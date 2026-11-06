@@ -232,6 +232,31 @@ config SCSI_SCAN_ASYNC
 	  Note that this setting also affects whether resuming from
 	  system suspend will be performed asynchronously.
 
+config SCSI_DISCARD
+	bool "SCSI discard (UNMAP) support"
+	depends on SCSI
+	help
+	  Base switch for SCSI discard support on sd devices.  The standard
+	  single-descriptor UNMAP path of the sd driver is always built; this
+	  option only acts as the gate for SCSI_FASTDISCARD below so that the
+	  feature pair can be selected as a whole.
+
+config SCSI_FASTDISCARD
+	bool "SCSI fast discard (multi-segment UNMAP) support"
+	depends on SCSI_DISCARD
+	help
+	  Enables the sd driver fastdiscard (fastunmap) extension for UFS
+	  devices: discards merged by the block layer are issued as one UNMAP
+	  command carrying a block descriptor per request bio instead of one
+	  UNMAP per bio, which cuts command overhead on background trimming.
+	  UFS only; other hosts keep the plain single-descriptor UNMAP.
+	  /sys/class/scsi_disk/*/fastunmap_cmd_count arms the feature and
+	  caps the number of descriptors per command (default off, 0 disarms
+	  again); it takes effect after the next discard reconfiguration
+	  (e.g. re-writing provisioning_mode).
+	  /sys/class/scsi_disk/*/multi_unmap_len_max reports the largest
+	  per-command unmap length seen so far.
+
 menu "SCSI Transports"
 	depends on SCSI
 
