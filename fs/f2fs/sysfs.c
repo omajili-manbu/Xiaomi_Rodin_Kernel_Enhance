@@ -20,6 +20,23 @@
 #include "iostat.h"
 #include <trace/events/f2fs.h>
 
+#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
+/* Enhanced IO latency statistics, implemented in fs/f2fs/iostat.c. */
+void *f2fs_get_iostat(struct f2fs_sb_info *sbi);
+bool mi_iostat_get_enable(void *iostat);
+void mi_iostat_set_enable(void *iostat, bool on);
+u64 mi_iostat_get_period_ns(void *iostat);
+void mi_iostat_set_period_ns(void *iostat, u64 ns);
+void mi_iostat_get_thresholds_ns(void *iostat, u64 ns[5]);
+void mi_iostat_set_thresholds_ns(void *iostat, const u64 ns[5]);
+ssize_t iostat_daily_latency_show(struct f2fs_sb_info *sbi, char *buf);
+ssize_t iostat_window_latency_show(struct f2fs_sb_info *sbi, char *buf);
+ssize_t iostat_daily_stats_reset(struct f2fs_sb_info *sbi, const char *buf,
+		size_t len);
+void iostat_latency_stats_reset(struct f2fs_sb_info *sbi);
+#endif
+
+
 static struct proc_dir_entry *f2fs_proc_root;
 
 /* Sysfs support for f2fs */
@@ -1336,6 +1353,150 @@ F2FS_FEATURE_RO_ATTR(pin_file);
 F2FS_FEATURE_RO_ATTR(linear_lookup);
 #endif
 
+#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
+static ssize_t en_iostat_enable_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	void *obj = f2fs_get_iostat(sbi);
+
+	if (!obj)
+		return -EINVAL;
+	return sysfs_emit(buf, "%d\n", mi_iostat_get_enable(obj) ? 1 : 0);
+}
+
+static ssize_t en_iostat_enable_store(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, const char *buf, size_t len)
+{
+	void *obj = f2fs_get_iostat(sbi);
+	unsigned long long v;
+	int ret;
+
+	ret = kstrtoull(skip_spaces(buf), 0, &v);
+	if (ret)
+		return ret;
+	if (!obj || v > 1)
+		return -EINVAL;
+
+	mi_iostat_set_enable(obj, v != 0);
+	if (v == 0)
+		iostat_latency_stats_reset(sbi);
+	return len;
+}
+
+static ssize_t iostat_window_period_s_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	void *obj = f2fs_get_iostat(sbi);
+
+	if (!obj)
+		return -EINVAL;
+	return sysfs_emit(buf, "%llu\n",
+			mi_iostat_get_period_ns(obj) / 1000000000ULL);
+}
+
+static ssize_t iostat_window_period_s_store(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, const char *buf, size_t len)
+{
+	void *obj = f2fs_get_iostat(sbi);
+	unsigned long long v;
+	int ret;
+
+	ret = kstrtoull(skip_spaces(buf), 0, &v);
+	if (ret)
+		return ret;
+	if (!obj)
+		return -EINVAL;
+	mi_iostat_set_period_ns(obj, v * 1000000000ULL);
+	return len;
+}
+
+static ssize_t iostat_latency_threshold_ms_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	void *obj = f2fs_get_iostat(sbi);
+	u64 thresholds[5];
+	unsigned int i;
+
+	if (!obj)
+		return -EINVAL;
+	mi_iostat_get_thresholds_ns(obj, thresholds);
+	for (i = 0; i < 5; i++)
+		thresholds[i] /= 1000000ULL;
+	return sysfs_emit(buf, "%llu,%llu,%llu,%llu,%llu\n",
+			thresholds[0], thresholds[1], thresholds[2],
+			thresholds[3], thresholds[4]);
+}
+
+static ssize_t iostat_latency_threshold_ms_store(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, const char *buf, size_t len)
+{
+	void *obj = f2fs_get_iostat(sbi);
+	unsigned long long v[5];
+	u64 ns[5];
+	char *p, *token;
+	unsigned int i;
+
+	if (!obj)
+		return -EINVAL;
+	p = strim((char *)buf);
+	for (i = 0; i < 5; i++) {
+		token = strsep(&p, ",");
+		if (!token)
+			return -EINVAL;
+		if (kstrtoull(token, 10, &v[i]))
+			return -EINVAL;
+	}
+	if (p)	/* exactly five comma separated values */
+		return -EINVAL;
+	for (i = 0; i < 5; i++)
+		ns[i] = v[i] * 1000000ULL;
+	mi_iostat_set_thresholds_ns(obj, ns);
+	return len;
+}
+
+static ssize_t f2fs_iostat_daily_latency_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	return iostat_daily_latency_show(sbi, buf);
+}
+
+static ssize_t f2fs_iostat_daily_latency_store(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, const char *buf, size_t len)
+{
+	return iostat_daily_stats_reset(sbi, buf, len);
+}
+
+static ssize_t f2fs_iostat_window_latency_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	return iostat_window_latency_show(sbi, buf);
+}
+
+static ssize_t f2fs_iostat_window_latency_store(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, const char *buf, size_t len)
+{
+	return iostat_daily_stats_reset(sbi, buf, len);
+}
+
+#define F2FS_XIAOMI_IOSTAT_ATTR(_name, _mode, _show, _store)	\
+static struct f2fs_attr f2fs_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+F2FS_XIAOMI_IOSTAT_ATTR(en_iostat_enable, 0644,
+		en_iostat_enable_show, en_iostat_enable_store);
+F2FS_XIAOMI_IOSTAT_ATTR(iostat_window_period_s, 0644,
+		iostat_window_period_s_show, iostat_window_period_s_store);
+F2FS_XIAOMI_IOSTAT_ATTR(iostat_latency_threshold_ms, 0644,
+		iostat_latency_threshold_ms_show, iostat_latency_threshold_ms_store);
+F2FS_XIAOMI_IOSTAT_ATTR(iostat_daily_latency, 0644,
+		f2fs_iostat_daily_latency_show, f2fs_iostat_daily_latency_store);
+F2FS_XIAOMI_IOSTAT_ATTR(iostat_window_latency, 0644,
+		f2fs_iostat_window_latency_show, f2fs_iostat_window_latency_store);
+#endif
+
 #define ATTR_LIST(name) (&f2fs_attr_##name.attr)
 static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(gc_urgent_sleep_time),
@@ -1384,6 +1545,13 @@ static struct attribute *f2fs_attrs[] = {
 #ifdef CONFIG_F2FS_IOSTAT
 	ATTR_LIST(iostat_enable),
 	ATTR_LIST(iostat_period_ms),
+#endif
+#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
+	ATTR_LIST(en_iostat_enable),
+	ATTR_LIST(iostat_window_period_s),
+	ATTR_LIST(iostat_latency_threshold_ms),
+	ATTR_LIST(iostat_daily_latency),
+	ATTR_LIST(iostat_window_latency),
 #endif
 	ATTR_LIST(readdir_ra),
 	ATTR_LIST(max_io_bytes),

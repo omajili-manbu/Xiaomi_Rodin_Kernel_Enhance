@@ -145,6 +145,23 @@ config F2FS_IOSTAT
 	  IO statistics tracepoint events. You have to turn on "iostat_enable"
 	  sysfs node to enable this feature.
 
+config XIAOMI_ENHANCED_IOSTAT
+	bool "Xiaomi enhanced F2FS IO latency statistics"
+	depends on F2FS_FS && F2FS_IOSTAT
+	help
+	  Standalone side statistics for F2FS IO latency.  Every f2fs bio
+	  submit/end pair is timed with ktime nanosecond resolution and
+	  aggregated per-cpu into size buckets (16K/128K/256K/512K/512+ KiB)
+	  split by read/write, cumulative tables, per-bucket threshold-exceed
+	  tables and a 1/5/10/50 ms latency histogram.  Cumulative tables roll
+	  into double-buffered windows rotated every iostat_window_period_s
+	  (default 60s) and are exposed through /sys/fs/f2fs/<dev>/
+	  {en_iostat_enable,iostat_window_period_s,iostat_latency_threshold_ms,
+	  iostat_daily_latency,iostat_window_latency}.  The standard
+	  F2FS_IOSTAT accounting and tracepoints are left untouched; with the
+	  feature disabled the only per-IO overhead is one device lookup and
+	  a flag test.
+
 config F2FS_UNFAIR_RWSEM
 	bool "F2FS unfair rw_semaphore"
 	depends on F2FS_FS && BLK_CGROUP
