@@ -1031,11 +1031,14 @@ const struct vseq_mod_order __vseq_mod_order[] = {
 	{ .name = "millet_sig", .seq = 1266 },
 	{ .name = "millet_oem_cgroup", .seq = 1267 },
 	{ .name = "migt", .seq = 1268 },
-	/* ---- rodin 2026-11-06: minet/lb =y（iorapd/minetd 5 秒崩循环修复）。
-	 * 6.6 装载位 = vendor_dlkm modules.load 行 242（minet）< 254（lb），
-	 * 组内零依赖交叉，按 stock 相对序段尾续编 1269-1270。 */
-	{ .name = "minet", .seq = 1269 },
-	{ .name = "lb", .seq = 1270 },
+	/* ---- rodin 2026-11-06: miwill/miwill_mode_redudancy/minet/lb =y（minetd
+	 * 崩循环收口）。6.6 装载位 = vendor_dlkm modules.load 行 240（miwill）<
+	 * 241（miwill_mode_redudancy，depends=miwill）< 242（minet）< 254（lb），
+	 * 按 stock 相对序续编 1269-1272。 */
+	{ .name = "miwill", .seq = 1269 },
+	{ .name = "miwill_mode_redudancy", .seq = 1270 },
+	{ .name = "minet", .seq = 1271 },
+	{ .name = "lb", .seq = 1272 },
 };
 
 const unsigned int __vseq_mod_order_nr =

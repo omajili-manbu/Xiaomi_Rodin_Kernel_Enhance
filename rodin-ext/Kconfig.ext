@@ -723,3 +723,11 @@ source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/mi_mempool/Kconfig"
 # 已在场（6.6 基线偏移 0x108 与 blob 读取位吻合）。
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/minet/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/lb/Kconfig"
+
+# ---- rodin 2026-11-06: miwill/miwill_mode_redudancy =y 内建（minetd 崩循环收口）----
+# 源码 = dash OSS 骨架 + blob（6.6.77 vendor_dlkm）机器码对账改写：日志字面量/
+# 级别（SOH+3/6/7，无尾换行）、extack 三文案、NETDEV 事件名表、change_mode 恒开
+# request_module + owner 引用、set_no_mode/pass_transmit/dev_type_check_change
+# 结构面、redudancy 摘出捆绑（blob miwill.ko 无 redudancy 引擎、red.ko 零参零
+# framework 私有拷）均按 blob 代际；miwill_cnt 归属 miwill 本体（blob modinfo 实证）。
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/miwill/Kconfig"
