@@ -42,6 +42,7 @@
 #include <linux/errno.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
@@ -113,6 +114,39 @@ static DEFINE_IDA(sd_index_ida);
 
 static mempool_t *sd_page_pool;
 static struct lock_class_key sd_bio_compl_lkclass;
+
+#ifdef CONFIG_SCSI_FASTDISCARD
+/*
+ * Xiaomi fastdiscard (fastunmap) state, rodin 6.6.
+ *
+ * The block layer is allowed to merge adjacent discards into one request and
+ * sd_setup_unmap_cmnd() then emits a single UNMAP carrying one block
+ * descriptor per request bio.  The feature only ever arms itself on UFS
+ * hosts (strncmp(hostt->name, "ufshcd", 6)); every other host keeps the
+ * plain single-descriptor UNMAP behaviour, which is what a request with
+ * nr_phys_segments == 1 degenerates to.
+ *
+ * The info block is fully self-managed here: it is lazily allocated by the
+ * fastunmap_cmd_count sysfs store and released once the last UFS sd device
+ * has been removed (its request queue is drained by then, so no reader can
+ * still be looking at it).  It stays NULL - and the feature inert - until a
+ * user explicitly writes the sysfs attribute.
+ */
+struct xiaomi_fastdiscard_info {
+	int		fastdiscard_enable;	/* 1 = multi-segment unmap active */
+	int		max_unmap_descriptors;	/* cap on descriptors per UNMAP */
+	unsigned long	multi_unmap_len_max;	/* high-water mark: blocks per UNMAP */
+};
+
+static struct xiaomi_fastdiscard_info *fastdiscard_info;
+static DEFINE_MUTEX(fastdiscard_mutex);
+static atomic_t fastdiscard_users = ATOMIC_INIT(0);
+
+static bool sd_ufshcd_attached(struct scsi_device *sdev)
+{
+	return !strncmp(sdev->host->hostt->name, "ufshcd", 6);
+}
+#endif
 
 static const char *sd_cache_types[] = {
 	"write through", "none", "write back",
@@ -631,6 +665,87 @@ max_retries_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(max_retries);
 
+#ifdef CONFIG_SCSI_FASTDISCARD
+static ssize_t
+fastunmap_cmd_count_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	struct xiaomi_fastdiscard_info *info;
+	ssize_t ret = 0;
+
+	mutex_lock(&fastdiscard_mutex);
+	info = fastdiscard_info;
+	/* Unconfigured or non-UFS disks report an empty value. */
+	if (info && sd_ufshcd_attached(sdkp->device))
+		ret = sysfs_emit(buf, "%d\n", info->max_unmap_descriptors);
+	mutex_unlock(&fastdiscard_mutex);
+
+	return ret;
+}
+
+static ssize_t
+fastunmap_cmd_count_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	struct xiaomi_fastdiscard_info *info;
+	unsigned long long val;
+	int err;
+
+	if (!sd_ufshcd_attached(sdkp->device))
+		return -EOPNOTSUPP;
+
+	err = kstrtoull(buf, 10, &val);
+	if (err) {
+		pr_debug("[FASTDISCARD debug] get value error\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&fastdiscard_mutex);
+	info = fastdiscard_info;
+	if (!info) {
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			mutex_unlock(&fastdiscard_mutex);
+			return -ENOMEM;
+		}
+		fastdiscard_info = info;
+	}
+	/*
+	 * Arming the feature and setting the descriptor cap go hand in hand:
+	 * a non-zero count enables multi-segment unmap, 0 disarms it again.
+	 * Takes effect on the next sd_config_discard() (e.g. re-write
+	 * provisioning_mode or rescan the disk).
+	 */
+	info->max_unmap_descriptors = (u32)val;
+	info->fastdiscard_enable = val ? 1 : 0;
+	mutex_unlock(&fastdiscard_mutex);
+
+	return count;
+}
+
+static ssize_t
+multi_unmap_len_max_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	struct xiaomi_fastdiscard_info *info;
+	ssize_t ret = 0;
+
+	mutex_lock(&fastdiscard_mutex);
+	info = fastdiscard_info;
+	if (info && sd_ufshcd_attached(sdkp->device))
+		ret = sysfs_emit(buf, "%lu\n", info->multi_unmap_len_max);
+	mutex_unlock(&fastdiscard_mutex);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RW(fastunmap_cmd_count);
+static DEVICE_ATTR_RO(multi_unmap_len_max);
+#endif
+
 static struct attribute *sd_disk_attrs[] = {
 	&dev_attr_cache_type.attr,
 	&dev_attr_FUA.attr,
@@ -649,6 +764,10 @@ static struct attribute *sd_disk_attrs[] = {
 	&dev_attr_max_medium_access_timeouts.attr,
 	&dev_attr_zoned_cap.attr,
 	&dev_attr_max_retries.attr,
+#ifdef CONFIG_SCSI_FASTDISCARD
+	&dev_attr_fastunmap_cmd_count.attr,
+	&dev_attr_multi_unmap_len_max.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(sd_disk);
@@ -826,6 +945,22 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	struct request_queue *q = sdkp->disk->queue;
 	unsigned int logical_block_size = sdkp->device->sector_size;
 	unsigned int max_blocks = 0;
+#ifdef CONFIG_SCSI_FASTDISCARD
+	/*
+	 * fastdiscard, rodin 6.6: pick up the lazily allocated info block
+	 * once.  Only a UFS host with the feature armed through sysfs gets
+	 * more than one discard segment per request; everything else stays
+	 * at 1, i.e. the upstream single-descriptor behaviour.
+	 */
+	struct xiaomi_fastdiscard_info *fd_info = fastdiscard_info;
+	unsigned int max_discard_segments = 1;
+	bool fd_armed = fd_info && fd_info->fastdiscard_enable == 1 &&
+			sd_ufshcd_attached(sdkp->device);
+
+	pr_debug("[FASTDISCARD debug] fastdiscard_enable=[%d]\n", fd_armed);
+	if (!fd_armed)
+		fd_info = NULL;
+#endif
 
 	q->limits.discard_alignment =
 		sdkp->unmap_alignment * logical_block_size;
@@ -844,6 +979,13 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	case SD_LBP_UNMAP:
 		max_blocks = min_not_zero(sdkp->max_unmap_blocks,
 					  (u32)SD_MAX_WS16_BLOCKS);
+#ifdef CONFIG_SCSI_FASTDISCARD
+		if (fd_info)
+			max_discard_segments =
+				min_t(unsigned int,
+				      fd_info->max_unmap_descriptors,
+				      0xffff);
+#endif
 		break;
 
 	case SD_LBP_WS16:
@@ -870,6 +1012,12 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		break;
 	}
 
+#ifdef CONFIG_SCSI_FASTDISCARD
+	/* Always reprogrammed so a mode switch away from unmap cannot leave a
+	 * stale multi-segment limit behind (SD_LBP_FULL/DISABLE return early
+	 * above with discard disabled, which is safe). */
+	blk_queue_max_discard_segments(q, max_discard_segments);
+#endif
 	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
 }
 
@@ -891,9 +1039,25 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 	struct scsi_device *sdp = cmd->device;
 	struct request *rq = scsi_cmd_to_rq(cmd);
 	struct scsi_disk *sdkp = scsi_disk(rq->q->disk);
-	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
-	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
+	u64 lba;
+	u32 nr_blocks;
 	unsigned int data_len = 24;
+#ifdef CONFIG_SCSI_FASTDISCARD
+	/*
+	 * fastdiscard, rodin 6.6: the block layer may have merged adjacent
+	 * discards, so describe the request with one UNMAP block descriptor
+	 * per request bio in a single parameter list (8 + 16 * nseg bytes).
+	 * With no merge (nr_phys_segments == 1) or on non-UFS hosts this is
+	 * byte-for-byte the plain single-descriptor UNMAP.
+	 */
+	unsigned int nr_segments = max_t(unsigned int, rq->nr_phys_segments, 1);
+	unsigned long total_blocks = 0;
+	unsigned int desc_off = 8;
+	struct xiaomi_fastdiscard_info *info;
+	struct bio *bio;
+
+	data_len = 8 + (nr_segments << 4);
+#endif
 	char *buf;
 
 	buf = sd_set_special_bvec(rq, data_len);
@@ -902,12 +1066,41 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = UNMAP;
+#ifdef CONFIG_SCSI_FASTDISCARD
+	put_unaligned_be16(data_len, &cmd->cmnd[7]);
+
+	put_unaligned_be16(data_len - 2, &buf[0]);
+	put_unaligned_be16(nr_segments << 4, &buf[2]);
+
+	/* The offset guard caps the loop at nr_segments descriptors, so a
+	 * descriptor is never written past the single-page parameter list
+	 * even if the block layer ever handed us more bios than segments. */
+	for (bio = rq->bio; bio && desc_off < data_len; bio = bio->bi_next) {
+		lba = sectors_to_logical(sdp, bio->bi_iter.bi_sector);
+		nr_blocks = (u32)sectors_to_logical(sdp, bio_sectors(bio));
+
+		put_unaligned_be64(lba, &buf[desc_off]);
+		put_unaligned_be32(nr_blocks, &buf[desc_off + 8]);
+		desc_off += 16;
+		total_blocks += nr_blocks;
+	}
+
+	/* Track the high-water mark of blocks per UNMAP (UFS only). */
+	info = fastdiscard_info;
+	if (info && sd_ufshcd_attached(sdp) &&
+	    total_blocks > info->multi_unmap_len_max)
+		info->multi_unmap_len_max = total_blocks;
+#else
+	lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
+
 	cmd->cmnd[8] = 24;
 
 	put_unaligned_be16(6 + 16, &buf[0]);
 	put_unaligned_be16(16, &buf[2]);
 	put_unaligned_be64(lba, &buf[8]);
 	put_unaligned_be32(nr_blocks, &buf[16]);
+#endif
 
 	cmd->allowed = sdkp->max_retries;
 	cmd->transfersize = data_len;
@@ -3089,6 +3282,12 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 
 		trace_android_vh_sd_init_unmap_multi_segment(sdkp, vpd);
 
+#ifdef CONFIG_SCSI_FASTDISCARD
+		pr_debug("[FASTDISCARD debug] fastdiscard_enable=[%d]\n",
+			 fastdiscard_info ?
+			 fastdiscard_info->fastdiscard_enable : 0);
+#endif
+
 		if (!sdkp->lbpvpd) { /* LBP VPD page not provided */
 
 			if (sdkp->max_unmap_blocks)
@@ -3785,6 +3984,12 @@ static int sd_probe(struct device *dev)
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
+#ifdef CONFIG_SCSI_FASTDISCARD
+	/* UFS disks share one fastdiscard info block, released when the last
+	 * of them goes away (see sd_remove). */
+	if (sd_ufshcd_attached(sdp))
+		atomic_inc(&fastdiscard_users);
+#endif
 	scsi_autopm_put_device(sdp);
 
 	return 0;
@@ -3821,6 +4026,22 @@ static int sd_remove(struct device *dev)
 	del_gendisk(sdkp->disk);
 	if (!sdkp->suspended)
 		sd_shutdown(dev);
+
+#ifdef CONFIG_SCSI_FASTDISCARD
+	/*
+	 * del_gendisk() above has frozen and drained this disk's request
+	 * queue, so no reader of the info block is left on this device.  When
+	 * the last UFS disk is gone, release it; the next store re-arms the
+	 * feature with a fresh block.
+	 */
+	if (sd_ufshcd_attached(sdkp->device) &&
+	    atomic_dec_and_test(&fastdiscard_users)) {
+		mutex_lock(&fastdiscard_mutex);
+		kfree(fastdiscard_info);
+		fastdiscard_info = NULL;
+		mutex_unlock(&fastdiscard_mutex);
+	}
+#endif
 
 	put_disk(sdkp->disk);
 	return 0;
