@@ -14,6 +14,13 @@
 #define INIT_CONTEXT "u:r:init:s0"
 #define ADBD_CONTEXT "u:r:adbd:s0"
 
+#if defined(MODULE) && defined(CONFIG_DEBUG_INFO_BTF)
+int __init ksu_selinux_inode_init(void);
+#endif
+
+struct inode;
+struct inode_security_struct *ksu_selinux_inode(const struct inode *inode);
+
 void setup_selinux(const char *, struct cred *);
 
 void setenforce(bool);
