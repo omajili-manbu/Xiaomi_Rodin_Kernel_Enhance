@@ -60,6 +60,7 @@
 #include <trace/hooks/regmap.h>
 #include <trace/hooks/remoteproc.h>
 #include <trace/hooks/rwsem.h>
+#include <trace/hooks/sd.h>
 #include <trace/hooks/security.h>
 #include <trace/hooks/selinux.h>
 #include <trace/hooks/signal.h>
