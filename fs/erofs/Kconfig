@@ -194,3 +194,15 @@ config EROFS_FS_PCPU_KTHREAD_HIPRI
 	  at higher priority.
 
 	  If unsure, say N.
+
+config XIAOMI_EROFS_IOSTAT
+	bool "Xiaomi erofs IO latency statistics"
+	depends on EROFS_FS
+	help
+	  This enables per-superblock read IO latency statistics for erofs.
+	  Latency is sampled per read bio and aggregated into size and
+	  latency buckets, exported through per-mount sysfs attributes
+	  (iostat_enable, iostat_config, iostat_daily_latency and
+	  iostat_window_latency).  The statistics are disabled by default.
+
+	  If unsure, say N.

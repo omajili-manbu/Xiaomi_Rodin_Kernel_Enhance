@@ -259,7 +259,7 @@ struct bio {
 
 	unsigned short		bi_vcnt;	/* how many bio_vec's */
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, u64 android_oem_data1);
 	ANDROID_KABI_RESERVE(2);
 
 	/*
