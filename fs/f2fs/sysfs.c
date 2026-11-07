@@ -604,6 +604,15 @@ out:
 		return count;
 	}
 
+#ifdef CONFIG_F2FS_VIP_FILE
+	if (!strcmp(a->attr.name, "vip_file_enable")) {
+		if (t > 1)
+			return -EINVAL;
+		*ui = t;
+		return count;
+	}
+#endif
+
 	if (!strcmp(a->attr.name, "discard_io_aware_gran")) {
 		if (t > MAX_PLIST_NUM)
 			return -EINVAL;
@@ -1256,6 +1265,9 @@ NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
 NM_INFO_GENERAL_RW_ATTR(ram_thresh);
 NM_INFO_GENERAL_RW_ATTR(ra_nid_pages);
 NM_INFO_GENERAL_RW_ATTR(dirty_nats_ratio);
+#ifdef CONFIG_F2FS_VIP_FILE
+NM_INFO_RW_ATTR(vip_file_enable, vip_enabled);
+#endif
 
 /* F2FS_SBI ATTR */
 F2FS_RW_ATTR(F2FS_SBI, f2fs_super_block, extension_list, extension_list);
@@ -1445,6 +1457,9 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(ram_thresh),
 	ATTR_LIST(ra_nid_pages),
 	ATTR_LIST(dirty_nats_ratio),
+#ifdef CONFIG_F2FS_VIP_FILE
+	ATTR_LIST(vip_file_enable),
+#endif
 	ATTR_LIST(max_roll_forward_node_blocks),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),

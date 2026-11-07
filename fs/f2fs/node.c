@@ -3447,6 +3447,203 @@ static int init_free_nid_cache(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
+#ifdef CONFIG_F2FS_VIP_FILE
+/*
+ * VIP file table (F2FS_VIP_FILE, rodin 6.18 port of the 6.6.118 stock
+ * feature).  Registered regular files are kept in an ino-sorted array so
+ * that f2fs_iget can flag them with FI_VIP_FILE through a binary search,
+ * and f2fs_grab_read_bio submits their read IO with IOPRIO_CLASS_RT.
+ * The table is runtime state only: it is allocated once at mount for a
+ * large (over ~30GiB) data partition and never persists across remount.
+ */
+
+/* 118 compares the partition size against 0x780000001, i.e. 30GiB + 1 byte */
+#define F2FS_VIP_MIN_CAPACITY	(30ULL * 1024 * 1024 * 1024)
+
+static bool f2fs_vip_capacity_ok(struct f2fs_sb_info *sbi)
+{
+	return (u64)le64_to_cpu(sbi->raw_super->block_count) <<
+			sbi->log_blocksize > F2FS_VIP_MIN_CAPACITY;
+}
+
+static void f2fs_init_vip_table(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+
+	spin_lock_init(&nm_i->vip_lock);
+
+	if (!f2fs_vip_capacity_ok(sbi)) {
+		f2fs_warn(sbi, "VIP feature disabled (not data partition)");
+		return;
+	}
+
+	nm_i->vip_cap = F2FS_VIP_MAX_ENTRIES;
+	nm_i->vip_arr = kvmalloc_node(nm_i->vip_cap *
+				sizeof(struct f2fs_vip_entry),
+				GFP_KERNEL, NUMA_NO_NODE);
+	nm_i->vip_slot_limit = F2FS_VIP_MAX_SLOTS;
+	nm_i->vip_map = kvmalloc_node(nm_i->vip_slot_limit * sizeof(u32),
+				GFP_KERNEL, NUMA_NO_NODE);
+	if (!nm_i->vip_arr || !nm_i->vip_map) {
+		kvfree(nm_i->vip_arr);
+		kvfree(nm_i->vip_map);
+		nm_i->vip_arr = NULL;
+		nm_i->vip_map = NULL;
+		nm_i->vip_cap = 0;
+		f2fs_warn(sbi, "VIP: alloc failed, feature disabled");
+		return;
+	}
+
+	memset(nm_i->vip_map, 0xFF, nm_i->vip_slot_limit * sizeof(u32));
+	nm_i->vip_cnt = 0;
+	nm_i->vip_cursor = 0;
+	nm_i->vip_used = 0;
+	nm_i->vip_enabled = 0;
+	f2fs_info(sbi, "VIP: initialized, capacity=%u", nm_i->vip_cap);
+}
+
+/*
+ * Binary search ino in the sorted vip_arr, callers must hold vip_lock.
+ * Returns the entry index and sets *found on a hit, returns 0 with
+ * *found cleared on a miss (including the empty table).
+ */
+u32 f2fs_vip_bsearch(struct f2fs_sb_info *sbi, u32 ino, bool *found)
+{
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	u32 lo = 0, hi = nm_i->vip_cnt;
+
+	*found = false;
+	while (lo < hi) {
+		u32 mid = lo + ((hi - lo) >> 1);
+
+		if (nm_i->vip_arr[mid].ino < ino)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	if (lo < nm_i->vip_cnt && nm_i->vip_arr[lo].ino == ino) {
+		*found = true;
+		return lo;
+	}
+	return 0;
+}
+
+/* Delete arr[idx] and release its slot, callers must hold vip_lock. */
+static void f2fs_vip_delete(struct f2fs_sb_info *sbi, u32 idx)
+{
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	u32 slot = nm_i->vip_arr[idx].slot;
+
+	if (idx < nm_i->vip_cnt - 1)
+		memmove(&nm_i->vip_arr[idx], &nm_i->vip_arr[idx + 1],
+			(nm_i->vip_cnt - idx - 1) *
+			sizeof(struct f2fs_vip_entry));
+	nm_i->vip_map[slot] = F2FS_VIP_SLOT_FREE;
+	while (nm_i->vip_cursor < nm_i->vip_used &&
+	       nm_i->vip_map[nm_i->vip_cursor] == F2FS_VIP_SLOT_FREE)
+		nm_i->vip_cursor++;
+	nm_i->vip_cnt--;
+}
+
+/*
+ * Remove ino from the VIP table, callers must hold vip_lock.  Returns
+ * -EOPNOTSUPP without a table, -ENOENT when ino is not registered.
+ */
+int f2fs_vip_remove(struct f2fs_sb_info *sbi, u32 ino)
+{
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	bool found = false;
+	u32 idx;
+
+	if (!nm_i->vip_arr || !nm_i->vip_map)
+		return -EOPNOTSUPP;
+
+	idx = f2fs_vip_bsearch(sbi, ino, &found);
+	if (!found)
+		return -ENOENT;
+
+	f2fs_vip_delete(sbi, idx);
+	return 0;
+}
+
+/*
+ * Insert ino into the VIP table, callers must hold vip_lock.  A full
+ * table evicts the oldest live entry in slot order (FIFO approximation,
+ * not LRU) before inserting.  Returns -EEXIST when ino is already
+ * registered, -EFAULT on internal inconsistency, -EOPNOTSUPP without a
+ * table.
+ */
+int f2fs_vip_insert(struct f2fs_sb_info *sbi, u32 ino)
+{
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	u32 lo = 0, hi = nm_i->vip_cnt, slot;
+
+	if (!nm_i->vip_arr || !nm_i->vip_map)
+		return -EOPNOTSUPP;
+
+	while (lo < hi) {
+		u32 mid = lo + ((hi - lo) >> 1);
+
+		if (nm_i->vip_arr[mid].ino < ino)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	if (lo < nm_i->vip_cnt && nm_i->vip_arr[lo].ino == ino)
+		return -EEXIST;
+
+	while (nm_i->vip_cnt >= nm_i->vip_cap) {
+		bool vfound = false;
+		u32 i, victim;
+
+		for (i = nm_i->vip_cursor; i < nm_i->vip_used; i++)
+			if (nm_i->vip_map[i] != F2FS_VIP_SLOT_FREE)
+				break;
+		if (i >= nm_i->vip_used) {
+			f2fs_warn(sbi, "VIP: no valid entry in unsorted array");
+			return -EFAULT;
+		}
+
+		victim = f2fs_vip_bsearch(sbi, nm_i->vip_map[i], &vfound);
+		if (!vfound) {
+			f2fs_warn(sbi, "VIP: ino=%u not found in sorted array",
+					nm_i->vip_map[i]);
+			return -EFAULT;
+		}
+		if (victim < lo)
+			lo--;
+		f2fs_vip_delete(sbi, victim);
+	}
+
+	if (nm_i->vip_used < nm_i->vip_slot_limit) {
+		slot = nm_i->vip_used;
+	} else {
+		/*
+		 * All slots handed out, reuse a free one: with vip_cnt <
+		 * vip_cap <= vip_slot_limit there must be one below
+		 * vip_used.
+		 */
+		for (slot = nm_i->vip_cursor; slot < nm_i->vip_used; slot++)
+			if (nm_i->vip_map[slot] == F2FS_VIP_SLOT_FREE)
+				break;
+		if (slot >= nm_i->vip_used)
+			return -EFAULT;
+	}
+
+	nm_i->vip_map[slot] = ino;
+	if (nm_i->vip_cnt > lo)
+		memmove(&nm_i->vip_arr[lo + 1], &nm_i->vip_arr[lo],
+			(nm_i->vip_cnt - lo) * sizeof(struct f2fs_vip_entry));
+	nm_i->vip_arr[lo].ino = ino;
+	nm_i->vip_arr[lo].slot = slot;
+	if (slot == nm_i->vip_used)
+		nm_i->vip_used++;
+	nm_i->vip_cnt++;
+
+	return 0;
+}
+#endif
+
 int f2fs_build_node_manager(struct f2fs_sb_info *sbi)
 {
 	int err;
@@ -3463,6 +3660,10 @@ int f2fs_build_node_manager(struct f2fs_sb_info *sbi)
 	err = init_free_nid_cache(sbi);
 	if (err)
 		return err;
+
+#ifdef CONFIG_F2FS_VIP_FILE
+	f2fs_init_vip_table(sbi);
+#endif
 
 	/* load free nid status from nat_bits table */
 	load_free_nid_bitmap(sbi);
@@ -3545,6 +3746,10 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 	kvfree(nm_i->nat_bits);
 #ifdef CONFIG_F2FS_CHECK_FS
 	kfree(nm_i->nat_bitmap_mir);
+#endif
+#ifdef CONFIG_F2FS_VIP_FILE
+	kvfree(nm_i->vip_arr);
+	kvfree(nm_i->vip_map);
 #endif
 	sbi->nm_info = NULL;
 	kfree(nm_i);

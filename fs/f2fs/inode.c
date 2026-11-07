@@ -666,6 +666,22 @@ make_now:
 		goto bad_inode;
 	}
 
+#ifdef CONFIG_F2FS_VIP_FILE
+	/* flag the inode if it is registered in the VIP file table */
+	if (S_ISREG(inode->i_mode)) {
+		struct f2fs_nm_info *nm_i = NM_I(sbi);
+		bool found = false;
+
+		if (nm_i->vip_enabled && nm_i->vip_cnt) {
+			spin_lock(&nm_i->vip_lock);
+			f2fs_vip_bsearch(sbi, (u32)ino, &found);
+			if (found)
+				set_inode_flag(inode, FI_VIP_FILE);
+			spin_unlock(&nm_i->vip_lock);
+		}
+	}
+#endif
+
 	unlock_new_inode(inode);
 	trace_f2fs_iget(inode);
 	return inode;

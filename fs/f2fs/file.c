@@ -3988,6 +3988,40 @@ static int f2fs_ioc_io_prio(struct file *filp, unsigned long arg)
 	return 0;
 }
 
+#ifdef CONFIG_F2FS_VIP_FILE
+/*
+ * F2FS_IOC_SET_VIP_FILE registers (arg != 0) or unregisters (arg == 0)
+ * the regular file as a VIP file, so that its read IO gets
+ * IOPRIO_CLASS_RT priority until it is unregistered or unlinked.  The
+ * registration is runtime state of the VIP table, no on-disk change.
+ */
+static int f2fs_ioc_set_vip_file(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_nm_info *nm_i = NM_I(F2FS_I_SB(inode));
+	__u32 flag;
+	int ret;
+
+	if (get_user(flag, (__u32 __user *)arg))
+		return -EFAULT;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EOPNOTSUPP;
+
+	if (!nm_i->vip_enabled || !nm_i->vip_arr || !nm_i->vip_map)
+		return -EOPNOTSUPP;
+
+	spin_lock(&nm_i->vip_lock);
+	if (flag)
+		ret = f2fs_vip_insert(F2FS_I_SB(inode), (u32)inode->i_ino);
+	else
+		ret = f2fs_vip_remove(F2FS_I_SB(inode), (u32)inode->i_ino);
+	spin_unlock(&nm_i->vip_lock);
+
+	return ret;
+}
+#endif
+
 int f2fs_precache_extents(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -5099,6 +5133,10 @@ static long __f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_get_dev_alias_status(filp, arg);
 	case F2FS_IOC_IO_PRIO:
 		return f2fs_ioc_io_prio(filp, arg);
+#ifdef CONFIG_F2FS_VIP_FILE
+	case F2FS_IOC_SET_VIP_FILE:
+		return f2fs_ioc_set_vip_file(filp, arg);
+#endif
 	case F2FS_IOC_RESERVE_DEV_ALIAS:
 		return f2fs_ioc_reserve_dev_alias(filp);
 	case F2FS_IOC_RELEASE_DEV_ALIAS:
@@ -5912,6 +5950,9 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_GET_DEV_ALIAS_FILE:
 	case F2FS_IOC_GET_DEV_ALIAS_STATUS:
 	case F2FS_IOC_IO_PRIO:
+#ifdef CONFIG_F2FS_VIP_FILE
+	case F2FS_IOC_SET_VIP_FILE:
+#endif
 	case F2FS_IOC_RESERVE_DEV_ALIAS:
 	case F2FS_IOC_RELEASE_DEV_ALIAS:
 		break;

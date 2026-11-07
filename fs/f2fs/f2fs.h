@@ -948,6 +948,7 @@ enum {
 	FI_ATOMIC_REPLACE,	/* indicate atomic replace */
 	FI_OPENED_FILE,		/* indicate file has been opened */
 	FI_DONATE_FINISHED,	/* indicate page donation of file has been finished */
+	FI_VIP_FILE,		/* indicate file is registered as VIP file */
 	FI_MAX,			/* max flag, never be used */
 };
 
@@ -1078,6 +1079,15 @@ enum nat_state {
 	MAX_NAT_STATE,
 };
 
+#define F2FS_VIP_MAX_ENTRIES	1000	/* max live entries in vip_arr */
+#define F2FS_VIP_MAX_SLOTS	2000	/* slot count of vip_map, 2x entries */
+#define F2FS_VIP_SLOT_FREE	((u32)-1) /* free slot marker in vip_map */
+
+struct f2fs_vip_entry {
+	u32 ino;			/* inode number, sort key */
+	u32 slot;			/* slot index in vip_map */
+};
+
 struct f2fs_nm_info {
 	block_t nat_blkaddr;		/* base disk address of NAT */
 	nid_t max_nid;			/* maximum possible node ids */
@@ -1118,6 +1128,19 @@ struct f2fs_nm_info {
 	char *nat_bitmap_mir;		/* NAT bitmap mirror */
 #endif
 	int bitmap_size;		/* bitmap size */
+
+#ifdef CONFIG_F2FS_VIP_FILE
+	/* VIP file table, allocated for a large data partition at mount only */
+	struct f2fs_vip_entry *vip_arr;	/* entries sorted by ino */
+	u32 *vip_map;			/* slot -> ino, F2FS_VIP_SLOT_FREE = free */
+	u32 vip_cnt;			/* live entries in vip_arr */
+	u32 vip_cap;			/* capacity of vip_arr */
+	u32 vip_slot_limit;		/* capacity of vip_map */
+	u32 vip_cursor;			/* eviction scan cursor */
+	u32 vip_used;			/* handed out slots high water */
+	spinlock_t vip_lock;		/* protect VIP table operations */
+	u32 vip_enabled;		/* gate by vip_file_enable sysfs node */
+#endif
 };
 
 /*
@@ -4061,6 +4084,11 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc);
 int f2fs_build_node_manager(struct f2fs_sb_info *sbi);
 void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi);
+#ifdef CONFIG_F2FS_VIP_FILE
+int f2fs_vip_insert(struct f2fs_sb_info *sbi, u32 ino);
+int f2fs_vip_remove(struct f2fs_sb_info *sbi, u32 ino);
+u32 f2fs_vip_bsearch(struct f2fs_sb_info *sbi, u32 ino, bool *found);
+#endif
 int __init f2fs_create_node_manager_caches(void);
 void f2fs_destroy_node_manager_caches(void);
 
