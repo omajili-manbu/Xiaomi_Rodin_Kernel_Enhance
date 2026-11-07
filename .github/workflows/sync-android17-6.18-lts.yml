@@ -1,0 +1,154 @@
+name: sync-android17-6.18-lts
+
+# Merge AOSP android17-6.18-lts into bsp-rodin-c-rebase (6.18 line).
+# 6.18 线对 sync-android15-6.6-lts.yml 的单目标对位件，规则同源：
+#   - clean merge  -> push merge commit to the branch, then dispatch build-kernel (618)
+#   - any conflict -> abort the merge, push nothing, open a tracking issue
+# The dispatched build covers the kernel Image only; vendor out-of-tree module
+# ABI exposure is NOT covered and still needs the manual LTS-merge precheck
+# (merge-tree 预演 + 导出符号求交 + 上游改头 grep vendor 树) before flashing.
+#
+# GitHub only evaluates `on.schedule` for workflow files that exist on the
+# DEFAULT branch (bsp-rodin-v-upstream), and `workflow_dispatch` is only
+# offered once the file exists there. Keep this file on the default branch;
+# a copy on another branch has no effect on the daily run.
+#
+# Cron sits 20min after sync-sukisu-618 (03:10 UTC+8). Both workflows push to
+# bsp-rodin-c-rebase and share the concurrency group kernel-bsp-rodin-c-rebase,
+# so delayed schedules can never race their pushes (6.6-line kernel-<branch>
+# pattern).
+
+on:
+  schedule:
+    - cron: '30 19 * * *'   # daily 03:30 UTC+8, after sync-sukisu-618 (03:10)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: kernel-bsp-rodin-c-rebase
+  cancel-in-progress: false
+
+env:
+  AOSP_REPO: https://android.googlesource.com/kernel/common
+  LTS_BRANCH: android17-6.18-lts
+  KERNEL_BRANCH: bsp-rodin-c-rebase
+  ISSUE_TITLE: '[auto-sync] android17-6.18-lts merge conflict on bsp-rodin-c-rebase - manual resolution needed'
+
+jobs:
+  merge-lts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout kernel branch (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: bsp-rodin-c-rebase
+          fetch-depth: 0
+
+      - name: Git identity
+        run: |
+          git config user.name  "omajili-manbu"
+          git config user.email "qwer12777332899@gmail.com"
+
+      - name: Fetch LTS branch from AOSP
+        run: |
+          set -euo pipefail
+          git remote add aosp "$AOSP_REPO" 2>/dev/null || git remote set-url aosp "$AOSP_REPO"
+          git fetch --no-tags aosp "$LTS_BRANCH:refs/remotes/aosp/$LTS_BRANCH"
+
+      - name: Compute LTS delta
+        id: delta
+        run: |
+          set -euo pipefail
+          LTS="refs/remotes/aosp/$LTS_BRANCH"
+          if ! git merge-base HEAD "$LTS" >/dev/null 2>&1; then
+            echo "::error::HEAD and $LTS have no merge base (unrelated histories) - refusing to merge"
+            exit 1
+          fi
+          COUNT=$(git rev-list HEAD.."$LTS" --count)
+          OURS=$(git rev-list "$LTS"..HEAD --count)
+          echo "new_commits=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$(git rev-parse --short=12 "$LTS")" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### android17-6.18-lts sync"
+            echo "- target branch: \`$KERNEL_BRANCH\`"
+            echo "- upstream tip: \`$(git rev-parse "$LTS")\`"
+            echo "- new upstream commits: $COUNT"
+            echo "- local-only commits kept as ours: $OURS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Merge LTS (abort on any conflict)
+        id: merge
+        if: steps.delta.outputs.up_to_date != 'true'
+        run: |
+          set -euo pipefail
+          LTS="refs/remotes/aosp/$LTS_BRANCH"
+          git merge --no-ff --no-commit "$LTS" > /tmp/merge.log 2>&1 || true
+          CONFLICTS=$(git diff --name-only --diff-filter=U || true)
+          if [ -n "$CONFLICTS" ]; then
+            printf '%s\n' "$CONFLICTS" > /tmp/conflict-files.txt
+            git merge --abort
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+            echo "::error::$(printf '%s\n' "$CONFLICTS" | wc -l) conflicting files on $KERNEL_BRANCH - merge aborted, nothing pushed"
+            exit 1
+          fi
+          if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            echo "::error::git merge failed without producing conflicts:"
+            cat /tmp/merge.log
+            exit 1
+          fi
+          UP_SHA=$(git rev-parse --short=12 "$LTS")
+          git commit -m "Merge $LTS_BRANCH ($UP_SHA) into $KERNEL_BRANCH"
+          git push origin "HEAD:$KERNEL_BRANCH"
+          {
+            echo "### Result"
+            echo "- merged $LTS_BRANCH @ \`$UP_SHA\` and pushed to \`$KERNEL_BRANCH\`"
+            echo "- build-kernel (618) dispatched for the merged tip"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch kernel build
+        if: steps.merge.outcome == 'success' && steps.delta.outputs.up_to_date != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # GITHUB_TOKEN 的推送不触发其他 workflow（GitHub 防递归铁律），显式 dispatch 补全
+          # sync->build 链；build-kernel 的构建分支由其内部 KERNEL_BRANCH 钉死，不带 --ref
+          gh workflow run build-kernel.yml
+          echo "build-kernel dispatched (kernel branch: $KERNEL_BRANCH)"
+
+      - name: File tracking issue on conflict
+        if: failure() && steps.merge.outputs.has_conflict == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Automatic merge of \`$LTS_BRANCH\` (\`${{ steps.delta.outputs.upstream_sha }}\`) into \`$KERNEL_BRANCH\` hit conflicts."
+            echo "The merge was **aborted** and nothing was pushed. Resolve the conflicts manually,"
+            echo "then re-run this workflow (Actions -> sync-android17-6.18-lts -> Run workflow)."
+            echo ""
+            echo "### Conflicting files"
+            echo '```'
+            head -200 /tmp/conflict-files.txt
+            echo '```'
+            echo "Total: $(wc -l < /tmp/conflict-files.txt) files."
+            echo ""
+            echo "[Run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > /tmp/issue-body.md
+          # One open issue per branch: match the exact title, not a fuzzy search.
+          EXISTING=$(gh issue list --state open --search "in:title auto-sync android17-6.18-lts" --limit 100 \
+            --json number,title \
+            --jq "map(select(.title == \"$ISSUE_TITLE\")) | .[0].number // empty" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING already tracks this conflict - not duplicating."
+            exit 0
+          fi
+          gh issue create --title "$ISSUE_TITLE" --body-file /tmp/issue-body.md

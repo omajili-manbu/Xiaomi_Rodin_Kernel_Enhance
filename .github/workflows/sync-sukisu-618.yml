@@ -23,8 +23,10 @@ permissions:
   issues: write
   actions: write
 
+# 与 sync-android17-6.18-lts 共用并发组：两个工作流同推 bsp-rodin-c-rebase，
+# 共组串行化，消除延迟触发下的同分支 push 竞态（6.6 线 kernel-<branch> 同款）。
 concurrency:
-  group: sync-sukisu-618
+  group: kernel-bsp-rodin-c-rebase
 
 env:
   KERNEL_BRANCH: bsp-rodin-c-rebase
