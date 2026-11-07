@@ -37,6 +37,22 @@ extern void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
 extern void f2fs_update_read_folio_count(struct f2fs_sb_info *sbi,
 			struct folio *folio);
 
+#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
+/* Xiaomi enhanced IO latency statistics, implemented in iostat.c. */
+void *f2fs_get_iostat(struct f2fs_sb_info *sbi);
+bool mi_iostat_get_enable(void *iostat);
+void mi_iostat_set_enable(void *iostat, bool on);
+u64 mi_iostat_get_period_ns(void *iostat);
+void mi_iostat_set_period_ns(void *iostat, u64 ns);
+void mi_iostat_get_thresholds_ns(void *iostat, u64 ns[5]);
+void mi_iostat_set_thresholds_ns(void *iostat, const u64 ns[5]);
+ssize_t iostat_daily_latency_show(struct f2fs_sb_info *sbi, char *buf);
+ssize_t iostat_window_latency_show(struct f2fs_sb_info *sbi, char *buf);
+ssize_t iostat_daily_stats_reset(struct f2fs_sb_info *sbi, const char *buf,
+		size_t len);
+void iostat_latency_stats_reset(struct f2fs_sb_info *sbi);
+#endif
+
 struct bio_iostat_ctx {
 	struct f2fs_sb_info *sbi;
 	unsigned long submit_ts;
