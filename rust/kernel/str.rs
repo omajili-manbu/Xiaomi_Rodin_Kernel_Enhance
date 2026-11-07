@@ -3,14 +3,28 @@
 //! String representations.
 
 use crate::{
-    alloc::{AllocError, KVec},
-    error::{to_result, Result},
-    fmt::{self, Write},
-    prelude::*,
+    alloc::{
+        AllocError,
+        KVec, //
+    },
+    error::{
+        to_result,
+        Result, //
+    },
+    fmt::{
+        self,
+        Write, //
+    },
+    prelude::*, //
 };
 use core::{
     marker::PhantomData,
-    ops::{self, Deref, DerefMut, Index},
+    ops::{
+        self,
+        Deref,
+        DerefMut,
+        Index, //
+    }, //
 };
 
 pub mod parse_int;
