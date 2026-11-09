@@ -30,7 +30,9 @@ quiet_cmd_rodin_skip_reg = RODINREG $@
 		{ echo '.section .rodin_skip_reg,"a"';			\
 		  echo '.balign 8';					\
 		  echo '.incbin "$@.bin"';				\
-		  echo '.balign 8'; } > $@
+		  echo '.balign 8'; } > $@ &&				\
+		$(CONFIG_SHELL) $(srctree)/scripts/rodin_skip_disjoint_check.sh \
+			$@.bin include/config/auto.conf
 
 .rodin_skip_reg.S: vmlinux.o FORCE
 	$(call if_changed,rodin_skip_reg)
