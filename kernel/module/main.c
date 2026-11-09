@@ -3515,8 +3515,7 @@ static noinline bool rodin_in_builtin_index(const char *name, size_t len)
  * "usb_boost" vs the usb_boost_common/plat split, "pinctrl-mtk-v2" vs the
  * pinctrl-mtk-common-v2 family) and built-in units that emit no .modinfo at
  * all (their MODULE_* macros - and with them kbuild's file= entry - sit in a
- * MODULE-only branch: timer-mediatek, log_store, mtk_printk_ctrl,
- * snd_soc_aw882xx).
+ * MODULE-only branch: timer-mediatek, log_store, mtk_printk_ctrl).
  */
 static const char *const rodin_builtin_extra[] = {
 #if IS_ENABLED(CONFIG_TIPC_DIAG)
@@ -3536,9 +3535,6 @@ static const char *const rodin_builtin_extra[] = {
 #endif
 #if IS_ENABLED(CONFIG_MTK_PRINTK)
 	"mtk_printk_ctrl",
-#endif
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_SND_SOC_AW882XX)
-	"snd_soc_aw882xx",
 #endif
 	NULL,
 };
