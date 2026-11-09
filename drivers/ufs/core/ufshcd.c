@@ -5624,6 +5624,12 @@ static int ufshcd_sdev_configure(struct scsi_device *sdev,
 
 	ufshcd_crypto_register(hba, q);
 
+	/*
+	 * 6.6 stock 在此处（闭源子树内联进 slave_configure）按 lun==2 点火
+	 * 小米 ABI 单例 completion，唤醒 mi_memory 的初始化工作项；6.18 复刻。
+	 */
+	ufshcd_xiaomi_config_sdev(sdev);
+
 	return 0;
 }
 

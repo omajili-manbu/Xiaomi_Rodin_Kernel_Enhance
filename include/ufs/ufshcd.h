@@ -1635,6 +1635,12 @@ static inline int ufshcd_disable_host_tx_lcc(struct ufs_hba *hba)
 int ufshcd_read_desc_param(struct ufs_hba *hba, enum desc_idn desc_id,
 			   int desc_index, u8 param_offset, u8 *param_read_buf,
 			   u8 param_size);
+
+/*
+ * 6.6 stock 闭源子树在 slave_configure 末尾（lun==2）点火小米 ABI 单例
+ * completion 的钩子，6.18 复刻；提供面在 device_modules 的 ufs-xiaomi.c。
+ */
+void ufshcd_xiaomi_config_sdev(struct scsi_device *sdev);
 int ufshcd_query_attr_retry(struct ufs_hba *hba, enum query_opcode opcode,
 			    enum attr_idn idn, u8 index, u8 selector,
 			    u32 *attr_val);
