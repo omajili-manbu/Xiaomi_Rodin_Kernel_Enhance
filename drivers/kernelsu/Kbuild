@@ -144,9 +144,18 @@ KSU_RUNNER_CFLAGS := $(CLANG_FLAGS) -std=gnu11 -Os -Wall \
 	-fno-asynchronous-unwind-tables -fno-unwind-tables \
 	-ffunction-sections -fdata-sections
 
+# The runner is exec'd by PID 1, so it has to load on every page size a
+# target can use: the kernel rejects a PT_LOAD whose p_offset and p_vaddr
+# disagree modulo PAGE_SIZE (elf_map() computes p_offset - ELF_PAGEOFFSET()
+# and vm_mmap() returns -EINVAL for an unaligned offset). ld.lld defaults to
+# 4K on x86_64 and 64K on arm64, so pin the maximum and lay the segments out
+# contiguously instead of relying on the emulation's default.
+KSU_RUNNER_LDFLAGS := -static -nostdlib -e _start --gc-sections -s \
+	-z max-page-size=0x10000 -z noseparate-code
+
 quiet_cmd_ksu_runner = RUNNER  $@
       cmd_ksu_runner = $(CC) $(KSU_RUNNER_CFLAGS) -c -o $@.o $< && \
-		$(LD) -static -nostdlib -e _start --gc-sections -s -o $@ $@.o && \
+		$(LD) $(KSU_RUNNER_LDFLAGS) -o $@ $@.o && \
 		rm -f $@.o
 
 $(obj)/preinit/runner.elf: $(KSU_KERNEL_DIR)/preinit/runner/runner.c \
@@ -167,15 +176,15 @@ obj-$(CONFIG_KSU) += kernelsu.o
 
 MDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-REPO_OWNER  := SukiSU-Ultra
-REPO_NAME   := SukiSU-Ultra
+REPO_OWNER  := SukiSU-Nova
+REPO_NAME   := SukiSU-Nova
 REPO_BRANCH := main
 
-VERSION_BASE    := 40000
-VERSION_OFFSET  := 2815
+VERSION_BASE    := 30000
+VERSION_OFFSET  := 4001
 
-# Vendored as an in-tree copy of SukiSU-Ultra v4.3.0-r2 @ 645ef986
-# (release tag v4.3.0-r2, bare rev-list count 3965, formula value 41150).
+# Vendored as an in-tree copy of SukiSU-Ultra v3.0.0 @ c60f21b9
+# (release tag v3.0.0, bare rev-list count 4001, formula value 30000).
 # The manager asset name carries the formula value
 # VERSION_BASE + count - VERSION_OFFSET; pair against the formula, not the count.
 # Do NOT restore the $(shell git/curl) probes below: inside the kernel git
@@ -187,19 +196,19 @@ CURL_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin curl
 KSU_SRC := $(if $(filter $(srctree),$(src)),$(src),$(srctree)/$(src))
 KSU_SRC := $(if $(wildcard $(KSU_SRC)/../.git),$(KSU_SRC),$(MDIR))
 
-git_short_sha    = 645ef986
+git_short_sha    = c60f21b9
 git_branch       = main
-git_commit_count = 3965
-git_latest_tag   = 4.3.0-r2
+git_commit_count = 4001
+git_latest_tag   = 3.0.0
 
 # vendored in-tree: no git query, no network query at build time
 
 GITHUB_API_BASE  := https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)
-KSU_GITHUB_VER   := 4.3.0-r2
+KSU_GITHUB_VER   := 3.0.0
 GITHUB_COMMITS   :=
 LOCAL_COUNT     := $(if $(GITHUB_COMMITS),$(GITHUB_COMMITS),$(git_commit_count))
 KSU_VERSION     := $(if $(LOCAL_COUNT),$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) - $(VERSION_OFFSET)),$(VERSION_BASE))
-VERSION_TAG     := $(or $(KSU_GITHUB_VER),$(git_latest_tag),4.3.0)
+VERSION_TAG     := $(or $(KSU_GITHUB_VER),$(git_latest_tag),3.0.0)
 KSU_VERSION_FULL := $(if $(call git_short_sha),v$(VERSION_TAG)-$(call git_short_sha)@$(call git_branch),v$(VERSION_TAG)-$(REPO_NAME)-unknown@unknown)
 $(info -- $(REPO_NAME) version: $(KSU_VERSION) [$(KSU_VERSION_FULL)])
 
@@ -208,9 +217,9 @@ ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
 
 KSU_IS_PR_BUILD ?= 0
 ifeq ($(KSU_IS_PR_BUILD),0)
-KSU_PACKAGE_NAME ?= com.sukisu.ultra
+KSU_PACKAGE_NAME ?= com.sukisu.nova
 else
-KSU_PACKAGE_NAME ?= com.sukisu.ultra.pr
+KSU_PACKAGE_NAME ?= com.sukisu.nova.pr
 endif
 KSU_EXPECTED_SIZE ?= 0x35c
 KSU_EXPECTED_HASH ?= 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef
