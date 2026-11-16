@@ -1,0 +1,262 @@
+diff --git a/kernel/Kbuild b/kernel/Kbuild
+index 12fe07af..8f0b081b 100644
+--- a/kernel/Kbuild
++++ b/kernel/Kbuild
+@@ -6,21 +6,14 @@ kernelsu-objs += feature/mount_hide.o
+ kernelsu-objs += feature/sulog.o
+ kernelsu-objs += feature/sucompat.o
+ 
+-kernelsu-objs += hook/lsm_hook.o
+ kernelsu-objs += hook/setuid_hook.o
+-kernelsu-objs += hook/syscall_event_bridge.o
+-kernelsu-objs += hook/syscall_hook_manager.o
+-kernelsu-objs += hook/tp_marker.o
+-ifeq ($(CONFIG_ARM64),y)
++# Bridge: the inline syscall-hook architecture (lsm_hook, tp_marker,
++# syscall_event_bridge, syscall_hook_manager, per-arch syscall_hook and
++# non-arm64 patch_memory) is not compiled; hook_stub.o provides no-op
++# entry points so upstream call sites stay untouched. arm64 patch_memory
++# stays compiled: mount_hide patches file_operations pointers with it.
++kernelsu-objs += hook/hook_stub.o
+ kernelsu-objs += hook/arm64/patch_memory.o
+-kernelsu-objs += hook/arm64/syscall_hook.o
+-else ifeq ($(CONFIG_X86_64),y)
+-kernelsu-objs += hook/x86_64/patch_memory.o
+-kernelsu-objs += hook/x86_64/syscall_hook.o
+-else ifeq ($(CONFIG_RISCV),y)
+-kernelsu-objs += hook/riscv64/patch_memory.o
+-kernelsu-objs += hook/riscv64/syscall_hook.o
+-endif
+ 
+ kernelsu-objs += infra/file_wrapper.o
+ kernelsu-objs += infra/event_queue.o
+@@ -128,49 +121,11 @@ endif
+ 
+ ccflags-y += -I$(KSU_KERNEL_DIR) -I$(KSU_KERNEL_DIR)/include
+ 
+-# preinit runner: a static nolibc binary embedded into kernelsu, see preinit/.
+-# It is built against the installed UAPI headers of the target kernel
+-# (CONFIG_HEADERS_INSTALL, enabled by gki_defconfig).
+-KSU_UAPI_INC := $(objtree)/usr/include
+-ifneq ($(wildcard $(KSU_UAPI_INC)/linux/unistd.h),)
+-kernelsu-objs += preinit/preinit.o
+-kernelsu-objs += preinit/blob.o
+-
+-KSU_RUNNER_CFLAGS := $(CLANG_FLAGS) -std=gnu11 -Os -Wall \
+-	-nostdinc -isystem $(shell $(CC) -print-file-name=include) \
+-	-I$(KSU_KERNEL_DIR)/preinit/runner/nolibc -I$(KSU_UAPI_INC) \
+-	-I$(KSU_KERNEL_DIR)/include \
+-	-ffreestanding -fno-stack-protector -fno-pic -fno-pie \
+-	-fno-asynchronous-unwind-tables -fno-unwind-tables \
+-	-ffunction-sections -fdata-sections
+-
+-# The runner is exec'd by PID 1, so it has to load on every page size a
+-# target can use: the kernel rejects a PT_LOAD whose p_offset and p_vaddr
+-# disagree modulo PAGE_SIZE (elf_map() computes p_offset - ELF_PAGEOFFSET()
+-# and vm_mmap() returns -EINVAL for an unaligned offset). ld.lld defaults to
+-# 4K on x86_64 and 64K on arm64, so pin the maximum and lay the segments out
+-# contiguously instead of relying on the emulation's default.
+-KSU_RUNNER_LDFLAGS := -static -nostdlib -e _start --gc-sections -s \
+-	-z max-page-size=0x10000 -z noseparate-code
+-
+-quiet_cmd_ksu_runner = RUNNER  $@
+-      cmd_ksu_runner = $(CC) $(KSU_RUNNER_CFLAGS) -c -o $@.o $< && \
+-		$(LD) $(KSU_RUNNER_LDFLAGS) -o $@ $@.o && \
+-		rm -f $@.o
+-
+-$(obj)/preinit/runner.elf: $(KSU_KERNEL_DIR)/preinit/runner/runner.c \
+-		$(wildcard $(KSU_KERNEL_DIR)/preinit/runner/nolibc/*.h \
+-			   $(KSU_KERNEL_DIR)/preinit/runner/nolibc/sys/*.h \
+-			   $(KSU_KERNEL_DIR)/include/uapi/*.h) FORCE
+-	$(call if_changed,ksu_runner)
+-
+-targets += preinit/runner.elf
+-$(obj)/preinit/blob.o: $(obj)/preinit/runner.elf
+-asflags-y += -DKSU_PREINIT_RUNNER_BIN=\"$(obj)/preinit/runner.elf\"
+-else
+-$(warning -- KernelSU: $(KSU_UAPI_INC) not found, preinit disabled)
++# preinit runner: requires the inline syscall-table hook architecture
++# (ksu_syscall_table, hook/<arch>/syscall_hook.c) which this bridge does not
++# compile - it only ever runs from syscall_event_bridge. Disable it outright;
++# preinit/preinit.h falls back to KSU_NO_PREINIT static inline no-ops.
+ ccflags-y += -DKSU_NO_PREINIT
+-endif
+ 
+ obj-$(CONFIG_KSU) += kernelsu.o
+ 
+diff --git a/kernel/Kconfig b/kernel/Kconfig
+index e84cffc8..9251818e 100644
+--- a/kernel/Kconfig
++++ b/kernel/Kconfig
+@@ -61,4 +61,97 @@ config KSU_X86_PATCH_SYSCALL_DISPATCHER
+ 	  Dynamically patch x64's hardened syscall dispatcher to support syscall hooks. This is a
+ 	  replacement for a kernel source code patch, and is useful for x86_64 LKM mode.
+ 
++menu "KernelSU - SUSFS"
++config KSU_SUSFS
++	bool "KernelSU addon - SUSFS"
++	depends on KSU
++	depends on THREAD_INFO_IN_TASK
++	default y
++	help
++	  Patch and Enable SUSFS to kernel with KernelSU.
++
++config KSU_SUSFS_SUS_PATH
++	bool "Enable to hide suspicious path"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow hiding the user-defined path and all its sub-paths from various system calls.
++	  - Use "add_sus_path_loop" instead of "add_sus_path" if the user-defined path is frequently modified.
++	  - Use with cautious as it may cause performance loss and will be vulnerable to side channel attacks,
++	  	just disable this feature if it doesn't work for you or you don't need it at all.
++	  - Effective only on zygote/zygote_next spawned user app process that is marked with TIF_PROC_UMOUNTED.
++
++config KSU_SUSFS_SUS_MOUNT
++	bool "Enable to hide suspicious mounts"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Automatically assign fake mnt_id and fake mnt_group_id for mounts mounted by ksu process until
++	    /sdcard is  decrypted, this is to evade from mnt_id/mnt_group_id gap detections.
++	  - Allow hiding all sus mounts from /proc/self/[mounts|mountinfo|mountstat] for non-su processes.
++	  - Effective only on zygote/zygote_next spawned user app process that is marked with TIF_PROC_UMOUNTED.
++
++config KSU_SUSFS_SUS_KSTAT
++	bool "Enable to spoof suspicious kstat"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow spoofing the kstat of user-defined file/directory.
++	  - Effective on all processes with (uid % 100000) >= 10000.
++
++config KSU_SUSFS_SPOOF_UNAME
++	bool "Enable to spoof uname"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow spoofing the string returned by uname syscall to user-defined string.
++	  - Effective on all processes.
++
++config KSU_SUSFS_ENABLE_LOG
++	bool "Enable logging susfs log to kernel"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow logging susfs log to kernel, uncheck it to completely disable all susfs log.
++
++config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
++	bool "Enable to automatically hide ksu and susfs symbols from /proc/kallsyms"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Automatically hide ksu and susfs symbols from '/proc/kallsyms'.
++	  - Effective on all processes.
++
++config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	bool "Enable to spoof /proc/bootconfig (gki) or /proc/cmdline (non-gki)"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Spoof the output of /proc/bootconfig (gki) or /proc/cmdline (non-gki) with a user-defined file.
++	  - Effective on all processes.
++
++config KSU_SUSFS_OPEN_REDIRECT
++	bool "Enable to redirect a path to be opened with another path"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow redirecting a target path to be opened with another user-defined path.
++	  - Both target path and redirected path must be existed before they can be added to the kernel.
++	  - Users have to take care of the selinux permission of both target path and redirected path by themselves.
++	  - OPEN_REDIRECT does not bypass some detections by default, but users can work with SUS_KSTAT to bypass them.
++	  - Effective only on processes with pre-defined uid scheme.
++
++config KSU_SUSFS_SUS_MAP
++	bool "Enable to hide some mmapped real file from different proc maps interfaces"
++	depends on KSU_SUSFS
++	default y
++	help
++	  - Allow hiding mmapped real file from /proc/<pid>/[maps|smaps|smaps_rollup|map_files|mem|pagemap]
++	  - It does NOT support hiding for anon memory.
++	  - It does NOT hide any inline hooks or plt hooks cause by the injected library itself.
++	  - It may not be able to evade detections by apps that implement a good injection detection.
++	  - Effective only on zygote/zygote_next spawned user app process that is marked with TIF_PROC_UMOUNTED
++	    and with (uid % 100000) >= 10000.
++
++endmenu
+ endmenu
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 05888d7b..208e7f0e 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -36,4 +36,14 @@ format:
+ check-format:
+ 	$(FORMAT_FILES) | xargs -0 clang-format --dry-run --Werror
+ 
++## For susfs stuff ##
++ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
++$(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
++$(info )
++$(info -- SUSFS_VERSION: $(SUSFS_VERSION))
++else
++$(info -- You have not integrated susfs in your kernel yet.)
++$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
++endif
++
+ # Keep a new line here!! Because someone may append config
+diff --git a/kernel/core/init.c b/kernel/core/init.c
+index 29b4438f..0f5109a8 100644
+--- a/kernel/core/init.c
++++ b/kernel/core/init.c
+@@ -32,6 +32,9 @@
+ #include "infra/symbol_resolver.h"
+ #include "preinit/preinit.h"
+ #include "extension/extension.h"
++#include <linux/susfs.h>
++#include "hook/setuid_hook.h"
++#include "feature/sucompat.h"
+ 
+ #if defined(__x86_64__) && !defined(CONFIG_KSU_X86_PATCH_SYSCALL_DISPATCHER)
+ #include <asm/cpufeature.h>
+@@ -160,6 +163,9 @@ int __init kernelsu_init(void)
+         ksu_spoof_version(spoof_release, spoof_version);
+     }
+ 
++#ifdef CONFIG_KSU_SUSFS
++    susfs_init();
++#endif
+     ksu_syscall_hook_init();
+ 
+     ksu_feature_init();
+@@ -221,6 +227,10 @@ int __init kernelsu_init(void)
+         ksu_preinit_init();
+ 
+         ksu_file_wrapper_init();
++
++        ksu_sucompat_init();
++
++        ksu_setuid_hook_init();
+     }
+ 
+ #ifdef MODULE
+diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
+index 94554559..bea22fda 100644
+--- a/kernel/supercall/dispatch.c
++++ b/kernel/supercall/dispatch.c
+@@ -33,6 +33,7 @@
+ #include "extension/extension.h"
+ #include "extension/umount_paths.h"
+ #include "extension/version_spoof.h"
++#include <linux/susfs.h>
+ 
+ static int do_grant_root(void __user *arg)
+ {
+@@ -152,6 +153,7 @@ static int do_report_event(void __user *arg)
+             } else {
+                 pr_info("boot_complete triggered\n");
+                 on_boot_completed();
++                susfs_start_sdcard_monitor_fn();
+             }
+         }
+         break;
