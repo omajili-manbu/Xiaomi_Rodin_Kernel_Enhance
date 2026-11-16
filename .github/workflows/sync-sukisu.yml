@@ -73,11 +73,12 @@ jobs:
             echo "::error::$TAG is a draft/prerelease - only stable release tags are tracked"
             exit 1
           fi
-          # count 取自 release 资产名（SukiSU_v<ver>_<count>-release.apk），与
-          # SukiSU CI 打进管理器的公式版本值同源，是模块/管理器配对的权威值。
-          # [^_]* 兼容 v4.2.1-r2 这类带 -rN 后缀的版本段，否则 count 恒为空
-          COUNT=$(echo "$REL" | jq -r '.assets[].name' \
-            | sed -n 's/^SukiSU_v[^_]*_\([0-9]*\).*apk$/\1/p' | head -n1)
+          # count 取自 release 资产名（<品牌>_v<ver>_<count>-release.apk；品牌段
+          # 会改名，如 SukiSU -> SukiSU_Nova），与 SukiSU CI 打进管理器的公式
+          # 版本值同源，是模块/管理器配对的权威值。
+          # [^_]* 兼容 v4.2.1-r2 这类带 -rN 后缀的版本段与品牌改名，否则 count 恒为空
+          COUNT=$(echo "$REL" | jq -r '.assets[] | select(.name | endswith("-release.apk")) | .name' \
+            | awk -F_ '{ v=$NF; sub(/-release[.]apk$/, "", v); if (v ~ /^[0-9]+$/) print v }' | head -n1)
           ANCHOR=$(cat drivers/kernelsu/.sukisu_tag 2>/dev/null || echo "")
           echo "target tag: $TAG (anchored: ${ANCHOR:-<none>}, release count: ${COUNT:-<unparsed>})"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -104,8 +105,8 @@ jobs:
             # pagination counts the full history of the RELEASE TAG (bare rev-list
             # count domain, not the asset-name formula value); sukisu_count_is
             # keeps the two domains apart in ksu_pin_version_sukisu.py
-            SU_COUNT=$(curl -sI "https://api.github.com/repos/$SUKISU_REPO/commits?sha=$TAG&per_page=1" \
-              | grep -i '^link:' | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p')
+            SU_COUNT=$( { curl -sI "https://api.github.com/repos/$SUKISU_REPO/commits?sha=$TAG&per_page=1" \
+              | grep -i '^link:' || true; } | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p')
             COUNT_IS=bare
           fi
           [ -n "$SU_COUNT" ] || { echo "::error::cannot resolve commit count for $TAG"; exit 1; }
@@ -113,10 +114,31 @@ jobs:
           echo "sukisu_count=$SU_COUNT" >> "$GITHUB_OUTPUT"
           echo "sukisu_count_is=$COUNT_IS" >> "$GITHUB_OUTPUT"
 
-          # Bridge patch: pick the newest by version-sorted filename (the
-          # filename carries the tag it was authored against).
-          BRIDGE_PATCH=$(ls "$GITHUB_WORKSPACE"/.github/patches/10_enable_susfs_for_ksu-*.patch | sort -V | tail -n1)
-          [ -n "$BRIDGE_PATCH" ] || { echo "::error::no 10_enable_susfs_for_ksu-*.patch found"; exit 1; }
+          # Bridge patch: the filename carries the tag it was authored against.
+          # Upstream reset the version line at v3.0.0 (SukiSU-Nova rebrand), so
+          # "newest by sort -V" is wrong (v3.0.0 sorts below v4.3.0). Pick the
+          # patch whose version segment matches the target tag exactly (with
+          # -rN variants); fall back to the newest patch of the same major.
+          TAG_VER="${TAG#v}"
+          BRIDGE_PATCH=""
+          for f in "$GITHUB_WORKSPACE"/.github/patches/10_enable_susfs_for_ksu-*.patch; do
+            PV=$(basename "$f" | sed -n 's/^10_enable_susfs_for_ksu-\(.*\)\.patch$/\1/p')
+            PV="${PV#v}"
+            case "$PV" in
+              "$TAG_VER"|"$TAG_VER"-r*) BRIDGE_PATCH="$f"; break ;;
+            esac
+          done
+          if [ -z "$BRIDGE_PATCH" ]; then
+            MAJOR=$(echo "$TAG_VER" | cut -d. -f1)
+            for f in $(ls "$GITHUB_WORKSPACE"/.github/patches/10_enable_susfs_for_ksu-*.patch | sort -V | tac); do
+              PV=$(basename "$f" | sed -n 's/^10_enable_susfs_for_ksu-\(.*\)\.patch$/\1/p')
+              PV="${PV#v}"
+              case "$PV" in
+                "$MAJOR".*) BRIDGE_PATCH="$f"; break ;;
+              esac
+            done
+          fi
+          [ -n "$BRIDGE_PATCH" ] || { echo "::error::no 10_enable_susfs_for_ksu-*.patch for $TAG - author a new bridge in-tree"; exit 1; }
           echo "bridge patch: $BRIDGE_PATCH"
           echo "bridge_patch=$BRIDGE_PATCH" >> "$GITHUB_OUTPUT"
 
