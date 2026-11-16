@@ -105,6 +105,7 @@ module_param(spoof_version, charp, 0);
 
 int __init kernelsu_init(void)
 {
+    int ret;
 
     pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_PACKAGE_NAME "\n");
 #if defined(__x86_64__) && !defined(CONFIG_KSU_X86_PATCH_SYSCALL_DISPATCHER)
@@ -151,14 +152,12 @@ int __init kernelsu_init(void)
     pr_info("initializing symbol resolver\n");
     ksu_init_symbol_resolver();
 
-#if defined(MODULE) && defined(CONFIG_DEBUG_INFO_BTF)
-    int ret = ksu_selinux_inode_init();
+    ret = ksu_selinux_inode_init();
     if (ret) {
         put_cred(ksu_cred);
         ksu_cred = NULL;
         return ret;
     }
-#endif
 
     if (spoof_release || spoof_version) {
         ksu_spoof_version(spoof_release, spoof_version);
