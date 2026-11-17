@@ -759,6 +759,9 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 
 	cxt->mtd = NULL;
 	flush_work(&cxt->work_erase);
+	vfree(cxt->oops_page_used);
+	cxt->oops_page_used = NULL;
+	cxt->oops_pages = 0;
 }
 
 
