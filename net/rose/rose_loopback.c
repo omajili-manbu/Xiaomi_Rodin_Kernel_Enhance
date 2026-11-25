@@ -101,7 +101,12 @@ static void rose_loopback_timer(struct timer_list *unused)
 			continue;
 		}
 		dest      = (rose_address *)(skb->data + ROSE_CALL_REQ_DEST_ADDR_OFF);
-		lci_o     = ROSE_DEFAULT_MAXVC + 1 - lci_i;
+		/*
+		 * The call and its answer use the same neighbour: give the
+		 * answer the LCI at the other end of the 12-bit range, which
+		 * rose_new_lci() never hands out, and get back from it.
+		 */
+		lci_o     = 0xFFF + 1 - lci_i;
 
 		skb_reset_transport_header(skb);
 
@@ -109,6 +114,7 @@ static void rose_loopback_timer(struct timer_list *unused)
 		if (sk) {
 			if (rose_rcv_frame(sk, skb) == 0)
 				kfree_skb(skb);
+			sock_put(sk);
 			continue;
 		}
 

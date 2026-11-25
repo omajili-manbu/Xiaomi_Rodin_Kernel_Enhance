@@ -838,7 +838,7 @@
 		.shstrtab 0 : { *(.shstrtab) }
 
 #define MODINFO								\
-		.modinfo : { *(.modinfo) . = ALIGN(8); }
+		.modinfo (INFO) : { KEEP(*(.modinfo)) }
 
 /* RODIN: loaded bounds-marked copy of the built-in modinfo blob, harvested
  * from vmlinux.o by scripts/Makefile.vmlinux (CONFIG_RODIN_BUILTIN_SKIP).

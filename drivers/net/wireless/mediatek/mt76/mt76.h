@@ -1531,6 +1531,8 @@ void mt76_sta_ps_transition(struct mt76_dev *dev, struct mt76_wcid *wcid,
 bool mt76_has_tx_pending(struct mt76_phy *phy);
 int mt76_update_channel(struct mt76_phy *phy);
 void mt76_update_survey(struct mt76_phy *phy);
+void mt76_phy_chandef_set(struct mt76_phy *phy,
+			  struct cfg80211_chan_def *chandef);
 void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);
@@ -1779,6 +1781,18 @@ void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e);
 int __mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 		       bool offchannel);
+
+static inline bool
+mt76_offchannel_chandef(struct mt76_phy *phy, struct ieee80211_channel *chan,
+			struct cfg80211_chan_def *chandef)
+{
+	cfg80211_chandef_create(chandef, chan, NL80211_CHAN_HT20);
+	if (phy->main_chandef.chan != chan)
+		return true;
+
+	*chandef = phy->main_chandef;
+	return false;
+}
 int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 		     bool offchannel);
 void mt76_scan_work(struct work_struct *work);
@@ -1790,6 +1804,7 @@ struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
 					    struct ieee80211_vif *vif);
 void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
 			   struct mt76_vif_link *mlink);
+void mt76_offchannel_notify(struct mt76_phy *phy, bool offchannel);
 
 /* usb */
 static inline bool mt76u_urb_error(struct urb *urb)

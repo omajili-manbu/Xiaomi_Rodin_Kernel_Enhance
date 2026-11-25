@@ -166,7 +166,7 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 /* standard permission lookup pattern - supports early bailout */
 int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
 		aa_state_t state, u32 request,
-		struct aa_perms *p, struct apparmor_audit_data *ad)
+		const struct aa_perms *p, struct apparmor_audit_data *ad)
 {
 	struct aa_perms perms;
 
@@ -308,15 +308,16 @@ static int aa_label_sk_perm(const struct cred *subj_cred,
 int aa_sk_perm(const char *op, u32 request, struct sock *sk)
 {
 	struct aa_label *label;
+	bool needput;
 	int error;
 
 	AA_BUG(!sk);
 	AA_BUG(in_interrupt());
 
 	/* TODO: switch to begin_current_label ???? */
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_label_sk_perm(current_cred(), label, op, request, sk);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
